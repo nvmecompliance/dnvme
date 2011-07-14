@@ -33,8 +33,8 @@ static int dnvme_pci_resume();
 */
 
 int driver_default_ioctl(struct file *file,
-                        unsigned long buffer,
-                        size_t length
+			unsigned long buffer,
+			size_t length
 );
 
 

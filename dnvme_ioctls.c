@@ -11,33 +11,66 @@
 #include "sysfuncproto.h"
 #include "sysdnvme.h"
 
-/*----------------------------------------------------------------------------*/
 /**
-*   driver_genric_read - Generic Read functionality for reading 
+*   driver_genric_read - Generic Read functionality for reading
 *   NVME PCIe registers and memory mapped addres
 *   @param file
 *   @param buffer
-*   @param length
+*   @param nvme_data
+*   @param pdev
 *   @return if successfully read returns 0 else returns -ERR.
 */
-/*----------------------------------------------------------------------------*/
 int driver_generic_read(struct file *file,
 			unsigned long buffer,
-			struct nvme_read_generic *nvme_data, 
+			struct nvme_read_generic *nvme_data,
 			struct pci_dev *pdev)
 {
 unsigned long __user *datap = (unsigned long __user *)buffer;
+u8 offset;
+u8 data;
+u8 index;
 
     LOG_DEBUG("Inside Generic Read Funtion fo the IOCTLs\n");
 
-   switch(nvme_data->type) {
+   switch (nvme_data->type) {
    case NVME_PCI_HEADER:
+
 	LOG_DEBUG("Invoking User App request to read  the PCI Header Space\n");
-	/* Get the device from the linked list */
-   	break;
+
+	/*
+	* Check here if any invalid data is passed and retrun from here.
+	*/
+	if ((nvme_data->offset < 0) || (nvme_data->nBytes < 0)) {
+		LOG_ERROR("invalid parameters are to \
+			IOCTL generic function...\n");
+		return -EINVAL;
+	}
+
+	/*
+	* Copy offset to local variable.
+	*/
+	offset = nvme_data->offset;
+
+	/*
+	* Loop through the number of bytes that are specified in the
+	* bBytes parameter.
+	*/
+	for (index = 0; index < nvme_data->nBytes; index++) {
+		/*
+		* Read a byte from the configuration register
+		* and pass it to user.
+		*/
+		pci_read_config_byte(pdev, offset + index, &data);
+
+		LOG_DEBUG("Reading PCI header from offset = %d, data = %x\n",
+					(offset + index), data);
+	}
+	break;
+
    case NVME_PCI_BAR0:
 	LOG_DEBUG("Invoking User App request to read  the PCI Header Space\n");
 	break;
+
    default:
 	LOG_DEBUG("Could not find switch case using defuult\n");
    }
@@ -47,9 +80,9 @@ return 0;
 
 
 int driver_default_ioctl(struct file *file,
-                        unsigned long buffer,
-                        size_t length
-)
+			unsigned long buffer,
+			size_t length
+			)
 {
 unsigned long __user *datap = (unsigned long __user *)buffer;
 unsigned long tmp;
@@ -67,7 +100,7 @@ int i = 0;
 	i++;
   }
 */
-    put_user(tmp,datap);
+    put_user(tmp, datap);
 
 return 0;
 }

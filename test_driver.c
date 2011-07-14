@@ -3,7 +3,6 @@
 #include <linux/fs.h>
 #include <linux/kthread.h>
 
-/* Make the card Hot Plug */
 /* project specific includes */
 #include "test_driver.h"
 #include "definitions.h"
