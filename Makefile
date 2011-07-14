@@ -1,4 +1,5 @@
-KDIR := /lib/modules/2.6.33.3-85.fc13.x86_64/build/
+# Modify the Makefile to point to Linux Server.
+KDIR := /lib/modules/2.6.35-30-server/build/
 EXTRA_CFLAGS += -I$(PWD)/
 
 obj-m := dnvme.o
