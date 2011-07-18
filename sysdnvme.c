@@ -1,4 +1,4 @@
-/**
+/*
 * sysdnvme.c
 * NMVE Express Device Driver for Test Complinace.
 *
@@ -11,6 +11,8 @@
 #include <linux/init.h>
 #include <linux/cdev.h>
 #include <linux/unistd.h>
+#include <linux/types.h>
+#include <linux/fcntl.h>
 
 #include "dnvme_ioctls.h"
 #include "definitions.h"
@@ -25,7 +27,7 @@
 #define NVME_BLOCK_SIZE		512
 #define NVME_BUFFER_SIZE	1024
 
-/**
+/*
 * Define the PCI storage express as
 * 0x1FFFFF
 */
@@ -34,7 +36,7 @@ static DEFINE_PCI_DEVICE_TABLE(dnvme_pci_tbl) = {
     { 0, }
     };
 
-/**
+/*
 * PCI dnvme driver structure definition
 */
 static struct pci_driver dnvme_pci_driver = {
@@ -43,7 +45,7 @@ static struct pci_driver dnvme_pci_driver = {
     .probe          = dnvme_pci_probe,
 };
 
-/**
+/*
 *   This is the main ioctl for char type device
 *   this ioctl invoke the dnmve device ioctls.
 */
@@ -52,7 +54,7 @@ static const struct file_operations dnvme_fops_f = {
       .ioctl = dnvme_ioctl_device,
 };
 
-/**
+/*
 *   struct nvme_dev_char will be basic structure for list
 *   of nvme devices
 */
@@ -60,7 +62,7 @@ struct nvme_dev_char {
 	struct cdev cdev;
 };
 
-/**
+/*
 * Block deivce ioctls when necessary in future.
 */
 static const struct block_device_operations dnvme_fops = {
@@ -98,26 +100,24 @@ static int dnvme_init(void)
    struct device *device = NULL;
    int nvme_ndevices = NVME_N_DEVICES;
    struct nvme_dev_char *dev = NULL;
-     /**
-      * desc no parameters, void
-     */
-  LOG_DEBUG("Init module - dnvme init\n");
 
-  nvme_major = register_blkdev(NVME_MAJOR, DRV_NAME);
-  if (nvme_major < 0) {
+   LOG_DEBUG("Init module - dnvme init\n");
+
+   nvme_major = register_blkdev(NVME_MAJOR, DRV_NAME);
+   if (nvme_major < 0) {
 	/*Unable to register the PCI device */
        LOG_ERROR("NVME Blk Registration failed\n");
        return nvme_major;
-     } else {
-
+   } else {
        NVME_MAJOR = nvme_major;
 
        LOG_DEBUG("Major Number = %d\n", NVME_MAJOR);
-     }
+   }
 
-    /* Unable to register block device for the moment in QEMU
-     * using it as char dev instead
-    */
+   /*
+   *  Unable to register block device for the moment in QEMU
+   *  using it as char dev instead
+   */
    /* This is classic way to register a char device */
    if (_CLASSIC_) {
 	nvme_major = register_chrdev(NVME_MAJOR, "nvme_ssd", &dnvme_fops_f);
@@ -172,13 +172,13 @@ static int dnvme_init(void)
 			GFP_KERNEL
 		);
 
-/* Commented as of now.. but for multiple card support */
-/*   while (n_devices > 0) {*/
+   /* Commented as of now.. but for multiple card support */
+   /*   while (n_devices > 0) {*/
    devno = MKDEV(nvme_major, nvme_minor);
-/* nvme_dev_c->data = NULL;
-   nvme_dev_c->buffer_size = NVME_BUFFER_SIZE;
-   nvme_dev_c->block_size = NVME_BLOCK_SIZE;
-*/
+   /* nvme_dev_c->data = NULL;
+      nvme_dev_c->buffer_size = NVME_BUFFER_SIZE;
+      nvme_dev_c->block_size = NVME_BLOCK_SIZE;
+   */
    cdev_init(&dev->cdev, &dnvme_fops_f);
    dev->cdev.owner = THIS_MODULE;
    dev->cdev.ops = &dnvme_fops_f;
@@ -198,7 +198,7 @@ static int dnvme_init(void)
    }
 
    nvme_minor = nvme_minor + 1;
-/*} //while n_device*/
+   /*} //while n_device*/
 
   retCode = pci_register_driver(&dnvme_pci_driver);
 
@@ -208,29 +208,25 @@ static int dnvme_init(void)
 	return retCode;
    }
 
-      LOG_DEBUG("PCI Registration Success\n\
-	PCI Register driver return code = %d\n", retCode);
-    return 0;
+   LOG_DEBUG("PCI Registration Success return code = %d\n", retCode);
+   return 0;
 }
 
 /**
-*  dnvme_pci_probe - Probe the NVME PCIe device for BARs.
-*  @param pdev
-*  @param id
-*  @author T.Sravan Kumar
-*  @return whether probing was successful or not.
+* dnvme_pci_probe - Probe the NVME PCIe device for BARs.
+* this function is called when the driver invokes the fops
+* after basic initialization is performed.
 */
 static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *id)
 {
-   int retCode = -ENODEV;
-   /*int err = -EINVAL;*/
-   int bars = 0;
+   int retCode = -ENODEV; /* retCode is set to no devices */
+   int bars = 0; /* initialize bars to 0 */
    struct nvme_device_entry *nvme_dev_list = NULL;
-   u32  BaseAddress0 = 0x0;
+   u32  BaseAddress0 = 0;
    u32  *bar;
 
-   /**
+   /*
    *	Following the Iniitalization steps from LDD 3 and pci.txt.
    *	Before touching any device registers, the driver needs to enable
    *	the PCI device by calling pci_enable_device().
@@ -238,7 +234,7 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 
    LOG_DEBUG("Start probing for NVME PCI Express Device...\n");
 
-     if ((retCode == pci_enable_device(pdev)) < 0) {
+   if ((retCode == pci_enable_device(pdev)) < 0) {
 	LOG_NORMAL("Error!! PciEnable not successful...\n");
 	return retCode;
    }
@@ -251,12 +247,12 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 	return -1;
    }
 
-   LOG_DEBUG("NVME Probing... Dev = 0x%x Vendor = 0x%x\n\
-		Bus No = 0x%x, Dev Slot = 0x%x\n\
-		Dev Func = 0x%x, Class = 0x%x\n",
-		pdev->device, pdev->vendor,
-		pdev->bus->number, PCI_SLOT(pdev->devfn),
-		PCI_FUNC(pdev->devfn), pdev->class);
+   LOG_DEBUG("NVME Probing... Dev = 0x%x Vendor = 0x%x\n",
+			pdev->device, pdev->vendor);
+   LOG_DEBUG("Bus No = 0x%x, Dev Slot = 0x%x\n",
+			pdev->bus->number, PCI_SLOT(pdev->devfn));
+   LOG_DEBUG("Dev Func = 0x%x, Class = 0x%x\n",
+			PCI_FUNC(pdev->devfn), pdev->class);
 
     /* Return void, Enables bus mastering and calls pcibios_set_master */
    pci_set_master(pdev);
@@ -273,7 +269,8 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 
    LOG_DEBUG("PCI bars return code = %d\n", bars);
    LOG_DEBUG("PCI Probe Success!. Return Code = %d\n", retCode);
-  /**
+
+   /**
    *  Try Allocating the device memory in the host and check
    *  for success.
    */
@@ -295,13 +292,14 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 	LOG_ERROR("allocate Host Memory for Device Failed!!...\n");
    }
 
-#ifdef DEBUG
-   /*Only debug because the above remap should give BAR's */
+   /*
+   * Only debug because the above remap should give BAR's
+   */
    pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &BaseAddress0);
    LOG_DEBUG("PCI BAR 0 = 0x%08x\n", BaseAddress0);
-#endif
 
-   /*! Call function to get the NVME Allocated to IOCTLs.
+   /*
+   * Call function to get the NVME Allocated to IOCTLs.
    * Using the generic nvme fops we will allocate the required
    * ioctl entry function.
    */
@@ -316,12 +314,10 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    return retCode;
 }
 
-/**
-*  dnvme_blk_gendisk  -Creates Block Disk to add to the the kernel
-*  @param *pdev
-*  @param which
-*  @return returns 0 if block disk adding to kernel success.
-*  @author T.Sravan Kumar
+/*
+* dnvme_blk_gendisk - Creates Block Disk to add to the the kernel
+* This function helps in setting up the block device
+* with required parameters for inserting into disk.
 */
 static int dnvme_blk_gendisk(struct pci_dev *pdev, int which)
 {
@@ -357,14 +353,10 @@ static int dnvme_blk_gendisk(struct pci_dev *pdev, int which)
    return 0;
 }
 
-/**
-*  dnvme_ioctl  - Call correcponding ioctl functions from Blk driver.
-*  @param *bdev
-*  @param  mode
-*  @param cmd
-*  @param arg
-*  @return if ioctl call succesful or not.
-*  @author T.Sravan Kumar
+/*
+* dnvme_ioctl  - Call correcponding ioctl functions from Blk driver.
+* This function is used only when the device is initialized as block
+* device otherwise the char type ioctl is used.
 */
 static int dnvme_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
@@ -394,7 +386,7 @@ static int dnvme_ioctl(struct block_device *bdev, fmode_t mode,
 return 0;
 }
 
-/**
+/*
  * This function is called whenever a process tries to do an ioctl on our
  * device file. We get two extra parameters (additional to the inode and file
  * structures, which all device functions get): the number of the ioctl called
@@ -403,24 +395,18 @@ return 0;
  * If the ioctl is write or read/write (meaning output is returned to the
  * calling process), the ioctl call returns the output of this function.
  *
- *  @param *inode
- *  @param *file
- *  @param ioctl_num
- *  @param ioctl_param
- *  @author T.Sravan Kumar
- *  @return if ioctl call succesful or not.
- */
+*/
 int dnvme_ioctl_device(
 		struct inode *inode,	/* see include/linux/fs.h */
 		struct file *file,	/* ditto */
 		unsigned int ioctl_num,	/* number and param for ioctl */
 		unsigned long ioctl_param)
 {
-    int retVal = -EINVAL;
-    int len;
-    struct nvme_read_generic *nvme_data;
-    struct nvme_device_entry *nvme_dev_entry;
-    struct pci_dev *pdev;
+   int retVal = -EINVAL;
+   int len;
+   struct nvme_read_generic *nvme_data;
+   struct nvme_device_entry *nvme_dev_entry;
+   struct pci_dev *pdev;
 
    len = 80;
 
@@ -432,7 +418,7 @@ int dnvme_ioctl_device(
 	nvme_dev_entry->slot, nvme_dev_entry->func);
 	LOG_DEBUG("[Nvme_Drv] Bar 0 [0x%x]", nvme_dev_entry->bar);
 	}
-   /**
+   /*
    * Given a ioctl_num invoke corresponding function
    */
    switch (ioctl_num) {
@@ -471,17 +457,16 @@ int dnvme_ioctl_device(
 return 0;
 }
 
-/**
+/*
 *  Module Exit code.
 *  dnvme_exit -sTODO  Perform clean exit
-*  @author T.Sravan Kumar
 */
 static void __exit dnvme_exit(void)
 {
-    unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
-    pci_unregister_driver(&dnvme_pci_driver);
+   unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
+   pci_unregister_driver(&dnvme_pci_driver);
 
-    LOG_DEBUG("dnvme exited...Bye!\n");
+   LOG_DEBUG("dnvme exited...Bye!\n");
 }
 
 /*

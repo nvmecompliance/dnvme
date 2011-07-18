@@ -1,14 +1,7 @@
 #ifndef _DEFINITIONS_H_
 #define _DEFINITIONS_H_
 
-#ifndef __KERNEL__
-#include <stdint.h>
-
-#define LOG_DEBUG	printf
-#define LOG_NORMAL	printf
-#define LOG_ERROR	printf
-
-#else
+#ifdef __KERNEL__
 
 #define LOG_DEBUG	printk
 #define LOG_NORMAL	printk
@@ -17,7 +10,6 @@
 #endif
 
 #define DEVICE_LIST_SIZE		20
-#define TEST_MAJOR			140
 #define CONFIG_PCI			1
 #define PCI_CLASS_STORAGE_EXPRESS	0x010802
 #define NVME_MINORS			16
@@ -40,7 +32,7 @@ enum {
      NVME_SEND_ADMN_CMD, /** < enum Send and admin command. */
 };
 
-/*
+/**
 * Definition for IOCTL driver code with parameters and size
 * ioctl uses _IOWR for device control operations.
 */

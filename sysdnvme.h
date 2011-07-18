@@ -2,13 +2,14 @@
 #define _DNVME_H_
 
 #define LEVEL	"dnvme"
-#define LOG_NORM(msg, ...)   \
-    fprintf(stdout, "%s: %s\n", LEVEL, msg);
+#define LOG_NOR(msg, ...)   \
+   fprintf(stdout, "%s: %s\n", LEVEL, msg);
 #define LOG_ERR(msg)    \
-    fprintf(stderr, "%s-ERR:%s:%d:"msg"\n", LEVEL, __FILE__, __LINE__##__VA_ARGS__);
+   fprintf(stderr, "%s-ERR:%s:%d:"msg"\n", LEVEL, __FILE__,\
+    __LINE__##__VA_ARGS__);
 #ifdef DEBUG
 #define LOG_DBG(msg)    \
-    fprintf(stderr, "%s-DBG:__FILE__:__LINE__: %s\n", LEVEL, msg);
+   fprintf(stderr, "%s-DBG:__FILE__:__LINE__: %s\n", LEVEL, msg);
 #else
 #define LOG_DBG(msg);
 #endif

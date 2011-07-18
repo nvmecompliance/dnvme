@@ -19,6 +19,9 @@
 * nvme based card in the system.
 * It provides the base address and bus, dev, fun no.s
 * for the device it found.
+* @param pdev
+* @param id
+* @return whether probing was successful or not.
 */
 static int dnvme_pci_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id);
@@ -28,6 +31,11 @@ static int dnvme_pci_probe(struct pci_dev *pdev,
 * for block type of device.
 * The ioctl main entry starts from this function whcih takes
 * argument specific to block device.
+* @param bdev
+* @param mode
+* @param cmd
+* @param arg
+* @return whether successful or not.
 */
 static int dnvme_ioctl(
 			struct block_device *bdev,
@@ -38,6 +46,9 @@ static int dnvme_ioctl(
 * This function prototype is for assigning disk
 * parameters in case if the device pdev is of block type
 * device.
+* @param bdev
+* @param which
+* @return whether successful or not.
 */
 static int dnvme_blk_gendisk(
 			struct pci_dev *pdev,
@@ -48,6 +59,11 @@ static int dnvme_blk_gendisk(
 * The user selection of IOCTL required is specified in the
 * ioctl_num parameter based on which corresponing IOCTL
 * call is made. The data supplied by used is in ioctl_param.
+* @param inode
+* @param file
+* @param ioctl_num
+* @param ioctl_param
+* @return whether successful or not.
 */
 static int dnvme_ioctl_device(
 			struct inode *inode,
@@ -58,6 +74,10 @@ static int dnvme_ioctl_device(
 * This is default Ioctl that gets called when the user
 * ioctl_num does not
 * match any valid ioctl number in the driver.
+* @param file
+* @param buffer
+* @param length
+* @return whether successful or not.
 */
 int driver_default_ioctl(
 			struct file *file,

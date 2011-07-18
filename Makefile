@@ -32,11 +32,8 @@ $(SUBDIRS):
 	$(MAKE) -C $@ $(GOAL)
 
 chksrc:
-	$(CDIR)checkpatch.pl --file --terse $(SOURCE)$(DRV_DIR)sysdnvme.c
-	$(CDIR)checkpatch.pl --file --terse $(SOURCE)$(DRV_DIR)dnvme_ioctls.c
+	$(CDIR)checkpatch.pl --file --terse $(SOURCE)$(DRV_DIR)*.c
 chkhdr:
-	$(CDIR)checkpatch.pl --file --terse $(SOURCE)$(DRV_DIR)dnvme_ioctls.h
-	$(CDIR)checkpatch.pl --file --terse $(SOURCE)$(DRV_DIR)definitions.h
-	$(CDIR)checkpatch.pl --file --terse $(SOURCE)$(DRV_DIR)sysfuncproto.h
+	$(CDIR)checkpatch.pl --file --terse $(SOURCE)$(DRV_DIR)*.h
 
 .PHONY: all clean doc
