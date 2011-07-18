@@ -4,6 +4,13 @@ CDIR := /usr/src/linux-source-2.6.35/scripts/
 SOURCE := ~/Projects/Nvme_Project/
 DRV_DIR := dnvme/
 
+SUBDIR := \
+	doc
+
+SOURCES := \
+	sysdnvme.c \
+	dnvme_ioctls.c
+
 FLAG = -DDEBUG
 EXTRA_CFLAGS += $(FLAG)
 EXTRA_CFLAGS += -I$(PWD)/
@@ -15,8 +22,14 @@ all:
 	make -C $(KDIR) M=$(PWD) modules
 clean:
 	make -C $(KDIR) M=$(PWD) clean
-doc:
+
+doc: GOAL=doc
+
+doc: $(SUBDIRS)
 	doxygen doxygen.conf > doxygen.log
+
+$(SUBDIRS):
+	$(MAKE) -C $@ $(GOAL)
 
 chksrc:
 	$(CDIR)checkpatch.pl --file --terse $(SOURCE)$(DRV_DIR)sysdnvme.c

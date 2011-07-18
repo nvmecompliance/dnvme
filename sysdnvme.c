@@ -1,6 +1,6 @@
 /**
-* \file sysdnvme.c
-* \brief NMVE Express Device Driver for Test Complinace.
+* sysdnvme.c
+* NMVE Express Device Driver for Test Complinace.
 *
 * Copyright (c) 2011, Intel Corporation.
 *
@@ -25,11 +25,14 @@
 #define NVME_BLOCK_SIZE		512
 #define NVME_BUFFER_SIZE	1024
 
+/**
+* Define the PCI storage express as
+* 0x1FFFFF
+*/
 static DEFINE_PCI_DEVICE_TABLE(dnvme_pci_tbl) = {
     { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0x1FFFFF) },
     { 0, }
     };
-
 
 /**
 * PCI dnvme driver structure definition
@@ -38,9 +41,6 @@ static struct pci_driver dnvme_pci_driver = {
     .name           = DRV_NAME,
     .id_table       = dnvme_pci_tbl,
     .probe          = dnvme_pci_probe,
-  /* .remove         = dnvme_pic_remove,
-    .suspend        = dnvme_pci_suspend,
-    .resume         = dnvme_pci_resume, */
 };
 
 /**
@@ -142,7 +142,7 @@ static int dnvme_init(void)
 	nvme_major = MAJOR(nvme_dev_c);
    }
 
-   /* Allocate Manor and create class */
+   /* Allocate Major and create class */
    NVME_MAJOR = nvme_major;
 
    class_nvme = class_create(THIS_MODULE, NVME_DEVICE_NAME);
@@ -237,7 +237,6 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    */
 
    LOG_DEBUG("Start probing for NVME PCI Express Device...\n");
-   LOG_NORMAL("Logging using Log Normal...\n");
 
      if ((retCode == pci_enable_device(pdev)) < 0) {
 	LOG_NORMAL("Error!! PciEnable not successful...\n");
@@ -309,7 +308,7 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    dnvme_blk_gendisk(pdev, 0);
 
    nvme_dev_list->pdev = pdev;
-   nvme_dev_list->bar = BaseAddress0;
+   nvme_dev_list->bar = (u32 *)BaseAddress0;
    nvme_dev_list->bus = pdev->bus->number;
    nvme_dev_list->slot = PCI_SLOT(pdev->devfn);
    nvme_dev_list->func = PCI_FUNC(pdev->devfn);
@@ -424,25 +423,36 @@ int dnvme_ioctl_device(
     struct pci_dev *pdev;
 
    len = 80;
+
+   /* Get the device from the linked list */
+   list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
+	pdev = nvme_dev_entry->pdev;
+	LOG_DEBUG("[Nvme_Drv] device [%02x:%02x.%02x]",
+	nvme_dev_entry->bus,
+	nvme_dev_entry->slot, nvme_dev_entry->func);
+	LOG_DEBUG("[Nvme_Drv] Bar 0 [0x%x]", nvme_dev_entry->bar);
+	}
+   /**
+   * Given a ioctl_num invoke corresponding function
+   */
    switch (ioctl_num) {
    case NVME_IOCTL_READ_GENERIC:
 
-	LOG_DEBUG("IOCTL called from user land..\n\
-		Invoking generic read function...\n");
-	nvme_data = (struct nvme_read_generic *)ioctl_param;
 	LOG_DEBUG("Invoking User App request to read  the PCI Header Space\n");
+	nvme_data = (struct nvme_read_generic *)ioctl_param;
 
-	/* Get the device from the linked list */
-	list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
-		pdev = nvme_dev_entry->pdev;
-		LOG_DEBUG("[Nvme_Drv] device [%02x:%02x.%02x]",
-		nvme_dev_entry->bus,
-		nvme_dev_entry->slot, nvme_dev_entry->func);
-		LOG_DEBUG("[Nvme_Drv] Bar 0 [0x%x]", nvme_dev_entry->bar);
-		}
-	retVal = driver_generic_read(file, ioctl_param, nvme_data, pdev);
+	retVal = driver_generic_read(file, nvme_data, pdev);
 	break;
 
+   case NVME_IOCTL_WRITE_GENERIC:
+
+	LOG_DEBUG("Invoke IOCTL Generic Write Funtion..\n");
+	nvme_data = (struct nvme_read_generic *)ioctl_param;
+
+	retVal = driver_generic_write(file, nvme_data, pdev);
+
+
+	break;
    case NVME_IOCTL_CREATE_ADMN_Q:
 	LOG_DEBUG("IOCTL for Create Admin Q\n");
 	break;
@@ -477,7 +487,7 @@ static void __exit dnvme_exit(void)
 /*
 *  Driver Module Calls.
 */
-MODULE_DESCRIPTION("Low Level Device Driver for NMVE 1.0a Spec PCI Device");
+MODULE_DESCRIPTION("Kernel Device Driver for NMVE 1.0a Spec PCI Express");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:"DRV_NAME);

@@ -15,38 +15,21 @@
 
 /*!
 *  NVME Express Device Structure Parameters.
-*
-*
+*  the list of devices is maintained in this stucture
+*  using kernel linked list structure list_head
 */
 struct nvme_device_entry {
-    struct list_head list;
-    struct pci_dev *pdev;
-    int bus;
-    int slot;
-    int func;
-    struct gendisk *disk;
-    u32    *bar;
-    struct list_head namespaces;
-    char   serial[20];
-    char   model[40];
-    char   firmware_rev[8];
+    struct list_head list; /** linked list head pointer */
+    struct pci_dev *pdev; /** pointer to pci device */
+    int bus; /** bus number of the pci device */
+    int slot; /** slot number of this pci device */
+    int func; /** function no. of this pci device*/
+    struct gendisk *disk; /** if block device then gendisk type */
+    u32    *bar;   /**base address 0 for this device */
+    struct list_head namespaces; /** list head linked list for namespaces. */
+    char   serial[20]; /** Serial no. for the PCI device. */
+    char   model[40]; /** Modle no. for this device. */
+    char   firmware_rev[8]; /** Firmware revision of NMVE device */
 };
 
-
-/*! \mainpage Device Driver Documentation for NVME Specification 1.0a
-   This manual describes the different files in Device Driver for
-   NVME Compilance Suite 1.0a.
-
-- \subpage Introduction
-- \subpage Usage
-*/
-/*---------------------------------------------------------------------------*/
-/*! \page Introduction Introduction to NVME Device Driver Complinace Suite
-This page describes the user specific details.
-*/
-/*---------------------------------------------------------------------------*/
-/*! \page Usage How to Use this Device driver to test NVME Device
-This page describes the details on how to invoke this device driver
-and work with Complinace suite.
-*/
 #endif
