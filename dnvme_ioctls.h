@@ -14,7 +14,7 @@
 */
 #define PCI_DEVICE_STATUS               0x6
 
-/** 
+/**
 * @def DEV_ERR_MASK
 * The bit positions that are set in this 16 bit word
 * implies that the error is defined for those poistionis in
@@ -25,7 +25,7 @@
 /**
 * @def DPE
 * This bit position indicates data parity error.
-* Set to 1 by h/w when the controlller detects a 
+* Set to 1 by h/w when the controlller detects a
 * parity error on its interface.
 */
 #define DPE				0x8000
@@ -145,4 +145,4 @@ int driver_generic_write(struct file *file,
 * @param status
 */
 void device_status_chk(struct pci_dev *pdev,
-                        int status);
+			int status);

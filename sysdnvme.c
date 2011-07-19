@@ -284,6 +284,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 
    if (bar != NULL) {
 	LOG_DEBUG("Bar 0 Address remap: 0x%08x\n", *bar);
+	LOG_DEBUG("Still to get the remaped value.");
    } else {
 	LOG_ERROR("allocate Host Memory for Device Failed!!...\n");
    }
@@ -302,7 +303,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    dnvme_blk_gendisk(pdev, 0);
 
    nvme_dev_list->pdev = pdev;
-   memcpy(&nvme_dev_list->bar,&BaseAddress0, sizeof(u32));
+   memcpy(&nvme_dev_list->bar, &BaseAddress0, sizeof(u32));
    nvme_dev_list->bus =  pdev->bus->number;
    nvme_dev_list->slot = PCI_SLOT(pdev->devfn);
    nvme_dev_list->func = PCI_FUNC(pdev->devfn);
@@ -427,7 +428,7 @@ int dnvme_ioctl_device(
 	LOG_DEBUG("Checking device Status before executing...\n");
 	device_status_chk(pdev, (int)ioctl_param);
 	break;
-   
+
    case NVME_IOCTL_READ_GENERIC:
 
 	LOG_DEBUG("Invoking User App request to read  the PCI Header Space\n");

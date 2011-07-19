@@ -33,7 +33,6 @@ $(SUBDIRS):
 
 chksrc:
 	$(CDIR)checkpatch.pl --file --terse $(SOURCE)$(DRV_DIR)*.c
-chkhdr:
 	$(CDIR)checkpatch.pl --file --terse $(SOURCE)$(DRV_DIR)*.h
 
 .PHONY: all clean doc

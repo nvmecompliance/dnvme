@@ -5,7 +5,7 @@
 
 #define LOG_DEBUG	printk
 #define LOG_NORMAL(msg, ...)	\
-	printk("%s\n", msg, __FILE__, __LINE__);
+	printk(KERN_ERR "%s\n", msg, __FILE__, __LINE__);
 #define LOG_ERROR	printk
 
 #endif
