@@ -144,5 +144,5 @@ int driver_generic_write(struct file *file,
 * @param pdev
 * @param status
 */
-void device_status_chk(struct pci_dev *pdev,
-			int status);
+int device_status_chk(struct pci_dev *pdev,
+			int *status);

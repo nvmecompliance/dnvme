@@ -399,14 +399,12 @@ int dnvme_ioctl_device(
 		unsigned int ioctl_num,	/* number and param for ioctl */
 		unsigned long ioctl_param)
 {
-   int retVal = -EINVAL;
-   int len;
+   int ret_val = -EINVAL;
    struct nvme_read_generic *nvme_rd_data;
    struct nvme_write_generic *nvme_wr_data;
    struct nvme_device_entry *nvme_dev_entry;
+   int *nvme_dev_err_sts;
    struct pci_dev *pdev = NULL;
-
-   len = 80;
 
    /* Get the device from the linked list */
    list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
@@ -425,8 +423,9 @@ int dnvme_ioctl_device(
 	* check if the device has any errors set in its status
 	* register. And report errors.
 	*/
-	LOG_DEBUG("Checking device Status before executing...\n");
-	device_status_chk(pdev, (int)ioctl_param);
+	nvme_dev_err_sts = (int *)ioctl_param;
+	LOG_DEBUG("Checking device Status...\n");
+	ret_val = device_status_chk(pdev, nvme_dev_err_sts);
 	break;
 
    case NVME_IOCTL_READ_GENERIC:
@@ -434,7 +433,7 @@ int dnvme_ioctl_device(
 	LOG_DEBUG("Invoking User App request to read  the PCI Header Space\n");
 	nvme_rd_data = (struct nvme_read_generic *)ioctl_param;
 
-	retVal = driver_generic_read(file, nvme_rd_data, pdev);
+	ret_val = driver_generic_read(file, nvme_rd_data, pdev);
 	break;
 
    case NVME_IOCTL_WRITE_GENERIC:
@@ -442,7 +441,7 @@ int dnvme_ioctl_device(
 	LOG_DEBUG("Invoke IOCTL Generic Write Funtion..\n");
 	nvme_wr_data = (struct nvme_write_generic *)ioctl_param;
 
-	retVal = driver_generic_write(file, nvme_wr_data, pdev);
+	ret_val = driver_generic_write(file, nvme_wr_data, pdev);
 	break;
 
    case NVME_IOCTL_CREATE_ADMN_Q:
@@ -459,11 +458,11 @@ int dnvme_ioctl_device(
 
    default:
 	LOG_DEBUG("Cannot find IOCTL going to default case...\n");
-	retVal = driver_default_ioctl(file, ioctl_param, len);
+	ret_val = driver_default_ioctl(file, ioctl_param, 80);
 	break;
    }
 
-   return 0;
+   return ret_val;
 }
 
 /*

@@ -16,17 +16,25 @@
 *  which checks error registers and set kernel
 *  alert if a error is detected.
 */
-void device_status_chk(struct pci_dev *pdev,
-			int status)
+int device_status_chk(struct pci_dev *pdev,
+			int *status)
 {
    /* Local variable declaration. */
    u16 data; /* unsinged 16 bit data. */
    u16 err_data;
-   int ret_code;
+   int ret_code = EINVAL;
 
-   status = SUCCESS;
+   /*
+   * Pointer for user data to be copied to user space from
+   * kernel space. Initialize with user passed data pointer.
+   */
+   int __user *datap = (int __user *)status;
 
-   LOG_DEBUG("PCI Device Status read\n");
+   /*
+   * Set the status to SUCCESS and eventually verify any error
+   * really got set.
+   */
+   *status = SUCCESS;
 
    /*
    * Read a word (16bit value) from the configuration register
@@ -34,6 +42,7 @@ void device_status_chk(struct pci_dev *pdev,
    */
    ret_code = pci_read_config_word(pdev, PCI_DEVICE_STATUS, &data);
 
+   LOG_DEBUG("PCI Device Status read = %x\n", data);
    /*
    * Check the retrun code to know if pci read is succes.
    */
@@ -50,7 +59,7 @@ void device_status_chk(struct pci_dev *pdev,
    LOG_DEBUG(KERN_EMERG "PCI Device Status Emerg = %x\n", data);
 
    if (data & DEV_ERR_MASK) {
-	status = FAIL;
+	*status = FAIL;
 
 	if (data & DPE) {
 		LOG_ERROR("Device Status - DPE Set\n");
@@ -65,6 +74,17 @@ void device_status_chk(struct pci_dev *pdev,
 		LOG_ERROR("Detected Master Data Parity Error!!!\n");
 	}
    }
+
+   /*
+   *  Efficient way to copying data to user buffer datap
+   *  using in a single copy function call.
+   *  First parameter is copy to user buffer,
+   *  second parameter is copy from location,
+   *  third parameter give the number of bytes to copy.
+   */
+   ret_code = copy_to_user(status, datap, sizeof(status));
+
+return ret_code;
 }
 
 /*
@@ -79,7 +99,7 @@ int driver_generic_read(struct file *file,
    u8 offset; /* Offset to read data from. */
    u8 data; /*  data read from PCI space. */
    u8 index; /* index for looping till the end. */
-   int retCode; /* to verify if return code is success. */
+   int ret_code = -EINVAL; /* to verify if return code is success. */
 
    /*
    * Pointer for user data to be copied to user space from
@@ -121,10 +141,12 @@ int driver_generic_read(struct file *file,
 		* Read a byte from the configuration register
 		* and pass it to user.
 		*/
-		retCode = pci_read_config_byte(pdev, offset + index, &data);
+		ret_code = pci_read_config_byte(pdev, offset + index, &data);
 
-		if (retCode < 0)
+		if (ret_code < 0) {
 			LOG_ERROR("pci_read_config failed\n");
+			return ret_code;
+		}
 
 		LOG_DEBUG("Reading PCI header from offset = %d, data = %x\n",
 					(offset + index), data);
@@ -144,15 +166,17 @@ int driver_generic_read(struct file *file,
 	*  second parameter is copy from location,
 	*  third parameter give the number of bytes to copy.
 	*/
-	retCode = copy_to_user(&nvme_data->rdBuffer[0], datap,
+	ret_code = copy_to_user(&nvme_data->rdBuffer[0], datap,
 					nvme_data->nBytes * sizeof(u8));
 
 	/*
 	* Check to see if copy to user buffer is successful,
 	* else send error message and continue.
 	*/
-	if (retCode < 0)
+	if (ret_code < 0) {
 		LOG_ERROR("Copy to user failed at index\n");
+		return ret_code;
+	}
 
 	/*
 	* done required reading then break and return.
@@ -167,7 +191,7 @@ int driver_generic_read(struct file *file,
 	LOG_DEBUG("Could not find switch case using defuult\n");
    }
 
-   return 0;
+   return ret_code;
 }
 
 /*
@@ -181,7 +205,7 @@ int driver_generic_write(struct file *file,
    u8 offset; /* offset where data to be written. */
    u8 data; /* data to be written. */
    u8 index; /* Index to loop */
-   int retCode; /* return code to verify if written success. */
+   int ret_code = -EINVAL; /* return code to verify if written success. */
 
    /*
    * Pointer for user data to be copied to user space from
@@ -244,11 +268,13 @@ int driver_generic_write(struct file *file,
 		* write user data to pci config space at location
 		* indicated by (offset + index).
 		*/
-		retCode = pci_write_config_byte(pdev, offset + index, data);
+		ret_code = pci_write_config_byte(pdev, offset + index, data);
 
-		if (retCode < 0)
+		if (ret_code < 0) {
 			LOG_ERROR("Unable to write to location = %d data = %x",
 				(offset + index), data);
+			return ret_code;
+		}
 
 		LOG_DEBUG("Writing to PCI header offset,data = %d, %x\n",
 					(offset + index), data);
@@ -264,7 +290,7 @@ int driver_generic_write(struct file *file,
 	LOG_DEBUG("Could not find switch case using defuult\n");
    }
 
-   return 0;
+   return ret_code;
 }
 
 
