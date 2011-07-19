@@ -46,7 +46,7 @@ static int dnvme_ioctl(
 * This function prototype is for assigning disk
 * parameters in case if the device pdev is of block type
 * device.
-* @param bdev
+* @param pdev
 * @param which
 * @return whether successful or not.
 */
@@ -83,5 +83,15 @@ int driver_default_ioctl(
 			struct file *file,
 			unsigned long buffer,
 			size_t length);
+
+/**
+* device_status_chk  - This is a error checking function
+* which checks device status register value. After identifying
+* if any bit in this register is set to a value 1 then corresponding
+* error value is decoded and reported as a kernel message to 
+* the console.
+* @param pdev
+*/
+void device_status_chk(struct pci_dev *pdev);
 
 #endif

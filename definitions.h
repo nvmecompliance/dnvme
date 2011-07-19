@@ -4,7 +4,8 @@
 #ifdef __KERNEL__
 
 #define LOG_DEBUG	printk
-#define LOG_NORMAL	printk
+#define LOG_NORMAL(msg, ...)	\
+	printk("%s\n", msg, __FILE__, __LINE__);
 #define LOG_ERROR	printk
 
 #endif
@@ -13,6 +14,18 @@
 #define CONFIG_PCI			1
 #define PCI_CLASS_STORAGE_EXPRESS	0x010802
 #define NVME_MINORS			16
+
+/**
+* @def PCI_DEVICE_STATUS 
+* define the offset for STS register 
+* from the start of PCI config space as specified in the 
+* NVME_Comliance 1.0a. offset 06h:STS - Device status.
+* This register has error status for NVME PCI Exress
+* Card. After reading data from this reagister, the driver
+* will identify if any error is set during the operation and
+* report as kernel alert message.
+*/
+#define PCI_DEVICE_STATUS		0x6
 
 /**
 *   enums are for add different switch cases
@@ -38,7 +51,8 @@ enum {
 */
 
 /**
-* @def define a unique value for identify NS
+* @def NVME_IOCTL_IDENTIFY_NS
+* define a unique value for identify NS
 * the first parameter is the group to which this
 * IOCTL type belongs to, genererally from (0-255)
 * the second parameter is type within the group.
@@ -49,7 +63,8 @@ enum {
 #define NVME_IOCTL_IDENTIFY_NS _IOWR('A', NVME_IDENTIFY_NS, int)
 
 /**
-* @def define a unique value for identify controller
+* @def NVME_IOCTL_IDENTIFY_CTRL
+* define a unique value for identify controller
 * the first parameter is the group to which this
 * IOCTL type belongs to, genererally from (0-255)
 * the second parameter is type within the group.
@@ -60,7 +75,8 @@ enum {
 #define NVME_IOCTL_IDENTIFY_CTRL _IOWR('A', NVME_IDENTIFY_CTRL, int)
 
 /**
-* @def define a unique value for get nvme range type
+* @def NVME_IOCTL_GET_RANGE_TYPE
+* define a unique value for get nvme range type
 * the first parameter is the group to which this
 * IOCTL type belongs to, genererally from (0-255)
 * the second parameter is type within the group.
@@ -71,7 +87,8 @@ enum {
 #define NVME_IOCTL_GET_RANGE_TYPE _IOWR('A', NVME_GET_RANGE_TYPE, int)
 
 /**
-* @def define a unique value for submit input output command
+* @def NVME_IOCTL_SUBMIT_IO
+* define a unique value for submit input output command
 * the first parameter is the group to which this
 * IOCTL type belongs to, genererally from (0-255)
 * the second parameter is type within the group.
@@ -82,7 +99,8 @@ enum {
 #define NVME_IOCTL_SUBMIT_IO _IOWR('A', NVME_SUBMIT_IO, int)
 
 /**
-* @def define a unique value for download firmware
+* @def NVME_IOCTL_DOWNLOAD_FW
+* define a unique value for download firmware
 * the first parameter is the group to which this
 * IOCTL type belongs to, genererally from (0-255)
 * the second parameter is type within the group.
@@ -93,7 +111,8 @@ enum {
 #define NVME_IOCTL_DOWNLOAD_FW	_IOWR('A', NVME_DOWNLOAD_FW, int)
 
 /**
-* @def define a unique value for active firmware switch
+* @def NVME_IOCTL_ACTIVATE_FW
+* define a unique value for active firmware switch
 * the first parameter is the group to which this
 * IOCTL type belongs to, genererally from (0-255)
 * the second parameter is type within the group.
@@ -104,7 +123,8 @@ enum {
 #define NVME_IOCTL_ACTIVATE_FW	_IOWR('A', NVME_ACTIVATE_FW, int)
 
 /**
-* @def define a unique value for Generic read capabiltiy
+* @def NVME_IOCTL_READ_GENERIC
+* define a unique value for Generic read capabiltiy
 * the first parameter is the group to which this
 * IOCTL type belongs to, genererally from (0-255)
 * the second parameter is type within the group.
@@ -116,7 +136,8 @@ enum {
 					struct nvme_read_generic)
 
 /**
-* @def define a unique value for Generic read capabiltiy
+* @def NVME_IOCTL_WRITE_GENERIC
+* define a unique value for Generic read capabiltiy
 * the first parameter is the group to which this
 * IOCTL type belongs to, genererally from (0-255)
 * the second parameter is type within the group.
@@ -127,7 +148,8 @@ enum {
 #define NVME_IOCTL_WRITE_GENERIC _IOWR('A', NVME_WRITE_GENERIC,\
 					struct nvme_write_generic)
 /**
-* @def define unique value for creating admin queue.
+* @def NVME_IOCTL_CREATE_ADMN_Q
+* define unique value for creating admin queue.
 * the first parameter is the group to which this
 * IOCTL type belongs to, genererally from (0-255)
 * the second parameter is type within the group.
@@ -138,7 +160,8 @@ enum {
 #define NVME_IOCTL_CREATE_ADMN_Q _IOWR('A', NVME_CREATE_ADMN_Q, int)
 
 /**
-* @def define unique value for deleting admin queue.
+* @def NVME_IOCTL_DEL_ADMN_Q
+* define unique value for deleting admin queue.
 * the first parameter is the group to which this
 * IOCTL type belongs to, genererally from (0-255)
 * the second parameter is type within the group.
@@ -149,7 +172,8 @@ enum {
 #define NVME_IOCTL_DEL_ADMN_Q _IOWR('A', NVME_DEL_ADMN_Q, int)
 
 /**
-* @def define unique ioctl for sending admin queue command.
+* @def NVME_IOCTL_SEND_ADMN_CMD
+* define unique ioctl for sending admin queue command.
 * the first parameter is the group to which this
 * IOCTL type belongs to, genererally from (0-255)
 * the second parameter is type within the group.

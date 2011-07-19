@@ -12,6 +12,34 @@
 #include "sysdnvme.h"
 
 /*
+*  device_status_chk  - Generic error checking function
+*  which checks error registers and set kernel
+*  alert if a error is detected.
+*/
+void device_status_chk(struct pci_dev *pdev)
+{
+   /* Local variable declaration. */
+   u16 data; /* unsinged 16 bit data. */
+   int ret_code;
+
+   LOG_DEBUG("PCI Device Status read\n");
+   /*
+   * Read a word (16bit value) from the configuration register
+   * and pass it to user.
+   */
+   ret_code = pci_read_config_word(pdev, PCI_DEVICE_STATUS, &data);
+
+   if (ret_code < 0)
+	LOG_ERROR("pci_read_config failed in driver error check\n");
+
+   LOG_DEBUG(KERN_CRIT "\nPCI Device Status crit = %xi\n\n", data);
+  
+   LOG_DEBUG(KERN_EMERG "\nPCI Device Status Emerg = %xi\n\n", data);
+
+//   for(ret_code = 0; ret_code < 8; ret_code++)
+//	LOG_DEBUG(ret_code,"Kernel Message at level = %d\n",ret_code);
+}
+/*
 *   driver_genric_read - Generic Read functionality for reading
 *   NVME PCIe registers and memory mapped addres
 */

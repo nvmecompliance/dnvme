@@ -72,9 +72,8 @@ struct nvme_pci_header {
 * NVME card. The read parameter like offset and length
 * etc are specified from the struct nvme_read_generic
 * @param file Pass the file descriptor of the device opened.
-* @param buffer buffer to store data
-* @data_user Structure with different user required parameters.
-* @pdev pointer to the device opened.
+* @param data_usr Structure with different user required parameters.
+* @param pdev pointer to the device opened.
 * @return read success or failure.
 */
 int driver_generic_read(struct file *file,
@@ -86,9 +85,8 @@ int driver_generic_read(struct file *file,
 * NVME card. The write parameters offset and length
 * etc are specified from the struct nvme_write_generic
 * @param file Pass the file descriptor of the device opened.
-* @param buffer buffer to store data
-* @data_user Structure with different user required parameters.
-* @pdev pointer to the device opened.
+* @param data_usr Structure with different user required parameters.
+* @param pdev pointer to the device opened.
 * @return read success or failure.
 */
 int driver_generic_write(struct file *file,

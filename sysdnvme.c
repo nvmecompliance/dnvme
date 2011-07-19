@@ -418,6 +418,14 @@ int dnvme_ioctl_device(
 	nvme_dev_entry->slot, nvme_dev_entry->func);
 	LOG_DEBUG("[Nvme_Drv] Bar 0 [0x%x]", nvme_dev_entry->bar);
 	}
+   
+   /*
+   * check if the device has any errors set in its status
+   * register. And report errors.
+   */
+   LOG_DEBUG("Checking device Status before executing...\n");
+   device_status_chk(pdev);
+
    /*
    * Given a ioctl_num invoke corresponding function
    */
@@ -454,6 +462,12 @@ int dnvme_ioctl_device(
 	break;
    }
 
+   /*
+   * check if the device has any errors set in its status
+   * register. And report errors after the test execution.
+   */
+   LOG_DEBUG("Checking device status after execution...\n");
+   device_status_chk(pdev);
    return 0;
 }
 
