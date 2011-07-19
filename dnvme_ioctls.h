@@ -3,6 +3,50 @@
 #endif
 
 /**
+* @def PCI_DEVICE_STATUS
+* define the offset for STS register
+* from the start of PCI config space as specified in the
+* NVME_Comliance 1.0a. offset 06h:STS - Device status.
+* This register has error status for NVME PCI Exress
+* Card. After reading data from this reagister, the driver
+* will identify if any error is set during the operation and
+* report as kernel alert message.
+*/
+#define PCI_DEVICE_STATUS               0x6
+
+/** 
+* @def DEV_ERR_MASK
+* The bit positions that are set in this 16 bit word
+* implies that the error is defined for those poistionis in
+* STS register. The bits that are 0 are non error positions.
+*/
+#define DEV_ERR_MASK			0xC100
+
+/**
+* @def DPE
+* This bit position indicates data parity error.
+* Set to 1 by h/w when the controlller detects a 
+* parity error on its interface.
+*/
+#define DPE				0x8000
+
+/**
+* @def SSE
+* This bit position indicates Signaled System Error.
+* Not Supported vy NVM Express.
+*/
+#define SSE				0x4000
+
+/**
+* @def DPD
+* This bit position indicates Master data parity error.
+* Set to 1 by h/w if parity error is set or parity
+* error line is asserted and parity error response bit
+* in CMD.PEE is set to 1.
+*/
+#define DPD				0x0100
+
+/**
 * These are the enum types used for branching to
 * required offset as specified in the struct nvme_
 * read_generic type parameter.
@@ -93,3 +137,12 @@ int driver_generic_write(struct file *file,
 			struct nvme_write_generic *data_usr,
 			struct pci_dev *pdev);
 
+/**
+* device_status_chk  - Generic error checking function
+* which checks error registers and set kernel
+* alert if a error is detected.
+* @param pdev
+* @param status
+*/
+void device_status_chk(struct pci_dev *pdev,
+                        int status);

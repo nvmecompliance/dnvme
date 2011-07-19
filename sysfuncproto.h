@@ -23,7 +23,7 @@
 * @param id
 * @return whether probing was successful or not.
 */
-static int dnvme_pci_probe(struct pci_dev *pdev,
+int dnvme_pci_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id);
 
 /**
@@ -37,7 +37,7 @@ static int dnvme_pci_probe(struct pci_dev *pdev,
 * @param arg
 * @return whether successful or not.
 */
-static int dnvme_ioctl(
+int dnvme_ioctl(
 			struct block_device *bdev,
 			fmode_t mode, unsigned int cmd,
 			unsigned long arg);
@@ -50,7 +50,7 @@ static int dnvme_ioctl(
 * @param which
 * @return whether successful or not.
 */
-static int dnvme_blk_gendisk(
+int dnvme_blk_gendisk(
 			struct pci_dev *pdev,
 			int which);
 
@@ -65,7 +65,7 @@ static int dnvme_blk_gendisk(
 * @param ioctl_param
 * @return whether successful or not.
 */
-static int dnvme_ioctl_device(
+int dnvme_ioctl_device(
 			struct inode *inode,
 			struct file *file,
 			unsigned int ioctl_num,
@@ -83,15 +83,5 @@ int driver_default_ioctl(
 			struct file *file,
 			unsigned long buffer,
 			size_t length);
-
-/**
-* device_status_chk  - This is a error checking function
-* which checks device status register value. After identifying
-* if any bit in this register is set to a value 1 then corresponding
-* error value is decoded and reported as a kernel message to 
-* the console.
-* @param pdev
-*/
-void device_status_chk(struct pci_dev *pdev);
 
 #endif

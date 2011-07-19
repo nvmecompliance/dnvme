@@ -10,22 +10,12 @@
 
 #endif
 
+#define SUCCESS				0
+#define FAIL				-1
 #define DEVICE_LIST_SIZE		20
 #define CONFIG_PCI			1
 #define PCI_CLASS_STORAGE_EXPRESS	0x010802
 #define NVME_MINORS			16
-
-/**
-* @def PCI_DEVICE_STATUS 
-* define the offset for STS register 
-* from the start of PCI config space as specified in the 
-* NVME_Comliance 1.0a. offset 06h:STS - Device status.
-* This register has error status for NVME PCI Exress
-* Card. After reading data from this reagister, the driver
-* will identify if any error is set during the operation and
-* report as kernel alert message.
-*/
-#define PCI_DEVICE_STATUS		0x6
 
 /**
 *   enums are for add different switch cases
@@ -43,6 +33,7 @@ enum {
      NVME_CREATE_ADMN_Q, /** < enum Create a new Admin Queue. */
      NVME_DEL_ADMN_Q, /** < enum Delete aprev create admin Queue. */
      NVME_SEND_ADMN_CMD, /** < enum Send and admin command. */
+     NVME_ERR_CHK, /** < enum Generic device status check function */
 };
 
 /**
@@ -183,4 +174,15 @@ enum {
 */
 #define NVME_IOCTL_SEND_ADMN_CMD _IOWR('A', NVME_SEND_ADMN_CMD, int)
 
+/**
+* @def NVME_IOCTL_ERR_CHK
+* define unique ioctl for checking device error status.
+* the first parameter is the group to which this
+* IOCTL type belongs to, genererally from (0-255)
+* the second parameter is type within the group.
+* the third parameter give the size of data and
+* type of data that is passed to this ioctl from user
+* level to kernel level.
+*/
+#define NVME_IOCTL_ERR_CHK _IOWR('A', NVME_ERR_CHK, int)
 #endif

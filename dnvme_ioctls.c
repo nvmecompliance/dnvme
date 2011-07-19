@@ -16,29 +16,57 @@
 *  which checks error registers and set kernel
 *  alert if a error is detected.
 */
-void device_status_chk(struct pci_dev *pdev)
+void device_status_chk(struct pci_dev *pdev,
+			int status)
 {
    /* Local variable declaration. */
    u16 data; /* unsinged 16 bit data. */
+   u16 err_data;
    int ret_code;
 
+   status = SUCCESS;
+
    LOG_DEBUG("PCI Device Status read\n");
+
    /*
    * Read a word (16bit value) from the configuration register
    * and pass it to user.
    */
    ret_code = pci_read_config_word(pdev, PCI_DEVICE_STATUS, &data);
 
+   /*
+   * Check the retrun code to know if pci read is succes.
+   */
    if (ret_code < 0)
 	LOG_ERROR("pci_read_config failed in driver error check\n");
 
-   LOG_DEBUG(KERN_CRIT "\nPCI Device Status crit = %xi\n\n", data);
-  
-   LOG_DEBUG(KERN_EMERG "\nPCI Device Status Emerg = %xi\n\n", data);
+   /*
+   * Store the data into err_data. Making a data copy. As we will
+   * be modifying the data bits.
+   */
+   err_data = data;
 
-//   for(ret_code = 0; ret_code < 8; ret_code++)
-//	LOG_DEBUG(ret_code,"Kernel Message at level = %d\n",ret_code);
+   LOG_DEBUG(KERN_CRIT "PCI Device Status crit = %x\n", data);
+   LOG_DEBUG(KERN_EMERG "PCI Device Status Emerg = %x\n", data);
+
+   if (data & DEV_ERR_MASK) {
+	status = FAIL;
+
+	if (data & DPE) {
+		LOG_ERROR("Device Status - DPE Set\n");
+		LOG_ERROR("Detected Data parity Error!!!\n");
+	}
+	if (data & SSE) {
+		LOG_ERROR("Device Status - SSE Set\n");
+		LOG_ERROR("Detected Signaled System Error!!!\n");
+	}
+	if (data & DPD) {
+		LOG_ERROR("Device Status - DPD Set\n");
+		LOG_ERROR("Detected Master Data Parity Error!!!\n");
+	}
+   }
 }
+
 /*
 *   driver_genric_read - Generic Read functionality for reading
 *   NVME PCIe registers and memory mapped addres

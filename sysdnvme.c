@@ -74,9 +74,6 @@ static const struct block_device_operations dnvme_fops = {
 static int NVME_MAJOR;
 static struct class *class_nvme;
 static struct device *nvme_devices;
-static struct nvme_dev_char *nvme_dev_char;
-
-static unsigned long nvme_block_size = NVME_BLOCK_SIZE;
 
 LIST_HEAD(nvme_devices_llist);
 module_param(NVME_MAJOR, int, 0);
@@ -217,7 +214,7 @@ static int dnvme_init(void)
 * this function is called when the driver invokes the fops
 * after basic initialization is performed.
 */
-static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
+int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *id)
 {
    int retCode = -ENODEV; /* retCode is set to no devices */
@@ -235,7 +232,7 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    LOG_DEBUG("Start probing for NVME PCI Express Device...\n");
 
    if ((retCode == pci_enable_device(pdev)) < 0) {
-	LOG_NORMAL("Error!! PciEnable not successful...\n");
+	LOG_ERROR("PciEnable not successful...\n");
 	return retCode;
    }
 
@@ -243,7 +240,7 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    LOG_DEBUG("PCI enable Success!. Return Code = %d\n", retCode);
 
    if (pci_enable_device_mem(pdev)) {
-	LOG_NORMAL("Error!! pci_enalbe_device_mem not successful...\n");
+	LOG_ERROR("pci_enalbe_device_mem not successful...\n");
 	return -1;
    }
 
@@ -287,7 +284,6 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 
    if (bar != NULL) {
 	LOG_DEBUG("Bar 0 Address remap: 0x%08x\n", *bar);
-	LOG_NORMAL("Bar 0 Address remap done.\n");
    } else {
 	LOG_ERROR("allocate Host Memory for Device Failed!!...\n");
    }
@@ -306,8 +302,8 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    dnvme_blk_gendisk(pdev, 0);
 
    nvme_dev_list->pdev = pdev;
-   nvme_dev_list->bar = (u32 *)BaseAddress0;
-   nvme_dev_list->bus = pdev->bus->number;
+   memcpy(&nvme_dev_list->bar,&BaseAddress0, sizeof(u32));
+   nvme_dev_list->bus =  pdev->bus->number;
    nvme_dev_list->slot = PCI_SLOT(pdev->devfn);
    nvme_dev_list->func = PCI_FUNC(pdev->devfn);
    list_add_tail(&nvme_dev_list->list, &nvme_devices_llist);
@@ -319,7 +315,7 @@ static int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 * This function helps in setting up the block device
 * with required parameters for inserting into disk.
 */
-static int dnvme_blk_gendisk(struct pci_dev *pdev, int which)
+int dnvme_blk_gendisk(struct pci_dev *pdev, int which)
 {
    struct gendisk *disk;
    int size = 14096;
@@ -358,7 +354,7 @@ static int dnvme_blk_gendisk(struct pci_dev *pdev, int which)
 * This function is used only when the device is initialized as block
 * device otherwise the char type ioctl is used.
 */
-static int dnvme_ioctl(struct block_device *bdev, fmode_t mode,
+int dnvme_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
     switch (cmd) {
@@ -404,70 +400,68 @@ int dnvme_ioctl_device(
 {
    int retVal = -EINVAL;
    int len;
-   struct nvme_read_generic *nvme_data;
+   struct nvme_read_generic *nvme_rd_data;
+   struct nvme_write_generic *nvme_wr_data;
    struct nvme_device_entry *nvme_dev_entry;
-   struct pci_dev *pdev;
+   struct pci_dev *pdev = NULL;
 
    len = 80;
 
    /* Get the device from the linked list */
    list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
 	pdev = nvme_dev_entry->pdev;
-	LOG_DEBUG("[Nvme_Drv] device [%02x:%02x.%02x]",
+	LOG_DEBUG("[Nvme_Drv] device [%02x:%02x.%02x]\n",
 	nvme_dev_entry->bus,
 	nvme_dev_entry->slot, nvme_dev_entry->func);
-	LOG_DEBUG("[Nvme_Drv] Bar 0 [0x%x]", nvme_dev_entry->bar);
 	}
-   
-   /*
-   * check if the device has any errors set in its status
-   * register. And report errors.
-   */
-   LOG_DEBUG("Checking device Status before executing...\n");
-   device_status_chk(pdev);
 
    /*
    * Given a ioctl_num invoke corresponding function
    */
    switch (ioctl_num) {
+   case NVME_IOCTL_ERR_CHK:
+	/*
+	* check if the device has any errors set in its status
+	* register. And report errors.
+	*/
+	LOG_DEBUG("Checking device Status before executing...\n");
+	device_status_chk(pdev, (int)ioctl_param);
+	break;
+   
    case NVME_IOCTL_READ_GENERIC:
 
 	LOG_DEBUG("Invoking User App request to read  the PCI Header Space\n");
-	nvme_data = (struct nvme_read_generic *)ioctl_param;
+	nvme_rd_data = (struct nvme_read_generic *)ioctl_param;
 
-	retVal = driver_generic_read(file, nvme_data, pdev);
+	retVal = driver_generic_read(file, nvme_rd_data, pdev);
 	break;
 
    case NVME_IOCTL_WRITE_GENERIC:
 
 	LOG_DEBUG("Invoke IOCTL Generic Write Funtion..\n");
-	nvme_data = (struct nvme_read_generic *)ioctl_param;
+	nvme_wr_data = (struct nvme_write_generic *)ioctl_param;
 
-	retVal = driver_generic_write(file, nvme_data, pdev);
-
-
+	retVal = driver_generic_write(file, nvme_wr_data, pdev);
 	break;
+
    case NVME_IOCTL_CREATE_ADMN_Q:
 	LOG_DEBUG("IOCTL for Create Admin Q\n");
 	break;
+
    case NVME_IOCTL_DEL_ADMN_Q:
 	LOG_DEBUG("IOCTL NVME_IOCTL_DEL_ADMN_Q Command...");
 	break;
+
    case NVME_IOCTL_SEND_ADMN_CMD:
 	LOG_DEBUG("IOCTL NVME_IOCTL_SEND_ADMN_CMD Command...");
 	break;
+
    default:
 	LOG_DEBUG("Cannot find IOCTL going to default case...\n");
 	retVal = driver_default_ioctl(file, ioctl_param, len);
 	break;
    }
 
-   /*
-   * check if the device has any errors set in its status
-   * register. And report errors after the test execution.
-   */
-   LOG_DEBUG("Checking device status after execution...\n");
-   device_status_chk(pdev);
    return 0;
 }
 
