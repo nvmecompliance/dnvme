@@ -200,7 +200,7 @@ static int dnvme_init(void)
    nvme_minor = nvme_minor + 1;
    /*} //while n_device*/
 
-  retCode = pci_register_driver(&dnvme_pci_driver);
+   retCode = pci_register_driver(&dnvme_pci_driver);
 
    if (retCode < 0) {
 	/*Unable to register the PCI device */
@@ -383,7 +383,7 @@ static int dnvme_ioctl(struct block_device *bdev, fmode_t mode,
     default:
 	return -ENOTTY;
      }
-return 0;
+   return 0;
 }
 
 /*
@@ -454,7 +454,7 @@ int dnvme_ioctl_device(
 	break;
    }
 
-return 0;
+   return 0;
 }
 
 /*

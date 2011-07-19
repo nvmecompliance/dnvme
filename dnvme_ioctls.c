@@ -111,7 +111,7 @@ int driver_generic_read(struct file *file,
 	LOG_DEBUG("Could not find switch case using defuult\n");
    }
 
-return 0;
+   return 0;
 }
 
 /*
@@ -208,7 +208,7 @@ int driver_generic_write(struct file *file,
 	LOG_DEBUG("Could not find switch case using defuult\n");
    }
 
-return 0;
+   return 0;
 }
 
 
