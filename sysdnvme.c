@@ -14,10 +14,11 @@
 #include <linux/types.h>
 #include <linux/fcntl.h>
 
-#include "dnvme_ioctls.h"
+#include "dnvme_interface.h"
 #include "definitions.h"
 #include "sysfuncproto.h"
 #include "sysdnvme.h"
+#include "dnvme_ioctls.h"
 
 #define	DRV_NAME		"dnvme"
 #define	NVME_DEVICE_NAME	"qnvme"
@@ -283,8 +284,8 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 			pci_resource_len(pdev, 0));
 
    if (bar != NULL) {
-	LOG_DEBUG("Bar 0 Address remap: 0x%08x\n", *bar);
-	LOG_DEBUG("Still to get the remaped value.");
+	LOG_DEBUG("Bar 0 Address: \n");
+	LOG_DEBUG("Remap value.\n");
    } else {
 	LOG_ERROR("allocate Host Memory for Device Failed!!...\n");
    }
@@ -293,7 +294,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    * Only debug because the above remap should give BAR's
    */
    pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &BaseAddress0);
-   LOG_DEBUG("PCI BAR 0 = 0x%08x\n", BaseAddress0);
+   LOG_DEBUG("PCI BAR 0 = 0x%x\n", BaseAddress0);
 
    /*
    * Call function to get the NVME Allocated to IOCTLs.

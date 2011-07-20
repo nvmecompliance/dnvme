@@ -18,6 +18,83 @@
 #define NVME_MINORS			16
 
 /**
+* @def PCI_DEVICE_STATUS
+* define the offset for STS register
+* from the start of PCI config space as specified in the
+* NVME_Comliance 1.0a. offset 06h:STS - Device status.
+* This register has error status for NVME PCI Exress
+* Card. After reading data from this reagister, the driver
+* will identify if any error is set during the operation and
+* report as kernel alert message.
+*/
+#define PCI_DEVICE_STATUS               0x6
+
+/**
+* @def DEV_ERR_MASK
+* The bit positions that are set in this 16 bit word
+* implies that the error is defined for those poistionis in
+* STS register. The bits that are 0 are non error positions.
+*/
+#define DEV_ERR_MASK                    0xC100
+
+/**
+* @def DPE
+* This bit position indicates data parity error.
+* Set to 1 by h/w when the controlller detects a
+* parity error on its interface.
+*/
+#define DPE                             0x8000
+
+
+/**
+* @def SSE
+* This bit position indicates Signaled System Error.
+* Not Supported vy NVM Express.
+*/
+#define SSE                             0x4000
+
+/**
+* @def DPD
+* This bit position indicates Master data parity error.
+* Set to 1 by h/w if parity error is set or parity
+* error line is asserted and parity error response bit
+* in CMD.PEE is set to 1.
+*/
+#define DPD                             0x0100
+
+/**
+* This is a structure that defines all the PCI
+* header information laid out in NVME SPec 1.0a
+* PCI Header section.
+*/
+struct nvme_pci_header {
+   u32 ID;
+   u16 CMD;
+   u16 STS;
+   u8  RID;
+   u32 CC;
+   u8  CLS;
+   u8  MLT;
+   u8  HTYPE;
+   u8  BIST;
+   u32 BAR0;
+   u32 BAR1;
+   u32 BAR2;
+   u32 BAR3;
+   u32 BAR4;
+   u32 BAR5;
+   u32 CCPTR;
+   u32 SS;
+   u32 EPROM;
+   u64 CAP;
+   u16 INTR;
+   u8  MGNT;
+   u8  MLAT;
+};
+
+/**
+*  ToDo: remove these enums and add to dnvme_ioctls.h
+*  when new function is added.
 *   enums are for add different switch cases
 *   when the IOCTL's from the driver get called.
 */
@@ -28,12 +105,9 @@ enum {
      NVME_SUBMIT_IO,
      NVME_DOWNLOAD_FW, /** < enum to Download Firmware. */
      NVME_ACTIVATE_FW, /** < enum to activate the downloaded Firmware. */
-     NVME_READ_GENERIC, /** < enum to invoke read generic function call. */
-     NVME_WRITE_GENERIC, /** < enum to invoke write generic function call. */
      NVME_CREATE_ADMN_Q, /** < enum Create a new Admin Queue. */
      NVME_DEL_ADMN_Q, /** < enum Delete aprev create admin Queue. */
      NVME_SEND_ADMN_CMD, /** < enum Send and admin command. */
-     NVME_ERR_CHK, /** < enum Generic device status check function */
 };
 
 /**
@@ -114,31 +188,6 @@ enum {
 #define NVME_IOCTL_ACTIVATE_FW	_IOWR('A', NVME_ACTIVATE_FW, int)
 
 /**
-* @def NVME_IOCTL_READ_GENERIC
-* define a unique value for Generic read capabiltiy
-* the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
-* the second parameter is type within the group.
-* the third parameter give the size of data and
-* type of data that is passed to this ioctl from user
-* level to kernel level.
-*/
-#define NVME_IOCTL_READ_GENERIC	_IOWR('A', NVME_READ_GENERIC,\
-					struct nvme_read_generic)
-
-/**
-* @def NVME_IOCTL_WRITE_GENERIC
-* define a unique value for Generic read capabiltiy
-* the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
-* the second parameter is type within the group.
-* the third parameter give the size of data and
-* type of data that is passed to this ioctl from user
-* level to kernel level.
-*/
-#define NVME_IOCTL_WRITE_GENERIC _IOWR('A', NVME_WRITE_GENERIC,\
-					struct nvme_write_generic)
-/**
 * @def NVME_IOCTL_CREATE_ADMN_Q
 * define unique value for creating admin queue.
 * the first parameter is the group to which this
@@ -174,15 +223,4 @@ enum {
 */
 #define NVME_IOCTL_SEND_ADMN_CMD _IOWR('A', NVME_SEND_ADMN_CMD, int)
 
-/**
-* @def NVME_IOCTL_ERR_CHK
-* define unique ioctl for checking device error status.
-* the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
-* the second parameter is type within the group.
-* the third parameter give the size of data and
-* type of data that is passed to this ioctl from user
-* level to kernel level.
-*/
-#define NVME_IOCTL_ERR_CHK _IOWR('A', NVME_ERR_CHK, int)
 #endif

@@ -7,9 +7,21 @@
 #include <linux/unistd.h>
 
 #include "dnvme_ioctls.h"
+#include "dnvme_interface.h"
 #include "definitions.h"
 #include "sysfuncproto.h"
 #include "sysdnvme.h"
+
+uint32_t read_reg(int index, u32 *bar)
+{
+   uint32_t u32reg;
+
+   /* reg.u32[0] = readl((u32 *)(bar + offset));*/
+   u32reg = ioread32((u32 *)(bar + index));
+
+   LOG_DEBUG("Read Operation = 0x%x\n", u32reg);
+   return u32reg;
+}
 
 /*
 *  device_status_chk  - Generic error checking function
@@ -100,7 +112,10 @@ int driver_generic_read(struct file *file,
    u8 data; /*  data read from PCI space. */
    u8 index; /* index for looping till the end. */
    int ret_code = -EINVAL; /* to verify if return code is success. */
-
+   u64 u64_bar01 = 0;
+   u32 bar0 = 0;
+   u32 bar1 = 0;
+   u32 u32data = 0;
    /*
    * Pointer for user data to be copied to user space from
    * kernel space. Initialize with user passed data pointer.
@@ -110,6 +125,20 @@ int driver_generic_read(struct file *file,
    LOG_DEBUG("Inside Generic Read Funtion of the IOCTLs\n");
 
    /*
+   * Check here if any invalid data is passed and return from here.
+   * if not valid.
+   */
+   if ((nvme_data->offset < 0) || (nvme_data->nBytes < 0)) {
+	LOG_ERROR("invalid params to IOCTL generic function...\n");
+	return -EINVAL;
+   }
+
+   /*
+   * Copy offset to local variable to increase speed.
+   */
+   offset = nvme_data->offset;
+
+   /*
    *  Switch based on the user passed read type using the
    *  enum type specified in struct nvme_read_generic.
    */
@@ -117,20 +146,6 @@ int driver_generic_read(struct file *file,
    case NVME_PCI_HEADER: /* Switch case for NVME PCI Header type. */
 
 	LOG_DEBUG("User App request to read  the PCI Header Space\n");
-
-	/*
-	* Check here if any invalid data is passed and return from here.
-	* if not valid.
-	*/
-	if ((nvme_data->offset < 0) || (nvme_data->nBytes < 0)) {
-		LOG_ERROR("invalid params to IOCTL generic function...\n");
-		return -EINVAL;
-	}
-
-	/*
-	* Copy offset to local variable to increase speed.
-	*/
-	offset = nvme_data->offset;
 
 	/*
 	* Loop through the number of bytes that are specified in the
@@ -148,7 +163,7 @@ int driver_generic_read(struct file *file,
 			return ret_code;
 		}
 
-		LOG_DEBUG("Reading PCI header from offset = %d, data = %x\n",
+		LOG_DEBUG("Reading PCI header from offset = %d, data = 0x%x\n",
 					(offset + index), data);
 
 		/*
@@ -160,36 +175,72 @@ int driver_generic_read(struct file *file,
 	}
 
 	/*
-	*  Efficient way to copying data to user buffer datap
-	*  using in a single copy function call.
-	*  First parameter is copy to user buffer,
-	*  second parameter is copy from location,
-	*  third parameter give the number of bytes to copy.
-	*/
-	ret_code = copy_to_user(&nvme_data->rdBuffer[0], datap,
-					nvme_data->nBytes * sizeof(u8));
-
-	/*
-	* Check to see if copy to user buffer is successful,
-	* else send error message and continue.
-	*/
-	if (ret_code < 0) {
-		LOG_ERROR("Copy to user failed at index\n");
-		return ret_code;
-	}
-
-	/*
 	* done required reading then break and return.
 	*/
 	break;
 
    case NVME_PCI_BAR01:
-	LOG_DEBUG("Invoking User App request to read  the PCI Header Space\n");
+	/* Registers are aligned and so */
+	LOG_DEBUG("Invoking User App request for BAR01\n");
+	/*
+	* Get the Bar01 value for the current device pdev.
+	*/
+	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &bar0);
+
+	LOG_DEBUG("BAR 01 = 0x%x\n", bar1);
+	LOG_DEBUG("BAR 00 = 0x%x\n", bar0);
+
+	/*
+	* Upper 32 bit of the memory register base address.
+	*/
+	memcpy((u32 *)&u64_bar01, (u32 *)(void __iomem *)&bar1, sizeof(u32));
+
+	/*
+	* Lower 32 bit of the memory register base address.
+	*/
+	u64_bar01 = ((u64_bar01 << 32) | bar0);
+
+	LOG_DEBUG("BAR 64 01 = 0x%x\n", (u32)u64_bar01);
+	/*
+	* Compute the required offset from the BAR01.
+	*/
+	u64_bar01 = u64_bar01 + offset;
+
+	index = 0;
+	/*
+	* Loop through the number of bytes that are specified in the
+	* bBytes parameter.
+	*/
+	for (index = 0; index < nvme_data->nBytes; index += 4) {
+		/*
+		* Read a 32 byte data from the configuration register.
+		*/
+		u32data = read_reg(index, (u32 *)&u64_bar01);
+
+		memcpy((char *)&datap[index], (char *)&u32data, sizeof(u32));
+
+		LOG_DEBUG("Reading NVME Space offset = 0x%x, data = 0x%x\n",
+				offset + index, u32data);
+
+	}
+
 	break;
 
    default:
 	LOG_DEBUG("Could not find switch case using defuult\n");
    }
+
+   /*
+   *  Efficient way to copying data to user buffer datap
+   *  using in a single copy function call.
+   *  First parameter is copy to user buffer,
+   *  second parameter is copy from location,
+   *  third parameter give the number of bytes to copy.
+   */
+   ret_code = copy_to_user(&nvme_data->rdBuffer[0], datap,
+				nvme_data->nBytes * sizeof(u8));
+   if (ret_code < 0)
+	LOG_ERROR("Error copying to user buffer returning...\n");
 
    return ret_code;
 }
@@ -204,7 +255,7 @@ int driver_generic_write(struct file *file,
 {
    u8 offset; /* offset where data to be written. */
    u8 data; /* data to be written. */
-   u8 index; /* Index to loop */
+   u8 index = 0; /* Index to loop */
    int ret_code = -EINVAL; /* return code to verify if written success. */
 
    /*

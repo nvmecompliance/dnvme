@@ -84,4 +84,42 @@ int driver_default_ioctl(
 			unsigned long buffer,
 			size_t length);
 
+/**
+* driver_generic_read is a function that is called from
+* driver IOCTL when user want to read data from the
+* NVME card. The read parameter like offset and length
+* etc are specified from the struct nvme_read_generic
+* @param file Pass the file descriptor of the device opened.
+* @param data_usr Structure with different user required parameters.
+* @param pdev pointer to the device opened.
+* @return read success or failure.
+*/
+int driver_generic_read(struct file *file,
+			struct nvme_read_generic *data_usr,
+			struct pci_dev *pdev);
+/**
+* driver_generic_write is a function that is called from
+* driver IOCTL when user want to write data to the
+* NVME card. The write parameters offset and length
+* etc are specified from the struct nvme_write_generic
+* @param file Pass the file descriptor of the device opened.
+* @param data_usr Structure with different user required parameters.
+* @param pdev pointer to the device opened.
+* @return read success or failure.
+*/
+int driver_generic_write(struct file *file,
+			struct nvme_write_generic *data_usr,
+			struct pci_dev *pdev);
+
+/**
+* device_status_chk  - Generic error checking function
+* which checks error registers and set kernel
+* alert if a error is detected.
+* @param pdev
+* @param status
+*/
+int device_status_chk(struct pci_dev *pdev,
+			int *status);
+
+
 #endif
