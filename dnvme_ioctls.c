@@ -19,7 +19,7 @@ uint32_t read_reg(int index, u32 *bar)
    /* reg.u32[0] = readl((u32 *)(bar + offset));*/
    u32reg = ioread32((u32 *)(bar + index));
 
-   LOG_DEBUG("Read Operation = 0x%x\n", u32reg);
+   LOG_DBG("Read Operation = 0x%x", u32reg);
    return u32reg;
 }
 
@@ -54,12 +54,12 @@ int device_status_chk(struct pci_dev *pdev,
    */
    ret_code = pci_read_config_word(pdev, PCI_DEVICE_STATUS, &data);
 
-   LOG_DEBUG("PCI Device Status read = %x\n", data);
+   LOG_DBG("PCI Device Status read = %x", data);
    /*
    * Check the retrun code to know if pci read is succes.
    */
    if (ret_code < 0)
-	LOG_ERROR("pci_read_config failed in driver error check\n");
+	LOG_ERR("pci_read_config failed in driver error check");
 
    /*
    * Store the data into err_data. Making a data copy. As we will
@@ -67,23 +67,23 @@ int device_status_chk(struct pci_dev *pdev,
    */
    err_data = data;
 
-   LOG_DEBUG(KERN_CRIT "PCI Device Status crit = %x\n", data);
-   LOG_DEBUG(KERN_EMERG "PCI Device Status Emerg = %x\n", data);
+   LOG_DBG(KERN_CRIT "PCI Device Status crit = %x", data);
+   LOG_DBG(KERN_EMERG "PCI Device Status Emerg = %x", data);
 
    if (data & DEV_ERR_MASK) {
 	*status = FAIL;
 
 	if (data & DPE) {
-		LOG_ERROR("Device Status - DPE Set\n");
-		LOG_ERROR("Detected Data parity Error!!!\n");
+		LOG_ERR("Device Status - DPE Set");
+		LOG_ERR("Detected Data parity Error");
 	}
 	if (data & SSE) {
-		LOG_ERROR("Device Status - SSE Set\n");
-		LOG_ERROR("Detected Signaled System Error!!!\n");
+		LOG_ERR("Device Status - SSE Set\n");
+		LOG_ERR("Detected Signaled System Error");
 	}
 	if (data & DPD) {
-		LOG_ERROR("Device Status - DPD Set\n");
-		LOG_ERROR("Detected Master Data Parity Error!!!\n");
+		LOG_ERR("Device Status - DPD Set\n");
+		LOG_ERR("Detected Master Data Parity Error");
 	}
    }
 
@@ -122,14 +122,14 @@ int driver_generic_read(struct file *file,
    */
    unsigned char __user *datap = (unsigned char __user *)nvme_data->rdBuffer;
 
-   LOG_DEBUG("Inside Generic Read Funtion of the IOCTLs\n");
+   LOG_DBG("Inside Generic Read Funtion of the IOCTLs");
 
    /*
    * Check here if any invalid data is passed and return from here.
    * if not valid.
    */
    if ((nvme_data->offset < 0) || (nvme_data->nBytes < 0)) {
-	LOG_ERROR("invalid params to IOCTL generic function...\n");
+	LOG_ERR("invalid params to IOCTL generic function");
 	return -EINVAL;
    }
 
@@ -145,7 +145,7 @@ int driver_generic_read(struct file *file,
    switch (nvme_data->type) {
    case NVME_PCI_HEADER: /* Switch case for NVME PCI Header type. */
 
-	LOG_DEBUG("User App request to read  the PCI Header Space\n");
+	LOG_DBG("User App request to read  the PCI Header Space");
 
 	/*
 	* Loop through the number of bytes that are specified in the
@@ -159,11 +159,11 @@ int driver_generic_read(struct file *file,
 		ret_code = pci_read_config_byte(pdev, offset + index, &data);
 
 		if (ret_code < 0) {
-			LOG_ERROR("pci_read_config failed\n");
+			LOG_ERR("pci_read_config failed");
 			return ret_code;
 		}
 
-		LOG_DEBUG("Reading PCI header from offset = %d, data = 0x%x\n",
+		LOG_DBG("Reading PCI header from offset = %d, data = 0x%x",
 					(offset + index), data);
 
 		/*
@@ -181,14 +181,14 @@ int driver_generic_read(struct file *file,
 
    case NVME_PCI_BAR01:
 	/* Registers are aligned and so */
-	LOG_DEBUG("Invoking User App request for BAR01\n");
+	LOG_DBG("Invoking User App request for BAR01");
 	/*
 	* Get the Bar01 value for the current device pdev.
 	*/
 	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &bar0);
 
-	LOG_DEBUG("BAR 01 = 0x%x\n", bar1);
-	LOG_DEBUG("BAR 00 = 0x%x\n", bar0);
+	LOG_DBG("BAR 01 = 0x%x", bar1);
+	LOG_DBG("BAR 00 = 0x%x", bar0);
 
 	/*
 	* Upper 32 bit of the memory register base address.
@@ -200,7 +200,7 @@ int driver_generic_read(struct file *file,
 	*/
 	u64_bar01 = ((u64_bar01 << 32) | bar0);
 
-	LOG_DEBUG("BAR 64 01 = 0x%x\n", (u32)u64_bar01);
+	LOG_DBG("BAR 64 01 = 0x%x", (u32)u64_bar01);
 	/*
 	* Compute the required offset from the BAR01.
 	*/
@@ -219,7 +219,7 @@ int driver_generic_read(struct file *file,
 
 		memcpy((char *)&datap[index], (char *)&u32data, sizeof(u32));
 
-		LOG_DEBUG("Reading NVME Space offset = 0x%x, data = 0x%x\n",
+		LOG_DBG("Reading NVME Space offset = 0x%x, data = 0x%x",
 				offset + index, u32data);
 
 	}
@@ -227,7 +227,7 @@ int driver_generic_read(struct file *file,
 	break;
 
    default:
-	LOG_DEBUG("Could not find switch case using defuult\n");
+	LOG_DBG("Could not find switch case using defuult");
    }
 
    /*
@@ -240,7 +240,7 @@ int driver_generic_read(struct file *file,
    ret_code = copy_to_user(&nvme_data->rdBuffer[0], datap,
 				nvme_data->nBytes * sizeof(u8));
    if (ret_code < 0)
-	LOG_ERROR("Error copying to user buffer returning...\n");
+	LOG_ERR("Error copying to user buffer returning");
 
    return ret_code;
 }
@@ -264,7 +264,7 @@ int driver_generic_write(struct file *file,
    */
    unsigned char __user *datap = (unsigned char __user *)nvme_data->wrBuffer;
 
-   LOG_DEBUG("Inside Generic write Funtion of the IOCTLs\n");
+   LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
    /* allocate kernel memory to datap that is requested from user app */
    datap = kzalloc(sizeof(u8) * nvme_data->nBytes, GFP_KERNEL);
@@ -274,7 +274,7 @@ int driver_generic_write(struct file *file,
    * no memory.
    */
    if (!datap) {
-	LOG_ERROR("Unable to allocate kernel memory in driver generic write\n");
+	LOG_ERR("Unable to allocate kernel memory in driver generic write");
 	return -ENOMEM;
    }
 
@@ -290,13 +290,13 @@ int driver_generic_write(struct file *file,
    switch (nvme_data->type) {
    case NVME_PCI_HEADER: /* Switch case for NVME PCI Header type. */
 
-	LOG_DEBUG("Invoking User App request to write the PCI Header Space\n");
+	LOG_DBG("Invoking User App request to write the PCI Header Space");
 
 	/*
 	* Check here if any invalid data is passed and retrun from here.
 	*/
 	if ((nvme_data->offset < 0) || (nvme_data->nBytes < 0)) {
-		LOG_ERROR("invalid params to IOCTL write function...\n");
+		LOG_ERR("invalid params to IOCTL write function");
 		return -EINVAL;
 	}
 
@@ -322,23 +322,23 @@ int driver_generic_write(struct file *file,
 		ret_code = pci_write_config_byte(pdev, offset + index, data);
 
 		if (ret_code < 0) {
-			LOG_ERROR("Unable to write to location = %d data = %x",
+			LOG_ERR("Unable to write to location = %d data = %x",
 				(offset + index), data);
 			return ret_code;
 		}
 
-		LOG_DEBUG("Writing to PCI header offset,data = %d, %x\n",
+		LOG_DBG("Writing to PCI header offset,data = %d, %x\n",
 					(offset + index), data);
 	}
 	/* Done writing user requested data, returning. */
 	break;
 
    case NVME_PCI_BAR01:
-	LOG_DEBUG("Invoking User App request to write PCI BAR01\n");
+	LOG_DBG("Invoking User App request to write PCI BAR01");
 	break;
 
    default:
-	LOG_DEBUG("Could not find switch case using defuult\n");
+	LOG_DBG("Could not find switch case using default");
    }
 
    return ret_code;
@@ -356,7 +356,7 @@ int driver_default_ioctl(struct file *file,
 {
     unsigned long __user *datap = (unsigned long __user *)buffer;
     unsigned long tmp;
-    LOG_DEBUG("Inside Default IOCTL Funtion\n");
+    LOG_DBG("Inside Default IOCTL Function");
     tmp = 0xa5a5;
     put_user(tmp, datap);
 

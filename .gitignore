@@ -1,3 +1,7 @@
+rpm/
+rpmbuild/
+dnvme-*/
+
 *.o
 *.ko
 *.cmd
@@ -5,3 +9,7 @@
 *.mod.c
 *.order
 .tmp_versions/
+dnvme*.tar.gz
+.project
+.cproject
+*.swp
