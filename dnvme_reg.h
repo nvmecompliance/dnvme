@@ -1,6 +1,10 @@
 #ifndef _DNVME_REG_H_
 #define _DNVME_REG_H_
 
+/**
+* nvme_ctrl_reg defines the register space for the
+* nvme controller registers as defined in NVME Spec 1.0a.
+*/
 struct nvme_ctrl_reg {
 	__u64	cap;    /* Controller Capabilities */
 	__u32	vs;     /* Version */
@@ -15,23 +19,33 @@ struct nvme_ctrl_reg {
 	__u64	acq;    /* Admin CQ Base Address */
 };
 
+/**
+* nvme_dev_entry shows a device entry in the global
+* linked list which has one pci_dev and its corresponding
+* bar mapped value.
+*/
 struct nvme_dev_entry {
 	struct pci_dev *pdev;
 	u8 *bar0mapped;
 };
 
+/**
+* nvme_space specifies the bar remapped value.
+*/
 struct nvme_space {
 	struct nvme_ctrl_reg __iomem *bar_dev;
 };
 
-void read_nvme_registers(
-	struct nvme_space nvme_ctrl_reg_space,
-	char *udata
-	);
-
+/**
+* read_nvme_reg_generic function is a generic function which
+* reads data from the controller registers of the nvme with
+* user specified offset and bytes. Copies data back to udata
+* pointer which points to user space buffer.
+*/
 void read_nvme_reg_generic(
-                        struct nvme_space nvme_ctrl_reg_space,
-                        char *udata,
-                        int nbytes;
-                        );
+	struct nvme_space nvme_ctrl_reg_space,
+	char *udata,
+	int nbytes,
+	int offset
+);
 #endif

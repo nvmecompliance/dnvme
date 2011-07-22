@@ -206,13 +206,12 @@ int driver_generic_read(struct file *file,
 	nvme_ctrl_reg_space.bar_dev = (void __iomem *)nvme->bar0mapped;
 
 	/* Read NVME register space. */
-	read_nvme_registers(
+	read_nvme_reg_generic(
 			nvme_ctrl_reg_space,
-			udata
+			datap,
+			nvme_data->nBytes,
+			offset
 			);
-
-	/* copy only date requested by the user */
-	memcpy(&datap[0],  &udata[offset], nvme_data->nBytes * sizeof(u8));
 
 	/* done with nvme space reading break from this case .*/
 	break;
@@ -234,8 +233,6 @@ int driver_generic_read(struct file *file,
 	LOG_ERR("Error copying to user buffer returning");
 
    mdelay(1000);
-//   kfree(udata);
-//   kfree(nvme);
    return ret_code;
 }
 

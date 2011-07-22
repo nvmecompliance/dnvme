@@ -97,9 +97,7 @@ static int dnvme_init(void)
    int err = -EINVAL;
    dev_t nvme_dev_c = 0;
    dev_t devno = 0;
-//   struct device *device = NULL;
    int nvme_ndevices = NVME_N_DEVICES;
-//   struct nvme_dev_char *dev = NULL;
 
     LOG_NRM("version: %d.%d", VER_MAJOR, VER_MINOR);
    LOG_DBG("Init module - dnvme init");
@@ -153,7 +151,7 @@ static int dnvme_init(void)
 
    /* Allocate Major and create class */
    NVME_MAJOR = nvme_major;
-   
+
    class_nvme = class_create(THIS_MODULE, NVME_DEVICE_NAME);
 
    /* Check if class_nvme creation has any issues */
@@ -495,8 +493,8 @@ static void __exit dnvme_exit(void)
    cdev_del(&dev->cdev);
    unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
    pci_unregister_driver(&dnvme_pci_driver);
-   
-   LOG_DBG("dnvme exited...Bye");
+
+   LOG_DBG("dnvme driver Exited...Bye!!");
 }
 
 /*
