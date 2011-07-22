@@ -7,19 +7,11 @@ DRV_NAME:=dnvme
 FLAG=-DDEBUG
 EXTRA_CFLAGS+=$(FLAG) -I$(PWD)/
 
-<<<<<<< HEAD
-SUBDIR := \
-	doc
 
 SOURCES := \
 	dnvme_reg.c \
 	sysdnvme.c \
 	dnvme_ioctls.c 
-=======
-SOURCES:=			\
-	sysdnvme.c		\
-	dnvme_ioctls.c
->>>>>>> fb7f81fa6d7025d92569199678696fd18b094d12
 
 #
 # RPM build parameters
