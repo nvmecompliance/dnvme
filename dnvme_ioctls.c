@@ -171,7 +171,7 @@ int driver_generic_read(struct file *file,
 	LOG_DEBUG("Invoking User App request for BAR01\n");
 
 	/* Allocate and zero out data buffer */
-	udata = kzalloc(nvme_data->nBytes * sizeof(u8), GFP_KERNEL);
+	udata = kzalloc(sizeof(struct nvme_ctrl_reg), GFP_KERNEL);
 
 	/* check allocation succeeded */
 	if (udata == NULL) {
