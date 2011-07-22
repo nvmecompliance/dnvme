@@ -1,0 +1,4 @@
+#
+# tdi module rules
+#
+KERNEL=="tdi*",		NAME="%k", MODE="0666"

@@ -1,16 +1,17 @@
 #ifndef _DNVME_H_
 #define _DNVME_H_
 
-#define LEVEL	"dnvme"
-#define LOG_NOR(msg, ...)   \
-   fprintf(stdout, "%s: %s\n", LEVEL, msg);
-#define LOG_ERR(msg)    \
-   fprintf(stderr, "%s-ERR:%s:%d:"msg"\n", LEVEL, __FILE__, __LINE__);
+#define APPNAME         "dnvme"
+#define LEVEL           APPNAME
+#define LOG_NRM(fmt, ...)    \
+    printk("%s: " fmt "\n", LEVEL, ## __VA_ARGS__);
+#define LOG_ERR(fmt, ...)    \
+    printk("%s-err:%s:%d: " fmt "\n", LEVEL, __FILE__, __LINE__, ## __VA_ARGS__);
 #ifdef DEBUG
-#define LOG_DBG(msg)    \
-   fprintf(stderr, "%s-DBG:__FILE__:__LINE__: %s\n", LEVEL, msg);
+#define LOG_DBG(fmt, ...)    \
+    printk("%s-dbg:%s:%d: " fmt "\n", LEVEL, __FILE__, __LINE__, ## __VA_ARGS__);
 #else
-#define LOG_DBG(msg);
+#define LOG_DBG(fmt, ...)    ;
 #endif
 
 /*!
