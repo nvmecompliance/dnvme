@@ -35,7 +35,7 @@
 * implies that the error is defined for those poistionis in
 * STS register. The bits that are 0 are non error positions.
 */
-#define DEV_ERR_MASK                    0xC100
+#define DEV_ERR_MASK                    0xF900
 
 /**
 * @def DPE
@@ -61,6 +61,30 @@
 * in CMD.PEE is set to 1.
 */
 #define DPD                             0x0100
+
+/**
+* @def RMA 
+* This bit position indicates Received Master Abort.
+* Set to 1 by h/w if when the controller receives a 
+* master abort to a cycle it generated.
+*/
+#define RMA                             0x2000
+
+/**
+* @def RTA 
+* This bit position indicates Received Target Abort.
+* Set to 1 by h/w if when the controller receives a 
+* target abort to a cycle it generated.
+*/
+#define RTA                             0x1000
+
+/**
+* @def STA 
+* This bit position indicates Signalled Target Abort.
+* Set to 1 by h/w if when the controller receives a 
+* target abort to a cycle it generated.
+*/
+#define STA                             0x800
 
 /**
 * This is a structure that defines all the PCI

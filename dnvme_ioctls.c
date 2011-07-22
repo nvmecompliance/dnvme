@@ -58,23 +58,34 @@ int device_status_chk(struct pci_dev *pdev,
    */
    err_data = data;
 
-   LOG_DBG(KERN_CRIT "PCI Device Status crit = %x", data);
-   LOG_DBG(KERN_EMERG "PCI Device Status Emerg = %x", data);
+   LOG_DBG("PCI Device Status = %x", data);
 
    if (data & DEV_ERR_MASK) {
 	*status = FAIL;
 
 	if (data & DPE) {
-		LOG_ERR("Device Status - DPE Set");
-		LOG_ERR("Detected Data parity Error");
+		LOG_ERR("Device Status - DPE Set\n");
+		LOG_ERR("Detected Data parity Error\n");
 	}
 	if (data & SSE) {
 		LOG_ERR("Device Status - SSE Set\n");
-		LOG_ERR("Detected Signaled System Error");
+		LOG_ERR("Detected Signaled System Error\n");
 	}
 	if (data & DPD) {
 		LOG_ERR("Device Status - DPD Set\n");
-		LOG_ERR("Detected Master Data Parity Error");
+		LOG_ERR("Detected Master Data Parity Error\n");
+	}
+	if (data & RMA) {
+		LOG_ERR("Device Status - RMA Set\n");
+		LOG_ERR("Received Master Abort...\n");
+	}
+	if (data & RTA) {
+		LOG_ERR("Device Status - RTA Set\n");
+		LOG_ERR("Received Target Abort...\n");
+	}
+	if (data & STA) {
+		LOG_ERR("Device Status - STA Set\n");
+		LOG_ERR("Signalled Target Abort...\n");
 	}
    }
 
