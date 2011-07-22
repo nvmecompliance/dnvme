@@ -16,7 +16,7 @@
 #define CONFIG_PCI			1
 #define PCI_CLASS_STORAGE_EXPRESS	0x010802
 #define NVME_MINORS			16
-
+#define MAX_PCI_EXPRESS_CFG		0xFFF
 /**
 * @def PCI_DEVICE_STATUS
 * define the offset for STS register

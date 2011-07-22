@@ -100,3 +100,31 @@ void read_nvme_registers(
    LOG_DEBUG("Reg 12= %d\n", u32data);
 }
 
+
+/*
+* read_nvme_reg_generic  - Function to read the controller registers
+* located in the MLBAR/MUBAR (PCI BAR 0 and 1) that are mapped to
+* memory area which supports in-order access.
+* The limitation of this reading of nvme space in QEMU dictates
+* accessing individual register rather than looping with index.
+*/
+void read_nvme_reg_generic(
+			struct nvme_space nvme_ctrl_reg_space,
+			char *udata,
+			int nbytes
+			)
+{
+   int index = 0;
+   u32 u32data;
+   u8 __iomem *bar;
+
+   bar = (u8 __iomem *)nvme_ctrl_reg_space.bar_dev;
+
+   for(index = 0; index < nbytes; index+=4)
+   {
+	u32data = readl(&bar);
+	LOG_DEBUG("Bar Location = 0x%x. Reg Location = %d Data = %x\n", bar, index, u32data);
+
+	bar+=4;
+   }
+}

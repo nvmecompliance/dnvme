@@ -28,4 +28,10 @@ void read_nvme_registers(
 	struct nvme_space nvme_ctrl_reg_space,
 	char *udata
 	);
+
+void read_nvme_reg_generic(
+                        struct nvme_space nvme_ctrl_reg_space,
+                        char *udata,
+                        int nbytes;
+                        );
 #endif

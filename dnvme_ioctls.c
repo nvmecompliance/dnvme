@@ -111,6 +111,11 @@ int driver_generic_read(struct file *file,
    LOG_DBG("Inside Generic Read Funtion of the IOCTLs");
 
    nvme = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
+   if (nvme == NULL) {
+	LOG_ERROR("Unable to allocate kernel mem in generic read\n");
+	LOG_ERROR("Exiting from here...");
+	return -ENOMEM;
+   }
    /*
    * Check here if any invalid data is passed and return from here.
    * if not valid.
@@ -133,12 +138,17 @@ int driver_generic_read(struct file *file,
    case NVME_PCI_HEADER: /* Switch case for NVME PCI Header type. */
 
 	LOG_DBG("User App request to read  the PCI Header Space");
-
 	/*
 	* Loop through the number of bytes that are specified in the
 	* bBytes parameter.
 	*/
 	for (index = 0; index < nvme_data->nBytes; index++) {
+
+		if ((offset + index) > MAX_PCI_EXPRESS_CFG) {
+			LOG_ERROR("Offset is more than the PCI Express ");
+			LOG_ERROR("Extended config space...\n");
+			return -EINVAL;
+		}
 		/*
 		* Read a byte from the configuration register
 		* and pass it to user.
@@ -146,11 +156,11 @@ int driver_generic_read(struct file *file,
 		ret_code = pci_read_config_byte(pdev, offset + index, &data);
 
 		if (ret_code < 0) {
-			LOG_ERR("pci_read_config failed");
+			LOG_ERROR("pci_read_config failed");
 			return ret_code;
 		}
 
-		LOG_DBG("Reading PCI header from offset = %d, data = 0x%x",
+		LOG_DEBUG("Reading PCI header from offset = %d, data = 0x%x",
 					(offset + index), data);
 
 		/*
@@ -223,6 +233,9 @@ int driver_generic_read(struct file *file,
    if (ret_code < 0)
 	LOG_ERR("Error copying to user buffer returning");
 
+   mdelay(1000);
+//   kfree(udata);
+//   kfree(nvme);
    return ret_code;
 }
 

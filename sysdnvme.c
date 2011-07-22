@@ -76,7 +76,8 @@ static const struct block_device_operations dnvme_fops = {
 static int NVME_MAJOR;
 static struct class *class_nvme;
 static struct device *nvme_devices;
-
+struct nvme_dev_char *dev;
+struct device *device;
 LIST_HEAD(nvme_devices_llist);
 module_param(NVME_MAJOR, int, 0);
 MODULE_LICENSE("GPL");
@@ -96,9 +97,9 @@ static int dnvme_init(void)
    int err = -EINVAL;
    dev_t nvme_dev_c = 0;
    dev_t devno = 0;
-   struct device *device = NULL;
+//   struct device *device = NULL;
    int nvme_ndevices = NVME_N_DEVICES;
-   struct nvme_dev_char *dev = NULL;
+//   struct nvme_dev_char *dev = NULL;
 
     LOG_NRM("version: %d.%d", VER_MAJOR, VER_MINOR);
    LOG_DBG("Init module - dnvme init");
@@ -152,7 +153,7 @@ static int dnvme_init(void)
 
    /* Allocate Major and create class */
    NVME_MAJOR = nvme_major;
-
+   
    class_nvme = class_create(THIS_MODULE, NVME_DEVICE_NAME);
 
    /* Check if class_nvme creation has any issues */
@@ -233,7 +234,6 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    struct nvme_device_entry *nvme_dev_list = NULL;
    u32  BaseAddress0 = 0;
    u32  *bar;
-
    /*
    *	Following the Iniitalization steps from LDD 3 and pci.txt.
    *	Before touching any device registers, the driver needs to enable
@@ -265,11 +265,11 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     /* Return void, Enables bus mastering and calls pcibios_set_master */
    pci_set_master(pdev);
 
-    /* MAke BAR mask fromt eh resource */
+    /* Make BAR mask from the resource */
    bars = pci_select_bars(pdev, IORESOURCE_MEM);
 
    if (pci_request_selected_regions(pdev, bars, DRV_NAME)) {
-	LOG_ERR("Can't select regions");
+	LOG_ERR("Can't select regions, Exiting!!!");
 	return -EINVAL;
    } else {
 	LOG_DBG("Select regions success");
@@ -483,9 +483,19 @@ int dnvme_ioctl_device(
 */
 static void __exit dnvme_exit(void)
 {
+   struct nvme_device_entry *nvme_dev_entry;
+   struct pci_dev *pdev;
+   /* Get the device from the linked list */
+   list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
+	pdev = nvme_dev_entry->pdev;
+	pci_release_regions(pdev);
+   }
+   device_del(device);
+   class_destroy(class_nvme);
+   cdev_del(&dev->cdev);
    unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
    pci_unregister_driver(&dnvme_pci_driver);
-
+   
    LOG_DBG("dnvme exited...Bye");
 }
 
