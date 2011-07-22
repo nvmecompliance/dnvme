@@ -5,23 +5,14 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/unistd.h>
+#include <linux/delay.h>
 
 #include "dnvme_ioctls.h"
 #include "dnvme_interface.h"
 #include "definitions.h"
+#include "dnvme_reg.h"
 #include "sysfuncproto.h"
 #include "sysdnvme.h"
-
-uint32_t read_reg(int index, u32 *bar)
-{
-   uint32_t u32reg;
-
-   /* reg.u32[0] = readl((u32 *)(bar + offset));*/
-   u32reg = ioread32((u32 *)(bar + index));
-
-   LOG_DEBUG("Read Operation = 0x%x\n", u32reg);
-   return u32reg;
-}
 
 /*
 *  device_status_chk  - Generic error checking function
@@ -56,7 +47,7 @@ int device_status_chk(struct pci_dev *pdev,
 
    LOG_DEBUG("PCI Device Status read = %x\n", data);
    /*
-   * Check the retrun code to know if pci read is succes.
+   * Check the return code to know if pci read is succes.
    */
    if (ret_code < 0)
 	LOG_ERROR("pci_read_config failed in driver error check\n");
@@ -112,18 +103,14 @@ int driver_generic_read(struct file *file,
    u8 data; /*  data read from PCI space. */
    u8 index; /* index for looping till the end. */
    int ret_code = -EINVAL; /* to verify if return code is success. */
-   u64 u64_bar01 = 0;
-   u32 bar0 = 0;
-   u32 bar1 = 0;
-   u32 u32data = 0;
-   /*
-   * Pointer for user data to be copied to user space from
-   * kernel space. Initialize with user passed data pointer.
-   */
+   u8 *udata;
+   struct nvme_space nvme_ctrl_reg_space;
+   struct nvme_dev_entry *nvme = NULL;
    unsigned char __user *datap = (unsigned char __user *)nvme_data->rdBuffer;
 
    LOG_DEBUG("Inside Generic Read Funtion of the IOCTLs\n");
 
+   nvme = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
    /*
    * Check here if any invalid data is passed and return from here.
    * if not valid.
@@ -182,48 +169,42 @@ int driver_generic_read(struct file *file,
    case NVME_PCI_BAR01:
 	/* Registers are aligned and so */
 	LOG_DEBUG("Invoking User App request for BAR01\n");
-	/*
-	* Get the Bar01 value for the current device pdev.
-	*/
-	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &bar0);
 
-	LOG_DEBUG("BAR 01 = 0x%x\n", bar1);
-	LOG_DEBUG("BAR 00 = 0x%x\n", bar0);
+	/* Allocate and zero out data buffer */
+	udata = kzalloc(nvme_data->nBytes * sizeof(u8), GFP_KERNEL);
 
-	/*
-	* Upper 32 bit of the memory register base address.
-	*/
-	memcpy((u32 *)&u64_bar01, (u32 *)(void __iomem *)&bar1, sizeof(u32));
-
-	/*
-	* Lower 32 bit of the memory register base address.
-	*/
-	u64_bar01 = ((u64_bar01 << 32) | bar0);
-
-	LOG_DEBUG("BAR 64 01 = 0x%x\n", (u32)u64_bar01);
-	/*
-	* Compute the required offset from the BAR01.
-	*/
-	u64_bar01 = u64_bar01 + offset;
-
-	index = 0;
-	/*
-	* Loop through the number of bytes that are specified in the
-	* bBytes parameter.
-	*/
-	for (index = 0; index < nvme_data->nBytes; index += 4) {
-		/*
-		* Read a 32 byte data from the configuration register.
-		*/
-		u32data = read_reg(index, (u32 *)&u64_bar01);
-
-		memcpy((char *)&datap[index], (char *)&u32data, sizeof(u32));
-
-		LOG_DEBUG("Reading NVME Space offset = 0x%x, data = 0x%x\n",
-				offset + index, u32data);
-
+	/* check allocation succeeded */
+	if (udata == NULL) {
+		LOG_ERROR("Memory could not be allocated for reading\n");
+		return -ENOMEM;
 	}
 
+	/* Remap io mem for this device. */
+	nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
+				pci_resource_len(pdev, 0));
+
+	/* Check if remap was success */
+	if (!nvme->bar0mapped) {
+		LOG_ERROR("Unable to map io region nmve..exit\n");
+		return -EINVAL;
+	}
+
+	LOG_DEBUG("[Nvme_Drv]Using Bar0 address: %llx, length %d\n",
+		(uint64_t)nvme->bar0mapped, (int) pci_resource_len(pdev, 0));
+
+	/* Assign the BAR remapped into nvme space control register */
+	nvme_ctrl_reg_space.bar_dev = (void __iomem *)nvme->bar0mapped;
+
+	/* Read NVME register space. */
+	read_nvme_registers(
+			nvme_ctrl_reg_space,
+			udata
+			);
+
+	/* copy only date requested by the user */
+	memcpy(&datap[0],  &udata[offset], nvme_data->nBytes * sizeof(u8));
+
+	/* done with nvme space reading break from this case .*/
 	break;
 
    default:
@@ -293,7 +274,7 @@ int driver_generic_write(struct file *file,
 	LOG_DEBUG("Invoking User App request to write the PCI Header Space\n");
 
 	/*
-	* Check here if any invalid data is passed and retrun from here.
+	* Check here if any invalid data is passed and return from here.
 	*/
 	if ((nvme_data->offset < 0) || (nvme_data->nBytes < 0)) {
 		LOG_ERROR("invalid params to IOCTL write function...\n");

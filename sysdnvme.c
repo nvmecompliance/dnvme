@@ -24,7 +24,7 @@
 #define	NVME_DEVICE_NAME	"qnvme"
 #define DRV_VERSION		"NVME_1.0a"
 #define NVME_N_DEVICES		1
-#define _CLASSIC_		0
+#define _CLASSIC_		1
 #define NVME_BLOCK_SIZE		512
 #define NVME_BUFFER_SIZE	1024
 
@@ -33,7 +33,7 @@
 * 0x1FFFFF
 */
 static DEFINE_PCI_DEVICE_TABLE(dnvme_pci_tbl) = {
-    { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0x1FFFFF) },
+    { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xFFFF00) },
     { 0, }
     };
 
@@ -101,15 +101,17 @@ static int dnvme_init(void)
 
    LOG_DEBUG("Init module - dnvme init\n");
 
-   nvme_major = register_blkdev(NVME_MAJOR, DRV_NAME);
-   if (nvme_major < 0) {
-	/*Unable to register the PCI device */
-       LOG_ERROR("NVME Blk Registration failed\n");
-       return nvme_major;
-   } else {
-       NVME_MAJOR = nvme_major;
+   if (!_CLASSIC_) {
+	nvme_major = register_blkdev(NVME_MAJOR, DRV_NAME);
+	if (nvme_major < 0) {
+		/*Unable to register the PCI device */
+		LOG_ERROR("NVME Blk Registration failed\n");
+		return nvme_major;
+	} else {
 
-       LOG_DEBUG("Major Number = %d\n", NVME_MAJOR);
+		NVME_MAJOR = nvme_major;
+		 LOG_DEBUG("Major Number = %d\n", NVME_MAJOR);
+	}
    }
 
    /*
@@ -117,13 +119,19 @@ static int dnvme_init(void)
    *  using it as char dev instead
    */
    /* This is classic way to register a char device */
-   if (_CLASSIC_) {
-	nvme_major = register_chrdev(NVME_MAJOR, "nvme_ssd", &dnvme_fops_f);
+   if (_CLASSIC_ == 1) {
+	nvme_major = register_chrdev
+				(
+				NVME_MAJOR,
+				NVME_DEVICE_NAME,
+				&dnvme_fops_f
+				);
 
 	if (nvme_major < 0) {
 		LOG_ERROR("NVME Char Registration failed...\n");
 		return -ENODEV;
 		}
+	LOG_DEBUG("NVME Char type registered..\n");
    } else {
 	err = alloc_chrdev_region
 			(
@@ -265,7 +273,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 	LOG_DEBUG("Select regions success!!\n");
    }
 
-   LOG_DEBUG("PCI bars return code = %d\n", bars);
+   LOG_DEBUG("Mask for PCI BARS = %d\n", bars);
    LOG_DEBUG("PCI Probe Success!. Return Code = %d\n", retCode);
 
    /**
@@ -284,10 +292,11 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 			pci_resource_len(pdev, 0));
 
    if (bar != NULL) {
-	LOG_DEBUG("Bar 0 Address: \n");
+	LOG_DEBUG("Bar 0 Address:\n");
 	LOG_DEBUG("Remap value.\n");
    } else {
-	LOG_ERROR("allocate Host Memory for Device Failed!!...\n");
+	LOG_ERROR("allocate Host Memory for Device Failed!!\n");
+	return -EINVAL;
    }
 
    /*

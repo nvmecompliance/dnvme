@@ -8,15 +8,16 @@ SUBDIR := \
 	doc
 
 SOURCES := \
+	dnvme_reg.c \
 	sysdnvme.c \
-	dnvme_ioctls.c
+	dnvme_ioctls.c 
 
 FLAG = -DDEBUG
 EXTRA_CFLAGS += $(FLAG)
 EXTRA_CFLAGS += -I$(PWD)/
 
 obj-m := dnvme.o
-dnvme-objs += sysdnvme.o dnvme_ioctls.o
+dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o
 
 all:
 	make -C $(KDIR) M=$(PWD) modules
