@@ -13,7 +13,7 @@
 #include "dnvme_reg.h"
 #include "sysfuncproto.h"
 #include "sysdnvme.h"
-
+#include "dnvme_sts_chk.h"
 /*
 *  device_status_chk  - Generic error checking function
 *  which checks error registers and set kernel
@@ -24,9 +24,9 @@ int device_status_chk(struct pci_dev *pdev,
 {
    /* Local variable declaration. */
    u16 data; /* unsinged 16 bit data. */
-   u16 err_data;
-   int ret_code = EINVAL;
-
+   u16 pci_offset; /* pci offset in PCI and PCIE space */
+   int ret_code = EINVAL; /* initialize ret code to invalid */
+   u16 capability;
    /*
    * Pointer for user data to be copied to user space from
    * kernel space. Initialize with user passed data pointer.
@@ -34,59 +34,72 @@ int device_status_chk(struct pci_dev *pdev,
    int __user *datap = (int __user *)status;
 
    /*
-   * Set the status to SUCCESS and eventually verify any error
-   * really got set.
-   */
-   *status = SUCCESS;
-
-   /*
    * Read a word (16bit value) from the configuration register
    * and pass it to user.
    */
    ret_code = pci_read_config_word(pdev, PCI_DEVICE_STATUS, &data);
-
-   LOG_DBG("PCI Device Status read = %x", data);
    /*
    * Check the return code to know if pci read is succes.
    */
-   if (ret_code < 0)
-	LOG_ERR("pci_read_config failed in driver error check");
+   if (ret_code < 0) {
+	LOG_ERROR("pci_read_config failed in driver error check\n");
+	return -EINVAL;
+   }
 
    /*
-   * Store the data into err_data. Making a data copy. As we will
-   * be modifying the data bits.
+   * Get the Device Status from the PCI Header.
    */
-   err_data = data;
+   *status = device_status_pci(data);
 
-   LOG_DBG("PCI Device Status = %x", data);
+   /* Print out to kernel log the device status */
+   if (SUCCESS == *status)
+	LOG_ERROR("PCI Device Status SUCCESS\n");
+   else
+	LOG_ERROR("PCI Device Status FAIL\n");
 
-   if (data & DEV_ERR_MASK) {
-	*status = FAIL;
+   /*
+   * Check if CAP pointer points to next available
+   * linked list resgisters. 
+   */
+   ret_code = pci_read_config_word(pdev, CAP_REG, &pci_offset);
 
-	if (data & DPE) {
-		LOG_ERR("Device Status - DPE Set\n");
-		LOG_ERR("Detected Data parity Error\n");
+   if (ret_code < 0)
+	LOG_ERROR("pci_read_config failed in driver error check\n");
+
+   ret_code = pci_read_config_word(pdev, pci_offset, &capability);
+
+   while (capability != 0) {
+	switch (capability & ~NEXT_MASK) {
+	case PMCAP_ID:
+		if ( 
+			(0x0 != pci_offset) && 	(0x3F < pci_offset)
+		) {
+			LOG_DEBUG("Entering into PCI Power Management Capabilities\n");
+
+			/* Compute the PMCS offset from CAP data */
+			pci_offset = pci_offset + PMCS;
+
+		        ret_code = pci_read_config_word(pdev, pci_offset, &data);
+			if (ret_code < 0)
+				LOG_ERROR("pci_read_config failed in driver error check\n");
+
+			device_status_pmcs(data);
+		}
+		break;
+	case MSICAP_ID:
+		break;
+
+	case MSIXCAP_ID:
+		break;
+	case PXCAP_ID:
+		break;
+/*	case AERCAP_ID:
+		break;
+*/	default:
+		break;
 	}
-	if (data & SSE) {
-		LOG_ERR("Device Status - SSE Set\n");
-		LOG_ERR("Detected Signaled System Error\n");
-	}
-	if (data & DPD) {
-		LOG_ERR("Device Status - DPD Set\n");
-		LOG_ERR("Detected Master Data Parity Error\n");
-	}
-	if (data & RMA) {
-		LOG_ERR("Device Status - RMA Set\n");
-		LOG_ERR("Received Master Abort...\n");
-	}
-	if (data & RTA) {
-		LOG_ERR("Device Status - RTA Set\n");
-		LOG_ERR("Received Target Abort...\n");
-	}
-	if (data & STA) {
-		LOG_ERR("Device Status - STA Set\n");
-		LOG_ERR("Signalled Target Abort...\n");
-	}
+   
+   ret_code = pci_read_config_word(pdev, pci_offset, &capability);
    }
 
    /*
@@ -97,6 +110,7 @@ int device_status_chk(struct pci_dev *pdev,
    *  third parameter give the number of bytes to copy.
    */
    ret_code = copy_to_user(status, datap, sizeof(status));
+
 
 return ret_code;
 }
@@ -127,6 +141,14 @@ int driver_generic_read(struct file *file,
 	LOG_ERROR("Exiting from here...");
 	return -ENOMEM;
    }
+
+   datap = kzalloc(sizeof(u8) * nvme_data->nBytes, GFP_KERNEL);
+   if (datap == NULL) {
+	LOG_ERROR("Unable to allocate kernel mem in generic read\n");
+	LOG_ERROR("Exiting from here..Req Bytes=.%d\n",nvme_data->nBytes);
+	return -ENOMEM;
+   }
+
    /*
    * Check here if any invalid data is passed and return from here.
    * if not valid.
@@ -148,7 +170,7 @@ int driver_generic_read(struct file *file,
    switch (nvme_data->type) {
    case NVME_PCI_HEADER: /* Switch case for NVME PCI Header type. */
 
-	LOG_DBG("User App request to read  the PCI Header Space");
+	LOG_DBG("User App request to read  the PCI Header Space\n");
 	/*
 	* Loop through the number of bytes that are specified in the
 	* bBytes parameter.
@@ -167,11 +189,11 @@ int driver_generic_read(struct file *file,
 		ret_code = pci_read_config_byte(pdev, offset + index, &data);
 
 		if (ret_code < 0) {
-			LOG_ERROR("pci_read_config failed");
+			LOG_ERROR("pci_read_config failed\n");
 			return ret_code;
 		}
 
-		LOG_DEBUG("Reading PCI header from offset = %d, data = 0x%x",
+		LOG_DEBUG("Reading PCI header from offset = %d, data = 0x%x\n",
 					(offset + index), data);
 
 		/*
@@ -244,6 +266,9 @@ int driver_generic_read(struct file *file,
 	LOG_ERR("Error copying to user buffer returning");
 
    mdelay(1000);
+
+   kfree(nvme);
+   kfree(datap);
    return ret_code;
 }
 
