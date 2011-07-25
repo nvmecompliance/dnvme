@@ -67,15 +67,16 @@ int device_status_chk(struct pci_dev *pdev,
 	LOG_ERROR("pci_read_config failed in driver error check\n");
 
    ret_code = pci_read_config_word(pdev, pci_offset, &capability);
+   if (ret_code < 0)
+	LOG_ERROR("pci_read_config failed in driver error check\n");
 
    while (capability != 0) {
 	switch (capability & ~NEXT_MASK) {
 	case PMCAP_ID:
+		LOG_DEBUG("Entering into PCI Power Management Capabilities\n");
 		if ( 
 			(0x0 != pci_offset) && 	(0x3F < pci_offset)
 		) {
-			LOG_DEBUG("Entering into PCI Power Management Capabilities\n");
-
 			/* Compute the PMCS offset from CAP data */
 			pci_offset = pci_offset + PMCS;
 
@@ -87,21 +88,23 @@ int device_status_chk(struct pci_dev *pdev,
 		}
 		break;
 	case MSICAP_ID:
-		break;
+		LOG_DEBUG("Entering into MSI Capabilities\n");
 
+		break;
 	case MSIXCAP_ID:
+		LOG_DEBUG("Entering into MSI-X Capabilities\n");
+
 		break;
 	case PXCAP_ID:
+		LOG_DEBUG("Entering into PCI Express Capabilities\n");
+
 		break;
-/*	case AERCAP_ID:
-		break;
-*/	default:
+	default:
 		break;
 	}
    
    ret_code = pci_read_config_word(pdev, pci_offset, &capability);
    }
-
    /*
    *  Efficient way to copying data to user buffer datap
    *  using in a single copy function call.
@@ -111,8 +114,7 @@ int device_status_chk(struct pci_dev *pdev,
    */
    ret_code = copy_to_user(status, datap, sizeof(status));
 
-
-return ret_code;
+   return ret_code;
 }
 
 /*
@@ -142,19 +144,12 @@ int driver_generic_read(struct file *file,
 	return -ENOMEM;
    }
 
-   datap = kzalloc(sizeof(u8) * nvme_data->nBytes, GFP_KERNEL);
-   if (datap == NULL) {
-	LOG_ERROR("Unable to allocate kernel mem in generic read\n");
-	LOG_ERROR("Exiting from here..Req Bytes=.%d\n",nvme_data->nBytes);
-	return -ENOMEM;
-   }
-
    /*
    * Check here if any invalid data is passed and return from here.
    * if not valid.
    */
    if ((nvme_data->offset < 0) || (nvme_data->nBytes < 0)) {
-	LOG_ERR("invalid params to IOCTL generic function");
+	LOG_ERROR("invalid params to IOCTL generic function");
 	return -EINVAL;
    }
 
@@ -170,13 +165,14 @@ int driver_generic_read(struct file *file,
    switch (nvme_data->type) {
    case NVME_PCI_HEADER: /* Switch case for NVME PCI Header type. */
 
-	LOG_DBG("User App request to read  the PCI Header Space\n");
+	LOG_DEBUG("User App request to read  the PCI Header Space\n");
+	LOG_DEBUG("Read request for bytes = %x\n", nvme_data->nBytes);
 	/*
 	* Loop through the number of bytes that are specified in the
 	* bBytes parameter.
 	*/
 	for (index = 0; index < nvme_data->nBytes; index++) {
-
+		LOG_DEBUG("Reading for index = %d\n", index);
 		if ((offset + index) > MAX_PCI_EXPRESS_CFG) {
 			LOG_ERROR("Offset is more than the PCI Express ");
 			LOG_ERROR("Extended config space...\n");
@@ -200,8 +196,10 @@ int driver_generic_read(struct file *file,
 		* copy each data read from pci space to user pointer.
 		* Index points to the next data location.
 		*/
-		datap[index] = data;
-
+		if (&datap[index] != NULL)
+			datap[index] = data;
+		
+		LOG_DEBUG("datap = %d", datap[index]);
 	}
 
 	/*
@@ -267,8 +265,6 @@ int driver_generic_read(struct file *file,
 
    mdelay(1000);
 
-   kfree(nvme);
-   kfree(datap);
    return ret_code;
 }
 
