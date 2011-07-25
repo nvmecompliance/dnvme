@@ -85,11 +85,14 @@ int device_status_chk(struct pci_dev *pdev,
 				LOG_ERROR("pci_read_config failed in driver error check\n");
 
 			device_status_pmcs(data);
+		} 
+		else {
+			LOG_DEBUG("Invalid offset = %d\n", pci_offset);
 		}
 		break;
 	case MSICAP_ID:
 		LOG_DEBUG("Entering into MSI Capabilities\n");
-
+//		device_status_msicap(pdev, pci_offset);
 		break;
 	case MSIXCAP_ID:
 		LOG_DEBUG("Entering into MSI-X Capabilities\n");
@@ -163,7 +166,7 @@ int driver_generic_read(struct file *file,
    *  enum type specified in struct nvme_read_generic.
    */
    switch (nvme_data->type) {
-   case NVME_PCI_HEADER: /* Switch case for NVME PCI Header type. */
+   case NVMEIO_PCI_HDR: /* Switch case for NVME PCI Header type. */
 
 	LOG_DEBUG("User App request to read  the PCI Header Space\n");
 	LOG_DEBUG("Read request for bytes = %x\n", nvme_data->nBytes);
@@ -198,8 +201,13 @@ int driver_generic_read(struct file *file,
 		*/
 		if (&datap[index] != NULL)
 			datap[index] = data;
+		else {
+			LOG_DEBUG("Invalid No of Bytes requested!!!\n");
+			LOG_DEBUG("Exiting from applicaton\n");
+			return -ENOMEM;	
+		}
 		
-		LOG_DEBUG("datap = %d", datap[index]);
+		LOG_DEBUG("Index = %d data 2 user = %d\n", index, datap[index]);
 	}
 
 	/*
@@ -207,7 +215,7 @@ int driver_generic_read(struct file *file,
 	*/
 	break;
 
-   case NVME_PCI_BAR01:
+   case NVMEIO_BAR01:
 	/* Registers are aligned and so */
 	LOG_DEBUG("Invoking User App request for BAR01\n");
 
@@ -311,7 +319,7 @@ int driver_generic_write(struct file *file,
    * Switch based on the type of requested write determined by nvme_data->data
    */
    switch (nvme_data->type) {
-   case NVME_PCI_HEADER: /* Switch case for NVME PCI Header type. */
+   case NVMEIO_PCI_HDR: /* Switch case for NVME PCI Header type. */
 
 	LOG_DBG("Invoking User App request to write the PCI Header Space");
 
@@ -356,7 +364,7 @@ int driver_generic_write(struct file *file,
 	/* Done writing user requested data, returning. */
 	break;
 
-   case NVME_PCI_BAR01:
+   case NVMEIO_BAR01:
 	LOG_DBG("Invoking User App request to write PCI BAR01");
 	break;
 

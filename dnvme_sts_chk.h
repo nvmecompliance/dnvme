@@ -87,28 +87,28 @@
 /**
 * @def MSICAP_ID
 * This bit indicates if the pointer leading to this position 
-* is a PCI power management capability.
+* is a capability.
 */
 #define MSICAP_ID			0x5
 
 /**
 * @def MSIXCAP_ID
 * This bit indicates if the pointer leading to this position 
-* is a PCI power management capability.
+* is a capability.
 */
 #define MSIXCAP_ID			0x11
 
 /**
 * @def PXCAP_ID
 * This bit indicates if the pointer leading to this position 
-* is a PCI power management capability.
+* is a capability.
 */
 #define PXCAP_ID			0x10
 
 /**
 * @def AERCAP_ID
 * This bit indicates if the pointer leading to this position 
-* is a PCI power management capability.
+* is a capability.
 */
 #define AERCAP_ID			0x0001
 

@@ -6,9 +6,10 @@
 * required offset as specified in the struct nvme_
 * read_generic type parameter.
 */
-enum type_t {
-   NVME_PCI_HEADER = 0,
-   NVME_PCI_BAR01,
+enum nvme_io_space {
+   NVMEIO_PCI_HDR,
+   NVMEIO_BAR01,
+   NVMEIO_FENCE	/* always must be the last element */
 };
 
 /**
@@ -17,7 +18,7 @@ enum type_t {
 * offset and length while reading data from nvme card.
 */
 struct nvme_read_generic {
-   enum type_t type;
+   enum nvme_io_space type;
    unsigned int  offset;
    unsigned int  nBytes;
    unsigned char *rdBuffer;
@@ -29,7 +30,7 @@ struct nvme_read_generic {
 * offset and length while serving the write request.
 */
 struct nvme_write_generic {
-   enum type_t type;
+   enum nvme_io_space type;
    unsigned int  offset;
    unsigned int  nBytes;
    unsigned char *wrBuffer;
