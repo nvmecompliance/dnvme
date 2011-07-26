@@ -47,25 +47,25 @@
 #define DPD                             0x0100
 
 /**
-* @def RMA 
+* @def RMA
 * This bit position indicates Received Master Abort.
-* Set to 1 by h/w if when the controller receives a 
+* Set to 1 by h/w if when the controller receives a
 * master abort to a cycle it generated.
 */
 #define RMA                             0x2000
 
 /**
-* @def RTA 
+* @def RTA
 * This bit position indicates Received Target Abort.
-* Set to 1 by h/w if when the controller receives a 
+* Set to 1 by h/w if when the controller receives a
 * target abort to a cycle it generated.
 */
 #define RTA                             0x1000
 
 /**
-* @def STA 
+* @def STA
 * This bit position indicates Signalled Target Abort.
-* Set to 1 by h/w if when the controller receives a 
+* Set to 1 by h/w if when the controller receives a
 * target abort to a cycle it generated.
 */
 #define STA                             0x800
@@ -77,37 +77,38 @@
 */
 #define NEXT_MASK			0xFF00
 
+#define AER_ERR_MASK			0x20000
 /**
 * @def PMCAP_ID
-* This bit indicates if the pointer leading to this position 
+* This bit indicates if the pointer leading to this position
 * is a PCI power management capability.
 */
 #define PMCAP_ID			0x1
 
 /**
 * @def MSICAP_ID
-* This bit indicates if the pointer leading to this position 
+* This bit indicates if the pointer leading to this position
 * is a capability.
 */
 #define MSICAP_ID			0x5
 
 /**
 * @def MSIXCAP_ID
-* This bit indicates if the pointer leading to this position 
+* This bit indicates if the pointer leading to this position
 * is a capability.
 */
 #define MSIXCAP_ID			0x11
 
 /**
 * @def PXCAP_ID
-* This bit indicates if the pointer leading to this position 
+* This bit indicates if the pointer leading to this position
 * is a capability.
 */
 #define PXCAP_ID			0x10
 
 /**
 * @def AERCAP_ID
-* This bit indicates if the pointer leading to this position 
+* This bit indicates if the pointer leading to this position
 * is a capability.
 */
 #define AERCAP_ID			0x0001
@@ -116,5 +117,7 @@
 int device_status_pci(u16 device_data);
 
 int device_status_pmcs(u16 device_data);
+
+int device_status_msicap(struct pci_dev *pdev, u16 device_data);
 
 #endif

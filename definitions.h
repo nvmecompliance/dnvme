@@ -1,24 +1,60 @@
 #ifndef _DEFINITIONS_H_
 #define _DEFINITIONS_H_
 
-#ifdef __KERNEL__
-
-#define LOG_DEBUG	printk
-#define LOG_NORMAL(msg, ...)	\
-	printk(KERN_ERR "%s\n", msg, __FILE__, __LINE__);
-#define LOG_ERROR	printk
-
-#endif
-
+/**
+* @def SUCCESS
+* Set to 0 when driver returns success
+*/
 #define SUCCESS				0
+
+/**
+* @def FAIL
+* Set to -1  when driver returns failure
+*/
 #define FAIL				-1
+
+/**
+* @def DEVICE_LIST_SIZE
+* Set to 20 devices.
+*/
 #define DEVICE_LIST_SIZE		20
+
+/**
+* @def CONFIG_PCI
+* Set to 1 to indicate that this NVME is of PCI type
+*/
 #define CONFIG_PCI			1
+
+/**
+* @def PCI_CLASS_STORAGE_EXPRESS
+* Set to value mactching with NVME HW
+*/
 #define PCI_CLASS_STORAGE_EXPRESS	0x010802
+
+/**
+* @def NVME_MINORS
+* Set to value 16 minors.
+*/
 #define NVME_MINORS			16
+
+/**
+* @def MAX_PCI_EXPRESS_CFG
+* Set to 0xFFF which is the max pcie config space.
+*/
 #define MAX_PCI_EXPRESS_CFG		0xFFF
+
+/**
+* @def CAP_REG
+* Set to offset defined in NVME Spec 1.0a.
+*/
 #define CAP_REG				0x34
+
+/**
+* @def PMCS
+* Set to offset defined in NVME Spec 1.0a.
+*/
 #define PMCS				0x4
+
 /**
 * This is a structure that defines all the PCI
 * header information laid out in NVME SPec 1.0a

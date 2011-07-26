@@ -6,15 +6,17 @@
 #define LOG_NRM(fmt, ...)    \
     printk("%s: " fmt "\n", LEVEL, ## __VA_ARGS__);
 #define LOG_ERR(fmt, ...)    \
-    printk("%s-err:%s:%d: " fmt "\n", LEVEL, __FILE__, __LINE__, ## __VA_ARGS__);
+    printk("%s-err:%s:%d: " fmt "\n", \
+	LEVEL, __FILE__, __LINE__, ## __VA_ARGS__);
 #ifdef DEBUG
 #define LOG_DBG(fmt, ...)    \
-    printk("%s-dbg:%s:%d: " fmt "\n", LEVEL, __FILE__, __LINE__, ## __VA_ARGS__);
+    printk("%s-dbg:%s:%d: " fmt "\n", \
+	LEVEL, __FILE__, __LINE__, ## __VA_ARGS__);
 #else
 #define LOG_DBG(fmt, ...)    ;
 #endif
 
-/*!
+/**
 *  NVME Express Device Structure Parameters.
 *  the list of devices is maintained in this stucture
 *  using kernel linked list structure list_head

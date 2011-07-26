@@ -31,7 +31,7 @@
 
 /*
 * Define the PCI storage express as
-* 0x1FFFFF
+* 0xFFFFF00 to be used while informing to kernel.
 */
 static DEFINE_PCI_DEVICE_TABLE(dnvme_pci_tbl) = {
     { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xFFFF00) },
@@ -39,7 +39,7 @@ static DEFINE_PCI_DEVICE_TABLE(dnvme_pci_tbl) = {
     };
 
 /*
-* PCI dnvme driver structure definition
+* PCI dnvme driver structure definition.
 */
 static struct pci_driver dnvme_pci_driver = {
     .name           = DRV_NAME,
@@ -82,12 +82,12 @@ LIST_HEAD(nvme_devices_llist);
 module_param(NVME_MAJOR, int, 0);
 MODULE_LICENSE("GPL");
 
-/**
+/*
 *   First initialization for Driver code.
 *   dnvme_init - Perform early initialization of the host
 *   host: dnvme host to initialize
 *   @return returns 0 if iniitalization was successful.
- *  @author T.Sravan Kumar
+*   @author T.Sravan Kumar
 */
 static int dnvme_init(void)
 {
@@ -106,12 +106,12 @@ static int dnvme_init(void)
 	nvme_major = register_blkdev(NVME_MAJOR, DRV_NAME);
 	if (nvme_major < 0) {
 		/*Unable to register the PCI device */
-		LOG_ERROR("NVME Blk Registration failed\n");
+		LOG_ERR("NVME Blk Registration failed\n");
 		return nvme_major;
 	} else {
 
 		NVME_MAJOR = nvme_major;
-		 LOG_DEBUG("Major Number = %d\n", NVME_MAJOR);
+		LOG_DBG("Major Number = %d\n", NVME_MAJOR);
 	}
    }
 
@@ -132,7 +132,7 @@ static int dnvme_init(void)
 		LOG_ERR("NVME Char Registration failed");
 		return -ENODEV;
 		}
-	LOG_DEBUG("NVME Char type registered..\n");
+	LOG_DBG("NVME Char type registered..\n");
    } else {
 	err = alloc_chrdev_region
 			(
@@ -178,17 +178,19 @@ static int dnvme_init(void)
 			nvme_ndevices * sizeof(struct nvme_dev_char),
 			GFP_KERNEL
 		);
-
-   /* Commented as of now.. but for multiple card support */
-   /*   while (n_devices > 0) {*/
+   /* Make device with nvme major and minor number */
    devno = MKDEV(nvme_major, nvme_minor);
-   /* nvme_dev_c->data = NULL;
-      nvme_dev_c->buffer_size = NVME_BUFFER_SIZE;
-      nvme_dev_c->block_size = NVME_BLOCK_SIZE;
-   */
+
+   /* initialize the device and char device */
    cdev_init(&dev->cdev, &dnvme_fops_f);
+
+   /* Set the owner */
    dev->cdev.owner = THIS_MODULE;
+
+   /* assign the fops to char device */
    dev->cdev.ops = &dnvme_fops_f;
+
+   /* Add this char device to kernel */
    err = cdev_add(&dev->cdev, devno, 1);
 
    if (err) {
@@ -196,6 +198,7 @@ static int dnvme_init(void)
 	return err;
    }
 
+   /* Create deivce with class name class_nvme */
    device = device_create(class_nvme, NULL, devno, NULL,
 				NVME_DEVICE_NAME"%d", nvme_minor);
    if (IS_ERR(device)) {
@@ -204,9 +207,10 @@ static int dnvme_init(void)
 	return err;
    }
 
+   /* update the device minor number */
    nvme_minor = nvme_minor + 1;
-   /*} //while n_device*/
 
+   /* Register this device as pci device */
    retCode = pci_register_driver(&dnvme_pci_driver);
 
    if (retCode < 0) {
@@ -219,7 +223,7 @@ static int dnvme_init(void)
    return 0;
 }
 
-/**
+/*
 * dnvme_pci_probe - Probe the NVME PCIe device for BARs.
 * this function is called when the driver invokes the fops
 * after basic initialization is performed.
@@ -273,8 +277,8 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 	LOG_DBG("Select regions success");
    }
 
-   LOG_DEBUG("Mask for PCI BARS = %d\n", bars);
-   LOG_DEBUG("PCI Probe Success!. Return Code = %d\n", retCode);
+   LOG_DBG("Mask for PCI BARS = %d\n", bars);
+   LOG_DBG("PCI Probe Success!. Return Code = %d\n", retCode);
 
    /**
    *  Try Allocating the device memory in the host and check
@@ -292,10 +296,10 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 			pci_resource_len(pdev, 0));
 
    if (bar != NULL) {
-	LOG_DEBUG("Bar 0 Address:\n");
-	LOG_DEBUG("Remap value.\n");
+	LOG_DBG("Bar 0 Address:\n");
+	LOG_DBG("Remap value.\n");
    } else {
-	LOG_ERROR("allocate Host Memory for Device Failed!!\n");
+	LOG_ERR("allocate Host Memory for Device Failed!!\n");
 	return -EINVAL;
    }
 

@@ -5,6 +5,7 @@
 
 #include "dnvme_reg.h"
 #include "definitions.h"
+#include "sysdnvme.h"
 
 /*
 * read_nvme_reg_generic  - Function to read the controller registers
@@ -38,7 +39,7 @@ void read_nvme_reg_generic(
 	/* Read data from NVME space */
 	u32data = readl(bar);
 
-	LOG_DEBUG("NVME Space Data at 0x%0X:0x%0X\n", *bar, u32data);
+	LOG_DBG("NVME Space Data at 0x%0X:0x%0X\n", *bar, u32data);
 	/* Increments in multiples of 4 (size of int) */
 	bar++;
 	/* Copy data to user buffer. */
