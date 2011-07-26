@@ -246,13 +246,7 @@ int driver_generic_read(struct file *file,
 		* copy each data read from pci space to user pointer.
 		* Index points to the next data location.
 		*/
-		if (&datap[index] != NULL)
-			datap[index] = data;
-		else {
-			LOG_DBG("Invalid No of Bytes requested!!!\n");
-			LOG_DBG("Exiting from applicaton\n");
-			return -ENOMEM;
-		}
+		datap[index] = data;
 
 		LOG_DBG("Index = %d data 2 user = %d\n", index, datap[index]);
 	}
