@@ -127,11 +127,10 @@ static int dnvme_init(void)
 				NVME_DEVICE_NAME,
 				&dnvme_fops_f
 				);
-
 	if (nvme_major < 0) {
 		LOG_ERR("NVME Char Registration failed");
 		return -ENODEV;
-		}
+	}
 	LOG_DBG("NVME Char type registered..\n");
    } else {
 	err = alloc_chrdev_region

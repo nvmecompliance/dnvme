@@ -3,13 +3,11 @@
 
 /**
 * @def SUCCESS
-* Set to 0 when driver returns success
 */
 #define SUCCESS				0
 
 /**
 * @def FAIL
-* Set to -1  when driver returns failure
 */
 #define FAIL				-1
 
@@ -27,7 +25,7 @@
 
 /**
 * @def PCI_CLASS_STORAGE_EXPRESS
-* Set to value mactching with NVME HW
+* Set to value matching with NVME HW
 */
 #define PCI_CLASS_STORAGE_EXPRESS	0x010802
 
@@ -39,9 +37,27 @@
 
 /**
 * @def MAX_PCI_EXPRESS_CFG
-* Set to 0xFFF which is the max pcie config space.
+* Maximum pcie config space.
 */
 #define MAX_PCI_EXPRESS_CFG		0xFFF
+
+/**
+* @def MAX_PCI_CFG
+* Maximum pci config space available
+*/
+#define MAX_PCI_CFG			0xFF
+
+/**
+* @def MAX_PCI_HDR
+* Maximum pci header offset.
+*/
+#define MAX_PCI_HDR			0x3F
+
+/**
+* @def LOWER_16BITS 
+* Mask for lower 16 bits
+*/
+#define LOWER_16BITS			0xFFFF
 
 /**
 * @def CAP_REG
@@ -88,8 +104,8 @@ struct nvme_pci_header {
 /**
 *  ToDo: remove these enums and add to dnvme_ioctls.h
 *  when new function is added.
-*   enums are for add different switch cases
-*   when the IOCTL's from the driver get called.
+*  enums are for add different switch cases
+*  when the IOCTL's from the driver get called.
 */
 enum {
      NVME_IDENTIFY_NS = 0,

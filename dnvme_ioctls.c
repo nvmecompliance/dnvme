@@ -92,7 +92,8 @@ int device_status_chk(struct pci_dev *pdev,
 	*/
 	if (!(cap_aer & AER_ERR_MASK)) {
 
-		capability = (u16)(cap_aer & 0xFFFF); /* Mask out higher bits */
+		capability = (u16)(cap_aer & LOWER_16BITS);
+						/* Mask out higher bits */
 		next_item = (capability & NEXT_MASK) >> 8;
 						/* Get next item offset */
 		cap_aer = 0; /* Reset cap_aer */
@@ -104,7 +105,7 @@ int device_status_chk(struct pci_dev *pdev,
 		case PMCAP_ID:
 			LOG_DBG("Entering PCI Pwr Mgmt Capabilities\n");
 
-			if ((0x0 != pci_offset) && (0x3F < pci_offset)) {
+			if ((0x0 != pci_offset) && (MAX_PCI_HDR < pci_offset)) {
 				/* Compute the PMCS offset from CAP data */
 				pci_offset = pci_offset + PMCS;
 
@@ -134,7 +135,7 @@ int device_status_chk(struct pci_dev *pdev,
 
 	} else {
 		/* Advanced Error capabilty function */
-		next_item = (cap_aer >> 20) & 0xFFF;
+		next_item = (cap_aer >> 20) & MAX_PCI_EXPRESS_CFG;
 
 		/* Check if more items are there*/
 		if (next_item == 0) {
@@ -173,11 +174,9 @@ int driver_generic_read(struct file *file,
 			struct pci_dev *pdev)
 {
    /* Local variable declaration. */
-   u16 offset; /* Offset to read data from. */
    u8 data; /*  data read from PCI space. */
    u16 index; /* index for looping till the end. */
    int ret_code = -EINVAL; /* to verify if return code is success. */
-   u8 *udata;
    struct nvme_space nvme_ctrl_reg_space;
    struct nvme_dev_entry *nvme = NULL;
    unsigned char __user *datap = (unsigned char __user *)nvme_data->rdBuffer;
@@ -190,20 +189,6 @@ int driver_generic_read(struct file *file,
 	LOG_ERR("Exiting from here...");
 	return -ENOMEM;
    }
-
-   /*
-   * Check here if any invalid data is passed and return from here.
-   * if not valid.
-   */
-   if ((nvme_data->offset < 0) || (nvme_data->nBytes < 0)) {
-	LOG_ERR("invalid params to IOCTL generic function");
-	return -EINVAL;
-   }
-
-   /*
-   * Copy offset to local variable to increase speed.
-   */
-   offset = nvme_data->offset;
 
    /*
    *  Switch based on the user passed read type using the
@@ -221,9 +206,9 @@ int driver_generic_read(struct file *file,
 	for (index = 0; index < nvme_data->nBytes; index++) {
 		/* Check where you are reading */
 		LOG_DBG("Reading for index = %d\n", index);
-		LOG_DBG("PCI Offset = %d\n", offset + index);
+		LOG_DBG("PCI Offset = %d\n", nvme_data->offset + index);
 
-		if ((offset + index) > MAX_PCI_EXPRESS_CFG) {
+		if ((nvme_data->offset + index) > MAX_PCI_EXPRESS_CFG) {
 			LOG_ERR("Offset is more than the PCI Express ");
 			LOG_ERR("Extended config space...\n");
 			return -EINVAL;
@@ -232,7 +217,8 @@ int driver_generic_read(struct file *file,
 		* Read a byte from the configuration register
 		* and pass it to user.
 		*/
-		ret_code = pci_read_config_byte(pdev, offset + index, &data);
+		ret_code = pci_read_config_byte
+			(pdev, (nvme_data->offset + index), &data);
 
 		if (ret_code < 0) {
 			LOG_ERR("pci_read_config failed\n");
@@ -240,7 +226,7 @@ int driver_generic_read(struct file *file,
 		}
 
 		LOG_DBG("Reading PCI header from offset = %d, data = 0x%x\n",
-					(offset + index), data);
+					(nvme_data->offset + index), data);
 
 		/*
 		* copy each data read from pci space to user pointer.
@@ -259,15 +245,6 @@ int driver_generic_read(struct file *file,
    case NVMEIO_BAR01:
 	/* Registers are aligned and so */
 	LOG_DBG("Invoking User App request for BAR01\n");
-
-	/* Allocate and zero out data buffer */
-	udata = kzalloc(sizeof(struct nvme_ctrl_reg), GFP_KERNEL);
-
-	/* check allocation succeeded */
-	if (udata == NULL) {
-		LOG_ERR("Memory could not be allocated for reading\n");
-		return -ENOMEM;
-	}
 
 	/* Remap io mem for this device. */
 	nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
@@ -290,7 +267,7 @@ int driver_generic_read(struct file *file,
 			nvme_ctrl_reg_space,
 			datap,
 			nvme_data->nBytes,
-			offset
+			nvme_data->offset
 			);
 
 	/* done with nvme space reading break from this case .*/
@@ -312,8 +289,6 @@ int driver_generic_read(struct file *file,
    if (ret_code < 0)
 	LOG_ERR("Error copying to user buffer returning");
 
-   mdelay(1000);
-
    return ret_code;
 }
 
@@ -325,7 +300,6 @@ int driver_generic_write(struct file *file,
 			struct nvme_write_generic *nvme_data,
 			struct pci_dev *pdev)
 {
-   u16 offset; /* offset where data to be written. */
    u8 data; /* data to be written. */
    u16 index = 0; /* Index to loop */
    int ret_code = -EINVAL; /* return code to verify if written success. */
@@ -365,19 +339,6 @@ int driver_generic_write(struct file *file,
 	LOG_DBG("Invoking User App request to write the PCI Header Space");
 
 	/*
-	* Check here if any invalid data is passed and return from here.
-	*/
-	if ((nvme_data->offset < 0) || (nvme_data->nBytes < 0)) {
-		LOG_ERR("invalid params to IOCTL write function");
-		return -EINVAL;
-	}
-
-	/*
-	* Copy offset to local variable.
-	*/
-	offset = nvme_data->offset;
-
-	/*
 	* Loop through the number of bytes that are specified in the
 	* bBytes parameter.
 	*/
@@ -391,16 +352,17 @@ int driver_generic_write(struct file *file,
 		* write user data to pci config space at location
 		* indicated by (offset + index).
 		*/
-		ret_code = pci_write_config_byte(pdev, offset + index, data);
+		ret_code = pci_write_config_byte
+				(pdev, (nvme_data->offset + index), data);
 
 		if (ret_code < 0) {
 			LOG_ERR("Unable to write to location = %d data = %x",
-				(offset + index), data);
+				(nvme_data->offset + index), data);
 			return ret_code;
 		}
 
 		LOG_DBG("Writing to PCI header offset,data = %d, %x\n",
-					(offset + index), data);
+					(nvme_data->offset + index), data);
 	}
 	/* Done writing user requested data, returning. */
 	break;
