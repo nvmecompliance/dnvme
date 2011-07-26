@@ -219,7 +219,10 @@ int driver_generic_read(struct file *file,
 	* bBytes parameter.
 	*/
 	for (index = 0; index < nvme_data->nBytes; index++) {
+		/* Check where you are reading */
 		LOG_DBG("Reading for index = %d\n", index);
+		LOG_DBG("PCI Offset = %d\n", offset + index);
+
 		if ((offset + index) > MAX_PCI_EXPRESS_CFG) {
 			LOG_ERR("Offset is more than the PCI Express ");
 			LOG_ERR("Extended config space...\n");
