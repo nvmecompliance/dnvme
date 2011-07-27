@@ -31,10 +31,6 @@ int device_status_pci(u16 device_data)
 		LOG_ERR("Device Status - DPE Set\n");
 		LOG_ERR("Detected Data parity Error\n");
 	}
-	if (device_data & SSE) {
-		LOG_ERR("Device Status - SSE Set\n");
-		LOG_ERR("Detected Signaled System Error\n");
-	}
 	if (device_data & DPD) {
 		LOG_ERR("Device Status - DPD Set\n");
 		LOG_ERR("Detected Master Data Parity Error\n");
@@ -46,10 +42,6 @@ int device_status_pci(u16 device_data)
 	if (device_data & RTA) {
 		LOG_ERR("Device Status - RTA Set\n");
 		LOG_ERR("Received Target Abort...\n");
-	}
-	if (device_data & STA) {
-		LOG_ERR("Device Status - STA Set\n");
-		LOG_ERR("Signalled Target Abort...\n");
 	}
    }
    return status;

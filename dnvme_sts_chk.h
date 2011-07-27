@@ -19,7 +19,7 @@
 * implies that the error is defined for those poistionis in
 * STS register. The bits that are 0 are non error positions.
 */
-#define DEV_ERR_MASK                    0xF900
+#define DEV_ERR_MASK                    0xB100
 
 /**
 * @def DPE
@@ -29,13 +29,6 @@
 */
 #define DPE                             0x8000
 
-
-/**
-* @def SSE
-* This bit position indicates Signaled System Error.
-* Not Supported vy NVM Express.
-*/
-#define SSE                             0x4000
 
 /**
 * @def DPD
@@ -61,14 +54,6 @@
 * target abort to a cycle it generated.
 */
 #define RTA                             0x1000
-
-/**
-* @def STA
-* This bit position indicates Signalled Target Abort.
-* Set to 1 by h/w if when the controller receives a
-* target abort to a cycle it generated.
-*/
-#define STA                             0x800
 
 /**
 * @def NEXT_MASK
