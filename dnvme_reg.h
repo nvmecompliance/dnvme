@@ -44,8 +44,22 @@ struct nvme_space {
 */
 void read_nvme_reg_generic(
 	struct nvme_space nvme_ctrl_reg_space,
-	char *udata,
+	u8 *udata,
 	int nbytes,
 	int offset
 );
+
+
+/**
+* write_nvme_reg_generic function is a generic function which
+* writes data to the controller registers of the nvme with
+* user specified offset and bytes.
+*/
+int write_nvme_reg_generic(
+	struct nvme_space nvme_ctrl_reg_space,
+	u8 *u8data,
+	int nbytes,
+	int offset
+);
+
 #endif

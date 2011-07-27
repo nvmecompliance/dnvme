@@ -161,7 +161,7 @@ int driver_generic_read(struct file *file,
 
    case NVMEIO_BAR01:
 	/* Registers are aligned and so */
-	LOG_DBG("Invoking User App request for BAR01\n");
+	LOG_DBG("Invoking User App request for to read from NVME space\n");
 
 	/* Remap io mem for this device. */
 	nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
@@ -173,7 +173,7 @@ int driver_generic_read(struct file *file,
 		return -EINVAL;
 	}
 
-	LOG_DBG("[Nvme_Drv]Using Bar0 address: %llx, length %d\n",
+	LOG_NRM("[Nvme_Drv]Using Bar0 address: %llx, length %d\n",
 		(uint64_t)nvme->bar0mapped, (int) pci_resource_len(pdev, 0));
 
 	/* Assign the BAR remapped into nvme space control register */
@@ -217,10 +217,11 @@ int driver_generic_write(struct file *file,
 			struct rw_generic *nvme_data,
 			struct pci_dev *pdev)
 {
-   u8 data; /* data to be written. */
    u16 index = 0; /* Index to loop */
    int ret_code = -EINVAL; /* return code to verify if written success. */
 
+   struct nvme_space nvme_ctrl_reg_space;
+   struct nvme_dev_entry *nvme = NULL;
    /*
    * Pointer for user data to be copied to user space from
    * kernel space. Initialize with user passed data pointer.
@@ -229,6 +230,12 @@ int driver_generic_write(struct file *file,
 
    LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
+   nvme = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
+   if (nvme == NULL) {
+	LOG_ERR("Unable to allocate kernel mem in generic read\n");
+	LOG_ERR("Exiting from here...");
+	return -ENOMEM;
+   }
    /* allocate kernel memory to datap that is requested from user app */
    datap = kzalloc(sizeof(u8) * nvme_data->nBytes, GFP_KERNEL);
 
@@ -245,7 +252,8 @@ int driver_generic_write(struct file *file,
    * copy from user data buffer to kernel data buffer at single place
    * using copy_from_user for efficiency.
    */
-   copy_from_user(datap, nvme_data->buffer, nvme_data->nBytes * sizeof(u8));
+   copy_from_user((u8 *)datap, (u8 *)nvme_data->buffer,
+				nvme_data->nBytes * sizeof(u8));
 
    /*
    * Switch based on the type of requested write determined by nvme_data->data
@@ -254,38 +262,60 @@ int driver_generic_write(struct file *file,
    case NVMEIO_PCI_HDR: /* Switch case for NVME PCI Header type. */
 
 	LOG_DBG("Invoking User App request to write the PCI Header Space");
-
 	/*
 	* Loop through the number of bytes that are specified in the
 	* bBytes parameter.
 	*/
 	for (index = 0; index < nvme_data->nBytes; index++) {
 		/*
-		* Read a byte from the user buffer to local variable.
-		*/
-		data = datap[index];
-
-		/*
 		* write user data to pci config space at location
 		* indicated by (offset + index).
 		*/
 		ret_code = pci_write_config_byte
-				(pdev, (nvme_data->offset + index), data);
+				(pdev, (nvme_data->offset + index), datap[index]);
 
 		if (ret_code < 0) {
 			LOG_ERR("Unable to write to location = %d data = %x",
-				(nvme_data->offset + index), data);
+				(nvme_data->offset + index), datap[index]);
 			return ret_code;
 		}
 
-		LOG_DBG("Writing to PCI header offset,data = %d, %x\n",
-					(nvme_data->offset + index), data);
+		LOG_NRM("Writing to PCI header offset,data = %d, %x\n",
+					(nvme_data->offset + index), datap[index]);
 	}
 	/* Done writing user requested data, returning. */
 	break;
-
    case NVMEIO_BAR01:
-	LOG_DBG("Invoking User App request to write PCI BAR01");
+	LOG_DBG("Invoking User App request to write NVME Space using BAR01");
+
+	/* Remap io mem for this device. */
+	nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
+				pci_resource_len(pdev, 0));
+
+	/* Check if remap was success */
+	if (!nvme->bar0mapped) {
+		LOG_ERR("Unable to map io region nmve..exit\n");
+		return -EINVAL;
+	}
+
+	LOG_NRM("[Nvme_Drv]Using Bar0 address: %llx, length %d\n",
+		(uint64_t)nvme->bar0mapped, (int) pci_resource_len(pdev, 0));
+
+	/* Assign the BAR remapped into nvme space control register */
+	nvme_ctrl_reg_space.bar_dev = (void __iomem *)nvme->bar0mapped;
+
+	/* 
+	* Write NVME register space with datap from offset until
+	* nBytes are written.
+	*/
+	ret_code = write_nvme_reg_generic(
+			nvme_ctrl_reg_space,
+			(u8 *)datap,
+			nvme_data->nBytes,
+			nvme_data->offset
+			);
+
+	/* done with nvme space writing break from this case .*/
 	break;
 
    default:
