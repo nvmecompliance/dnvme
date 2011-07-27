@@ -1,26 +1,12 @@
 #ifndef _DEFINITIONS_H_
 #define _DEFINITIONS_H_
 
-/**
-* @def SUCCESS
-*/
 #define SUCCESS				0
 
-/**
-* @def FAIL
-*/
 #define FAIL				-1
 
-/**
-* @def DEVICE_LIST_SIZE
-* Set to 20 devices.
-*/
 #define DEVICE_LIST_SIZE		20
 
-/**
-* @def CONFIG_PCI
-* Set to 1 to indicate that this NVME is of PCI type
-*/
 #define CONFIG_PCI			1
 
 /**
@@ -29,10 +15,6 @@
 */
 #define PCI_CLASS_STORAGE_EXPRESS	0x010802
 
-/**
-* @def NVME_MINORS
-* Set to value 16 minors.
-*/
 #define NVME_MINORS			16
 
 /**
@@ -53,10 +35,6 @@
 */
 #define MAX_PCI_HDR			0x3F
 
-/**
-* @def LOWER_16BITS
-* Mask for lower 16 bits
-*/
 #define LOWER_16BITS			0xFFFF
 
 /**
