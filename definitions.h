@@ -47,6 +47,21 @@
 #define PMCS				0x4
 
 /**
+* @def AER_ID_MASK
+* Mask bits will extract last bit and that will help
+* in determining what this bit corresponds to in terms of
+* AER capability.
+*/
+#define AER_ID_MASK			0x1
+
+/**
+* @def AER_CAP_ID
+* Indicate that this capability structure is an Advanced Error
+* reporting capabilty.
+*/
+#define AER_CAP_ID			0x1
+
+/**
 * This is a structure that defines all the PCI
 * header information laid out in NVME SPec 1.0a
 * PCI Header section.

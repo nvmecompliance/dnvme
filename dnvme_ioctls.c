@@ -25,11 +25,7 @@ int device_status_chk(struct pci_dev *pdev,
 {
    /* Local variable declaration. */
    u16 data; /* unsinged 16 bit data. */
-   u16 pci_offset; /* pci offset in PCI and PCIE space */
    int ret_code = EINVAL; /* initialize ret code to invalid */
-   u16 capability; /* indicates capabilities */
-   u32 cap_aer = 0; /* initialize AER to zero */
-   u16 next_item = 1; /* Allow First time to enter into loop */
    /*
    * Pointer for user data to be copied to user space from
    * kernel space. Initialize with user passed data pointer.
@@ -56,103 +52,25 @@ int device_status_chk(struct pci_dev *pdev,
 
    /* Print out to kernel log the device status */
    if (*status == SUCCESS) {
-	LOG_DBG("PCI Device Status SUCCESS\n");
-	data = 0;
+	LOG_DBG("PCI Device Status SUCCESS = %d\n", *status);
+	ret_code = 0;
    } else {
-	LOG_ERR("PCI Device Status FAIL\n");
-	data = 0;
+	LOG_ERR("PCI Device Status FAIL = %d\n", *status);
+	ret_code = -EINVAL;
    }
 
-   /*
-   * Check if CAP pointer points to next available
-   * linked list resgisters in the PCI Header.
-   */
-   ret_code = pci_read_config_word(pdev, CAP_REG, &pci_offset);
+   *status = device_status_next(pdev);
+   /* Print out to kernel log the device status */
+   if (*status == SUCCESS) {
+	LOG_DBG("NEXT Capability Status SUCCESS = %d\n", *status);
+	ret_code = 0;
+   } else {
+	LOG_ERR("NEXT Capabilty status FAIL!!!\n");
+	LOG_ERR("Check individual error messages for cause = %d\n", *status);
+	ret_code = -EINVAL;
+   }
 
-   if (ret_code < 0)
-	LOG_ERR("pci_read_config failed in driver error check\n");
-
-   /*
-   * Read 32 bits of data from the Next pointer as AER is 32 bit
-   * which is maximum.
-   */
-   ret_code = pci_read_config_dword(pdev, pci_offset, &cap_aer);
-   if (ret_code < 0)
-	LOG_ERR("pci_read_config failed in driver error check\n");
-
-   /*
-   * Enter into loop if cap_aer has non zero value.
-   * next_item is set to 1 for entering this loop for first time.
-   */
-   while (cap_aer != 0 || next_item != 0) {
-
-	LOG_DBG("AER CAP Value = %x\n", cap_aer);
-	/*
-	* AER error mask is used for checking if it is not AER type.
-	*/
-	if (!(cap_aer & AER_ERR_MASK)) {
-
-		capability = (u16)(cap_aer & LOWER_16BITS);
-						/* Mask out higher bits */
-		next_item = (capability & NEXT_MASK) >> 8;
-						/* Get next item offset */
-		cap_aer = 0; /* Reset cap_aer */
-
-		LOG_DBG("Capability Value = %x\n", capability);
-
-		/* Switch based on which ID Capabilty indicates */
-		switch (capability & ~NEXT_MASK) {
-		case PMCAP_ID:
-			LOG_DBG("Entering PCI Pwr Mgmt Capabilities\n");
-
-			if ((0x0 != pci_offset) && (MAX_PCI_HDR < pci_offset)) {
-				/* Compute the PMCS offset from CAP data */
-				pci_offset = pci_offset + PMCS;
-
-				ret_code = pci_read_config_word
-						(pdev, pci_offset, &data);
-				if (ret_code < 0)
-					LOG_ERR("pci_read_config failed\n");
-
-				*status = device_status_pmcs(data);
-			} else {
-				LOG_DBG("Invalid offset = %d\n", pci_offset);
-			}
-			break;
-		case MSICAP_ID:
-			LOG_DBG("Entering into MSI Capabilities\n");
-			*status = device_status_msicap(pdev, pci_offset);
-			break;
-		case MSIXCAP_ID:
-			LOG_DBG("Entering into MSI-X Capabilities\n");
-			break;
-		case PXCAP_ID:
-			LOG_DBG("Entering into PCI Express Capabilities\n");
-			break;
-		default:
-			break;
-		} /* end of switch case */
-
-	} else {
-		/* Advanced Error capabilty function */
-		next_item = (cap_aer >> 20) & MAX_PCI_EXPRESS_CFG;
-
-		/* Check if more items are there*/
-		if (next_item == 0) {
-			LOG_DBG("No NEXT item in the list Exiting..1\n");
-			break;
-		}
-	} /* end of else if cap_aer */
-
-	/* If item exists then read else break here */
-	if (next_item != 0 && pci_offset != 0) {
-		ret_code = pci_read_config_word(pdev, next_item, &pci_offset);
-		ret_code = pci_read_config_dword(pdev, pci_offset, &cap_aer);
-	} else {
-		LOG_DBG("There is no NEXT item in the list so exiting...2\n");
-		break;
-	}
-   } /* end of while loop */
+   *status = nvme_controller_status(pdev);
    /*
    *  Efficient way to copying data to user buffer datap
    *  using in a single copy function call.
@@ -170,7 +88,7 @@ int device_status_chk(struct pci_dev *pdev,
 *   NVME PCIe registers and memory mapped addres
 */
 int driver_generic_read(struct file *file,
-			struct nvme_read_generic *nvme_data,
+			struct rw_generic *nvme_data,
 			struct pci_dev *pdev)
 {
    /* Local variable declaration. */
@@ -179,7 +97,7 @@ int driver_generic_read(struct file *file,
    int ret_code = -EINVAL; /* to verify if return code is success. */
    struct nvme_space nvme_ctrl_reg_space;
    struct nvme_dev_entry *nvme = NULL;
-   unsigned char __user *datap = (unsigned char __user *)nvme_data->rdBuffer;
+   unsigned char __user *datap = (unsigned char __user *)nvme_data->buffer;
 
    LOG_DBG("Inside Generic Read Funtion of the IOCTLs");
 
@@ -192,7 +110,7 @@ int driver_generic_read(struct file *file,
 
    /*
    *  Switch based on the user passed read type using the
-   *  enum type specified in struct nvme_read_generic.
+   *  enum type specified in struct rw_generic.
    */
    switch (nvme_data->type) {
    case NVMEIO_PCI_HDR: /* Switch case for NVME PCI Header type. */
@@ -244,7 +162,7 @@ int driver_generic_read(struct file *file,
 
    case NVMEIO_BAR01:
 	/* Registers are aligned and so */
-	LOG_DBG("Invoking User App request for BAR01\n");
+	LOG_DBG("Invoking User App request for to read from NVME space\n");
 
 	/* Remap io mem for this device. */
 	nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
@@ -256,7 +174,7 @@ int driver_generic_read(struct file *file,
 		return -EINVAL;
 	}
 
-	LOG_DBG("[Nvme_Drv]Using Bar0 address: %llx, length %d\n",
+	LOG_NRM("[Nvme_Drv]Using Bar0 address: %llx, length %d\n",
 		(uint64_t)nvme->bar0mapped, (int) pci_resource_len(pdev, 0));
 
 	/* Assign the BAR remapped into nvme space control register */
@@ -284,7 +202,7 @@ int driver_generic_read(struct file *file,
    *  second parameter is copy from location,
    *  third parameter give the number of bytes to copy.
    */
-   ret_code = copy_to_user(&nvme_data->rdBuffer[0], datap,
+   ret_code = copy_to_user(&nvme_data->buffer[0], datap,
 				nvme_data->nBytes * sizeof(u8));
    if (ret_code < 0)
 	LOG_ERR("Error copying to user buffer returning");
@@ -297,21 +215,28 @@ int driver_generic_read(struct file *file,
 *   NVME PCIe registers and memory mapped address
 */
 int driver_generic_write(struct file *file,
-			struct nvme_write_generic *nvme_data,
+			struct rw_generic *nvme_data,
 			struct pci_dev *pdev)
 {
-   u8 data; /* data to be written. */
    u16 index = 0; /* Index to loop */
    int ret_code = -EINVAL; /* return code to verify if written success. */
 
+   struct nvme_space nvme_ctrl_reg_space;
+   struct nvme_dev_entry *nvme = NULL;
    /*
    * Pointer for user data to be copied to user space from
    * kernel space. Initialize with user passed data pointer.
    */
-   unsigned char __user *datap = (unsigned char __user *)nvme_data->wrBuffer;
+   unsigned char __user *datap = (unsigned char __user *)nvme_data->buffer;
 
    LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
+   nvme = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
+   if (nvme == NULL) {
+	LOG_ERR("Unable to allocate kernel mem in generic read\n");
+	LOG_ERR("Exiting from here...");
+	return -ENOMEM;
+   }
    /* allocate kernel memory to datap that is requested from user app */
    datap = kzalloc(sizeof(u8) * nvme_data->nBytes, GFP_KERNEL);
 
@@ -328,7 +253,8 @@ int driver_generic_write(struct file *file,
    * copy from user data buffer to kernel data buffer at single place
    * using copy_from_user for efficiency.
    */
-   copy_from_user(datap, nvme_data->wrBuffer, nvme_data->nBytes * sizeof(u8));
+   copy_from_user((u8 *)datap, (u8 *)nvme_data->buffer,
+				nvme_data->nBytes * sizeof(u8));
 
    /*
    * Switch based on the type of requested write determined by nvme_data->data
@@ -337,38 +263,60 @@ int driver_generic_write(struct file *file,
    case NVMEIO_PCI_HDR: /* Switch case for NVME PCI Header type. */
 
 	LOG_DBG("Invoking User App request to write the PCI Header Space");
-
 	/*
 	* Loop through the number of bytes that are specified in the
 	* bBytes parameter.
 	*/
 	for (index = 0; index < nvme_data->nBytes; index++) {
 		/*
-		* Read a byte from the user buffer to local variable.
-		*/
-		data = datap[index];
-
-		/*
 		* write user data to pci config space at location
 		* indicated by (offset + index).
 		*/
 		ret_code = pci_write_config_byte
-				(pdev, (nvme_data->offset + index), data);
+			(pdev, (nvme_data->offset + index), datap[index]);
 
 		if (ret_code < 0) {
 			LOG_ERR("Unable to write to location = %d data = %x",
-				(nvme_data->offset + index), data);
+				(nvme_data->offset + index), datap[index]);
 			return ret_code;
 		}
 
-		LOG_DBG("Writing to PCI header offset,data = %d, %x\n",
-					(nvme_data->offset + index), data);
+		LOG_NRM("Writing to PCI header offset,data = %d, %x\n",
+				(nvme_data->offset + index), datap[index]);
 	}
 	/* Done writing user requested data, returning. */
 	break;
-
    case NVMEIO_BAR01:
-	LOG_DBG("Invoking User App request to write PCI BAR01");
+	LOG_DBG("Invoking User App request to write NVME Space using BAR01");
+
+	/* Remap io mem for this device. */
+	nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
+				pci_resource_len(pdev, 0));
+
+	/* Check if remap was success */
+	if (!nvme->bar0mapped) {
+		LOG_ERR("Unable to map io region nmve..exit\n");
+		return -EINVAL;
+	}
+
+	LOG_NRM("[Nvme_Drv]Using Bar0 address: %llx, length %d\n",
+		(uint64_t)nvme->bar0mapped, (int) pci_resource_len(pdev, 0));
+
+	/* Assign the BAR remapped into nvme space control register */
+	nvme_ctrl_reg_space.bar_dev = (void __iomem *)nvme->bar0mapped;
+
+	/*
+	* Write NVME register space with datap from offset until
+	* nBytes are written.
+	*/
+	ret_code = write_nvme_reg_generic(
+			nvme_ctrl_reg_space,
+			(u8 *)datap,
+			nvme_data->nBytes,
+			nvme_data->offset
+			);
+
+	/* done with nvme space writing break from this case .*/
 	break;
 
    default:

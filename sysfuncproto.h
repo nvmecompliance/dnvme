@@ -88,14 +88,14 @@ int driver_default_ioctl(
 * driver_generic_read is a function that is called from
 * driver IOCTL when user want to read data from the
 * NVME card. The read parameter like offset and length
-* etc are specified from the struct nvme_read_generic
+* etc are specified from the struct rw_generic
 * @param file Pass the file descriptor of the device opened.
 * @param data_usr Structure with different user required parameters.
 * @param pdev pointer to the device opened.
 * @return read success or failure.
 */
 int driver_generic_read(struct file *file,
-			struct nvme_read_generic *data_usr,
+			struct rw_generic *data_usr,
 			struct pci_dev *pdev);
 /**
 * driver_generic_write is a function that is called from
@@ -108,7 +108,7 @@ int driver_generic_read(struct file *file,
 * @return read success or failure.
 */
 int driver_generic_write(struct file *file,
-			struct nvme_write_generic *data_usr,
+			struct rw_generic *data_usr,
 			struct pci_dev *pdev);
 
 /**

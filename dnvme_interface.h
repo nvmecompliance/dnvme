@@ -17,23 +17,11 @@ enum nvme_io_space {
 * parameter for the generic read funtion to seek the correct
 * offset and length while reading data from nvme card.
 */
-struct nvme_read_generic {
+struct rw_generic {
    enum nvme_io_space type;
    unsigned int  offset;
    unsigned int  nBytes;
-   unsigned char *rdBuffer;
-};
-
-/**
-* This struct is the basic structure which has important
-* parameter for the generic write funtion to seek the correct
-* offset and length while serving the write request.
-*/
-struct nvme_write_generic {
-   enum nvme_io_space type;
-   unsigned int  offset;
-   unsigned int  nBytes;
-   unsigned char *wrBuffer;
+   unsigned char *buffer;
 };
 
 #endif
