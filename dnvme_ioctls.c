@@ -70,6 +70,7 @@ int device_status_chk(struct pci_dev *pdev,
 	ret_code = -EINVAL;
    }
 
+   *status = nvme_controller_status(pdev);
    /*
    *  Efficient way to copying data to user buffer datap
    *  using in a single copy function call.
@@ -272,7 +273,7 @@ int driver_generic_write(struct file *file,
 		* indicated by (offset + index).
 		*/
 		ret_code = pci_write_config_byte
-				(pdev, (nvme_data->offset + index), datap[index]);
+			(pdev, (nvme_data->offset + index), datap[index]);
 
 		if (ret_code < 0) {
 			LOG_ERR("Unable to write to location = %d data = %x",
@@ -281,7 +282,7 @@ int driver_generic_write(struct file *file,
 		}
 
 		LOG_NRM("Writing to PCI header offset,data = %d, %x\n",
-					(nvme_data->offset + index), datap[index]);
+				(nvme_data->offset + index), datap[index]);
 	}
 	/* Done writing user requested data, returning. */
 	break;
@@ -304,7 +305,7 @@ int driver_generic_write(struct file *file,
 	/* Assign the BAR remapped into nvme space control register */
 	nvme_ctrl_reg_space.bar_dev = (void __iomem *)nvme->bar0mapped;
 
-	/* 
+	/*
 	* Write NVME register space with datap from offset until
 	* nBytes are written.
 	*/

@@ -71,8 +71,10 @@ int write_nvme_reg_generic(
    /* Compute the offset requested by user */
    bar = bar + offset/(sizeof(unsigned int));
 
-   /* loop until user requested nbytes are read. */
-   for (index = 0; index < nbytes; index+=4) {
+   /* loop until user requested nbytes are written. */
+   for (index = 0; index < nbytes; index += 4) {
+
+	/* Copy u32 type data variable */
 	memcpy((u8 *)&u32data, &u8data[index], sizeof(u32));
 
 	LOG_NRM("NVME Space Writing at Addr:Val::0x%lX:0x%X\n",
@@ -80,6 +82,7 @@ int write_nvme_reg_generic(
 	/* Write data to NVME space */
 	writel(u32data, bar);
 
+	/* increment by offset 4 as bar is unsinged int */
 	bar++;
    }
 

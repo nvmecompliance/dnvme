@@ -6,7 +6,7 @@
 #include "dnvme_sts_chk.h"
 #include "definitions.h"
 #include "sysdnvme.h"
-
+#include "dnvme_reg.h"
 /*
 *  device_status_pci  - PCI device status check function
 *  which checks error registers and set kernel
@@ -44,6 +44,62 @@ int device_status_pci(u16 device_data)
 		LOG_ERR("Received Target Abort...\n");
 	}
    }
+   return status;
+}
+/*
+* nvme_controller_status - This function checks the controller status
+* register CSTS at offset 0x1C from the BAR01 offset.
+*/
+int nvme_controller_status(struct pci_dev *pdev)
+{
+   int status;
+   u32 u32data;
+   u32 tmp;
+   struct nvme_space nvme_ctrl_reg_space;
+
+   nvme_ctrl_reg_space.bar_dev = ioremap(pci_resource_start(pdev, 0),
+			pci_resource_len(pdev, 0));
+
+   u32data = readl(&nvme_ctrl_reg_space.bar_dev->csts);
+   tmp = u32data;
+
+   LOG_NRM("NVME Controller Status = 0x%X", u32data);
+   u32data &= 0x3;
+
+   if (u32data != 0x1 || u32data == 0x2) {
+	status = FAIL;
+	LOG_NRM("NVME Controller Status Failed!!!\n");
+
+	if ((u32data & 0x1) == 0x0)
+		LOG_NRM("NVME Controller is not ready...\n");
+
+	if ((u32data & 0x2) == 0x2)
+		LOG_NRM("NVME Controller Fatal Status is set...\n");
+   } else {
+	LOG_NRM("NVME Controller Status Success\n");
+	status = SUCCESS;
+   }
+
+   u32data = tmp;
+   u32data &= 0xC;
+   u32data >>= 2;
+
+   switch (u32data) {
+	LOG_NRM("The Shutdown Status of the NVME Controller:\n");
+   case 0:
+	LOG_NRM("No Shutdown requested\n");
+	break;
+   case 1:
+	LOG_NRM("Shutdown Processing occuring\n");
+	break;
+   case 2:
+	LOG_NRM("Shutdown Process Complete\n");
+	break;
+   case 3:
+	LOG_NRM("Reserved Bits set\n");
+	break;
+   }
+
    return status;
 }
 
@@ -125,9 +181,11 @@ int device_status_next(struct pci_dev *pdev)
 			break;
 		case MSIXCAP_ID:
 			LOG_DBG("Entering into MSI-X Capabilities\n");
+			status = device_status_msixcap(pdev, pci_offset);
 			break;
 		case PXCAP_ID:
 			LOG_DBG("Entering into PCI Express Capabilities\n");
+			status = device_status_pxcap(pdev, pci_offset);
 			break;
 		default:
 			break;
@@ -141,6 +199,7 @@ int device_status_next(struct pci_dev *pdev)
 		switch (cap_aer & AER_ID_MASK) {
 		case AER_CAP_ID:
 			LOG_DBG("Advanced Error Reporting Capability\n");
+			status = device_status_aercap(pdev, pci_offset);
 			break;
 		}
 
@@ -197,6 +256,57 @@ int device_status_msicap(struct pci_dev *pdev, u16 device_data)
    status = SUCCESS;
 
    LOG_DBG("PCI MSI Cap= %x\n", device_data);
+
+   return status;
+}
+/*
+* device_status_msixcap: This func checks the Message Signalled Interrupt - X
+* control and status bits.
+*/
+int device_status_msixcap(struct pci_dev *pdev, u16 device_data)
+{
+   int status;
+   /*
+   * Set the status to SUCCESS and eventually verify any error
+   * really got set.
+   */
+   status = SUCCESS;
+
+   LOG_DBG("PCI MSI-X Cap= %x\n", device_data);
+
+   return status;
+}
+/*
+* device_status_pxcap: This func checks the PCI Express
+* capabiltiy status register
+*/
+int device_status_pxcap(struct pci_dev *pdev, u16 device_data)
+{
+   int status;
+   /*
+   * Set the status to SUCCESS and eventually verify any error
+   * really got set.
+   */
+   status = SUCCESS;
+
+   LOG_DBG("PXCap= %x\n", device_data);
+
+   return status;
+}
+/*
+* device_status_aerap: This func checks the status register of
+* Advanced error reporting capabiltiy of PCI express device.
+*/
+int device_status_aercap(struct pci_dev *pdev, u16 device_data)
+{
+   int status;
+   /*
+   * Set the status to SUCCESS and eventually verify any error
+   * really got set.
+   */
+   status = SUCCESS;
+
+   LOG_DBG("AER Cap= %x\n", device_data);
 
    return status;
 }
