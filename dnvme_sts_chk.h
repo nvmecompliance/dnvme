@@ -116,6 +116,8 @@
 
 int device_status_pci(u16 device_data);
 
+int device_status_next(struct pci_dev *pdev);
+
 int device_status_pmcs(u16 device_data);
 
 int device_status_msicap(struct pci_dev *pdev, u16 device_data);

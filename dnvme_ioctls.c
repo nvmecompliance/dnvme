@@ -25,11 +25,7 @@ int device_status_chk(struct pci_dev *pdev,
 {
    /* Local variable declaration. */
    u16 data; /* unsinged 16 bit data. */
-   u16 pci_offset; /* pci offset in PCI and PCIE space */
    int ret_code = EINVAL; /* initialize ret code to invalid */
-   u16 capability; /* indicates capabilities */
-   u32 cap_aer = 0; /* initialize AER to zero */
-   u16 next_item = 1; /* Allow First time to enter into loop */
    /*
    * Pointer for user data to be copied to user space from
    * kernel space. Initialize with user passed data pointer.
@@ -56,103 +52,24 @@ int device_status_chk(struct pci_dev *pdev,
 
    /* Print out to kernel log the device status */
    if (*status == SUCCESS) {
-	LOG_DBG("PCI Device Status SUCCESS\n");
-	data = 0;
+	LOG_DBG("PCI Device Status SUCCESS = %d\n", *status);
+	ret_code = 0;
    } else {
-	LOG_ERR("PCI Device Status FAIL\n");
-	data = 0;
+	LOG_ERR("PCI Device Status FAIL = %d\n", *status);
+	ret_code = -EINVAL;
    }
 
-   /*
-   * Check if CAP pointer points to next available
-   * linked list resgisters in the PCI Header.
-   */
-   ret_code = pci_read_config_word(pdev, CAP_REG, &pci_offset);
+   *status = device_status_next(pdev);
+   /* Print out to kernel log the device status */
+   if (*status == SUCCESS) {
+	LOG_DBG("NEXT Capability Status SUCCESS = %d\n", *status);
+	ret_code = 0;
+   } else {
+	LOG_ERR("NEXT Capabilty status FAIL!!!\n");
+	LOG_ERR("Check individual error messages for cause = %d\n", *status);
+	ret_code = -EINVAL;
+   }
 
-   if (ret_code < 0)
-	LOG_ERR("pci_read_config failed in driver error check\n");
-
-   /*
-   * Read 32 bits of data from the Next pointer as AER is 32 bit
-   * which is maximum.
-   */
-   ret_code = pci_read_config_dword(pdev, pci_offset, &cap_aer);
-   if (ret_code < 0)
-	LOG_ERR("pci_read_config failed in driver error check\n");
-
-   /*
-   * Enter into loop if cap_aer has non zero value.
-   * next_item is set to 1 for entering this loop for first time.
-   */
-   while (cap_aer != 0 || next_item != 0) {
-
-	LOG_DBG("AER CAP Value = %x\n", cap_aer);
-	/*
-	* AER error mask is used for checking if it is not AER type.
-	*/
-	if (!(cap_aer & AER_ERR_MASK)) {
-
-		capability = (u16)(cap_aer & LOWER_16BITS);
-						/* Mask out higher bits */
-		next_item = (capability & NEXT_MASK) >> 8;
-						/* Get next item offset */
-		cap_aer = 0; /* Reset cap_aer */
-
-		LOG_DBG("Capability Value = %x\n", capability);
-
-		/* Switch based on which ID Capabilty indicates */
-		switch (capability & ~NEXT_MASK) {
-		case PMCAP_ID:
-			LOG_DBG("Entering PCI Pwr Mgmt Capabilities\n");
-
-			if ((0x0 != pci_offset) && (MAX_PCI_HDR < pci_offset)) {
-				/* Compute the PMCS offset from CAP data */
-				pci_offset = pci_offset + PMCS;
-
-				ret_code = pci_read_config_word
-						(pdev, pci_offset, &data);
-				if (ret_code < 0)
-					LOG_ERR("pci_read_config failed\n");
-
-				*status = device_status_pmcs(data);
-			} else {
-				LOG_DBG("Invalid offset = %d\n", pci_offset);
-			}
-			break;
-		case MSICAP_ID:
-			LOG_DBG("Entering into MSI Capabilities\n");
-			*status = device_status_msicap(pdev, pci_offset);
-			break;
-		case MSIXCAP_ID:
-			LOG_DBG("Entering into MSI-X Capabilities\n");
-			break;
-		case PXCAP_ID:
-			LOG_DBG("Entering into PCI Express Capabilities\n");
-			break;
-		default:
-			break;
-		} /* end of switch case */
-
-	} else {
-		/* Advanced Error capabilty function */
-		next_item = (cap_aer >> 20) & MAX_PCI_EXPRESS_CFG;
-
-		/* Check if more items are there*/
-		if (next_item == 0) {
-			LOG_DBG("No NEXT item in the list Exiting..1\n");
-			break;
-		}
-	} /* end of else if cap_aer */
-
-	/* If item exists then read else break here */
-	if (next_item != 0 && pci_offset != 0) {
-		ret_code = pci_read_config_word(pdev, next_item, &pci_offset);
-		ret_code = pci_read_config_dword(pdev, pci_offset, &cap_aer);
-	} else {
-		LOG_DBG("There is no NEXT item in the list so exiting...2\n");
-		break;
-	}
-   } /* end of while loop */
    /*
    *  Efficient way to copying data to user buffer datap
    *  using in a single copy function call.
