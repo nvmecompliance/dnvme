@@ -20,7 +20,7 @@ enum {
 * to this ioctl from user level to kernel level.
 */
 #define NVME_IOCTL_READ_GENERIC _IOWR('A', NVME_READ_GENERIC,\
-						struct nvme_read_generic)
+						struct rw_generic)
 
 
 /**
@@ -32,7 +32,7 @@ enum {
 * level to kernel level.
 */
 #define NVME_IOCTL_WRITE_GENERIC _IOWR('A', NVME_WRITE_GENERIC,\
-						struct nvme_write_generic)
+						struct rw_generic)
 
 /**
 * @def NVME_IOCTL_ERR_CHK

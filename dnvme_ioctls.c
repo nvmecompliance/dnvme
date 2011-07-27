@@ -170,7 +170,7 @@ int device_status_chk(struct pci_dev *pdev,
 *   NVME PCIe registers and memory mapped addres
 */
 int driver_generic_read(struct file *file,
-			struct nvme_read_generic *nvme_data,
+			struct rw_generic *nvme_data,
 			struct pci_dev *pdev)
 {
    /* Local variable declaration. */
@@ -179,7 +179,7 @@ int driver_generic_read(struct file *file,
    int ret_code = -EINVAL; /* to verify if return code is success. */
    struct nvme_space nvme_ctrl_reg_space;
    struct nvme_dev_entry *nvme = NULL;
-   unsigned char __user *datap = (unsigned char __user *)nvme_data->rdBuffer;
+   unsigned char __user *datap = (unsigned char __user *)nvme_data->buffer;
 
    LOG_DBG("Inside Generic Read Funtion of the IOCTLs");
 
@@ -192,7 +192,7 @@ int driver_generic_read(struct file *file,
 
    /*
    *  Switch based on the user passed read type using the
-   *  enum type specified in struct nvme_read_generic.
+   *  enum type specified in struct rw_generic.
    */
    switch (nvme_data->type) {
    case NVMEIO_PCI_HDR: /* Switch case for NVME PCI Header type. */
@@ -284,7 +284,7 @@ int driver_generic_read(struct file *file,
    *  second parameter is copy from location,
    *  third parameter give the number of bytes to copy.
    */
-   ret_code = copy_to_user(&nvme_data->rdBuffer[0], datap,
+   ret_code = copy_to_user(&nvme_data->buffer[0], datap,
 				nvme_data->nBytes * sizeof(u8));
    if (ret_code < 0)
 	LOG_ERR("Error copying to user buffer returning");
@@ -297,7 +297,7 @@ int driver_generic_read(struct file *file,
 *   NVME PCIe registers and memory mapped address
 */
 int driver_generic_write(struct file *file,
-			struct nvme_write_generic *nvme_data,
+			struct rw_generic *nvme_data,
 			struct pci_dev *pdev)
 {
    u8 data; /* data to be written. */
@@ -308,7 +308,7 @@ int driver_generic_write(struct file *file,
    * Pointer for user data to be copied to user space from
    * kernel space. Initialize with user passed data pointer.
    */
-   unsigned char __user *datap = (unsigned char __user *)nvme_data->wrBuffer;
+   unsigned char __user *datap = (unsigned char __user *)nvme_data->buffer;
 
    LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
@@ -328,7 +328,7 @@ int driver_generic_write(struct file *file,
    * copy from user data buffer to kernel data buffer at single place
    * using copy_from_user for efficiency.
    */
-   copy_from_user(datap, nvme_data->wrBuffer, nvme_data->nBytes * sizeof(u8));
+   copy_from_user(datap, nvme_data->buffer, nvme_data->nBytes * sizeof(u8));
 
    /*
    * Switch based on the type of requested write determined by nvme_data->data

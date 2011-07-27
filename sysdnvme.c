@@ -413,8 +413,7 @@ int dnvme_ioctl_device(
 		unsigned long ioctl_param)
 {
    int ret_val = -EINVAL;
-   struct nvme_read_generic *nvme_rd_data;
-   struct nvme_write_generic *nvme_wr_data;
+   struct rw_generic *nvme_data;
    struct nvme_device_entry *nvme_dev_entry;
    int *nvme_dev_err_sts;
    struct pci_dev *pdev = NULL;
@@ -444,17 +443,17 @@ int dnvme_ioctl_device(
    case NVME_IOCTL_READ_GENERIC:
 
 	LOG_DBG("Invoking User App request to read  the PCI Header Space");
-	nvme_rd_data = (struct nvme_read_generic *)ioctl_param;
+	nvme_data = (struct rw_generic *)ioctl_param;
 
-	ret_val = driver_generic_read(file, nvme_rd_data, pdev);
+	ret_val = driver_generic_read(file, nvme_data, pdev);
 	break;
 
    case NVME_IOCTL_WRITE_GENERIC:
 
 	LOG_DBG("Invoke IOCTL Generic Write Funtion");
-	nvme_wr_data = (struct nvme_write_generic *)ioctl_param;
+	nvme_data = (struct rw_generic *)ioctl_param;
 
-	ret_val = driver_generic_write(file, nvme_wr_data, pdev);
+	ret_val = driver_generic_write(file, nvme_data, pdev);
 	break;
 
    case NVME_IOCTL_CREATE_ADMN_Q:
