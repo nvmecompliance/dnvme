@@ -56,6 +56,14 @@
 #define RTA                             0x1000
 
 /**
+* @def CL_MASK
+* This bit position indicates Capabilities List of the controller
+* The controller should support the PCI Power Management cap as a
+* minimum.
+*/
+#define CL_MASK                             0x0010
+
+/**
 * @def NEXT_MASK
 * This indicates the location of the next capability item
 * in the list.

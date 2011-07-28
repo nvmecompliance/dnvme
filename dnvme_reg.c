@@ -39,7 +39,7 @@ void read_nvme_reg_generic(
 	/* Read data from NVME space */
 	u32data = readl(bar);
 
-	LOG_NRM("NVME Space Reading Data at 0x%0X:0x%0X\n", *bar, u32data);
+	LOG_NRM("NVME Space Reading Data at 0x%0X:0x%0X", *bar, u32data);
 	/* Increments in multiples of 4 (size of int) */
 	bar++;
 	/* Copy data to user buffer. */
@@ -77,7 +77,7 @@ int write_nvme_reg_generic(
 	/* Copy u32 type data variable */
 	memcpy((u8 *)&u32data, &u8data[index], sizeof(u32));
 
-	LOG_NRM("NVME Space Writing at Addr:Val::0x%lX:0x%X\n",
+	LOG_NRM("NVME Space Writing at Addr:Val::0x%lX:0x%X",
 				(unsigned long int)bar, u32data);
 	/* Write data to NVME space */
 	writel(u32data, bar);

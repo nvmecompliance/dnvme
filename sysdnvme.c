@@ -99,19 +99,19 @@ static int dnvme_init(void)
    dev_t devno = 0;
    int nvme_ndevices = NVME_N_DEVICES;
 
-    LOG_NRM("version: %d.%d", VER_MAJOR, VER_MINOR);
+   LOG_NRM("version: %d.%d", VER_MAJOR, VER_MINOR);
    LOG_DBG("Init module - dnvme init");
 
    if (!_CLASSIC_) {
 	nvme_major = register_blkdev(NVME_MAJOR, DRV_NAME);
 	if (nvme_major < 0) {
 		/*Unable to register the PCI device */
-		LOG_ERR("NVME Blk Registration failed\n");
+		LOG_ERR("NVME Blk Registration failed");
 		return nvme_major;
 	} else {
 
 		NVME_MAJOR = nvme_major;
-		LOG_DBG("Major Number = %d\n", NVME_MAJOR);
+		LOG_DBG("Major Number = %d", NVME_MAJOR);
 	}
    }
 
@@ -131,7 +131,7 @@ static int dnvme_init(void)
 		LOG_ERR("NVME Char Registration failed");
 		return -ENODEV;
 	}
-	LOG_DBG("NVME Char type registered..\n");
+	LOG_DBG("NVME Char type registered..");
    } else {
 	err = alloc_chrdev_region
 			(
@@ -249,7 +249,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    }
 
    /* Why does retcode is negative here and still success? TSK */
-   LOG_DBG("PCI enable Success!. Return Code = %d\n", retCode);
+   LOG_DBG("PCI enable Success!. Return Code = %d", retCode);
 
    if (pci_enable_device_mem(pdev)) {
 	LOG_ERR("pci_enalbe_device_mem not successful");
@@ -276,8 +276,8 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 	LOG_DBG("Select regions success");
    }
 
-   LOG_DBG("Mask for PCI BARS = %d\n", bars);
-   LOG_DBG("PCI Probe Success!. Return Code = %d\n", retCode);
+   LOG_DBG("Mask for PCI BARS = %d", bars);
+   LOG_DBG("PCI Probe Success!. Return Code = %d", retCode);
 
    /**
    *  Try Allocating the device memory in the host and check
@@ -295,10 +295,10 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 			pci_resource_len(pdev, 0));
 
    if (bar != NULL) {
-	LOG_DBG("Bar 0 Address:\n");
-	LOG_DBG("Remap value.\n");
+	LOG_DBG("Bar 0 Address:");
+	LOG_DBG("Remap value.");
    } else {
-	LOG_ERR("allocate Host Memory for Device Failed!!\n");
+	LOG_ERR("allocate Host Memory for Device Failed!!");
 	return -EINVAL;
    }
 
@@ -421,7 +421,7 @@ int dnvme_ioctl_device(
    /* Get the device from the linked list */
    list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
 	pdev = nvme_dev_entry->pdev;
-	LOG_DBG("[Nvme_Drv] device [%02x:%02x.%02x]",
+	LOG_DBG("device [%02x:%02x.%02x]",
 	nvme_dev_entry->bus,
 	nvme_dev_entry->slot, nvme_dev_entry->func);
 	}
@@ -457,7 +457,7 @@ int dnvme_ioctl_device(
 	break;
 
    case NVME_IOCTL_CREATE_ADMN_Q:
-	LOG_DBG("IOCTL for Create Admin Q\n");
+	LOG_DBG("IOCTL for Create Admin Q");
 	break;
 
    case NVME_IOCTL_DEL_ADMN_Q:

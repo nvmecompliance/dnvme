@@ -16,8 +16,8 @@ int device_status_pci(u16 device_data)
 {
    int status;
 
-   LOG_DBG("PCI Device Status Data = %x\n", device_data);
-
+   LOG_DBG("PCI Device Status (STS) Data = 0x%X", device_data);
+   LOG_NRM("Checking all the PCI register error bits");
    /*
    * Set the status to SUCCESS and eventually verify any error
    * really got set.
@@ -28,22 +28,29 @@ int device_status_pci(u16 device_data)
 	status = FAIL;
 
 	if (device_data & DPE) {
-		LOG_ERR("Device Status - DPE Set\n");
-		LOG_ERR("Detected Data parity Error\n");
+		LOG_ERR("Device Status - DPE Set");
+		LOG_ERR("Detected Data parity Error");
 	}
 	if (device_data & DPD) {
-		LOG_ERR("Device Status - DPD Set\n");
-		LOG_ERR("Detected Master Data Parity Error\n");
+		LOG_ERR("Device Status - DPD Set");
+		LOG_ERR("Detected Master Data Parity Error");
 	}
 	if (device_data & RMA) {
-		LOG_ERR("Device Status - RMA Set\n");
-		LOG_ERR("Received Master Abort...\n");
+		LOG_ERR("Device Status - RMA Set");
+		LOG_ERR("Received Master Abort...");
 	}
 	if (device_data & RTA) {
-		LOG_ERR("Device Status - RTA Set\n");
-		LOG_ERR("Received Target Abort...\n");
+		LOG_ERR("Device Status - RTA Set");
+		LOG_ERR("Received Target Abort...");
 	}
    }
+
+   if ((device_data & CL_MASK) != CL_MASK) {
+	LOG_ERR("In STS, the CL bit indicates empty Capabilites list.");
+	LOG_ERR("The controller should support PCI Power Mnmt as a min.");
+	status = FAIL;
+   }
+
    return status;
 }
 /*
@@ -57,27 +64,28 @@ int nvme_controller_status(struct pci_dev *pdev)
    u32 tmp;
    struct nvme_space nvme_ctrl_reg_space;
 
+   LOG_NRM("Checking the NVME Controller Status (CSTS)...");
+
    nvme_ctrl_reg_space.bar_dev = ioremap(pci_resource_start(pdev, 0),
 			pci_resource_len(pdev, 0));
 
    u32data = readl(&nvme_ctrl_reg_space.bar_dev->csts);
    tmp = u32data;
 
-   LOG_NRM("NVME Controller Status = 0x%X", u32data);
+   LOG_NRM("NVME Controller Status CSTS = 0x%X", u32data);
    u32data &= 0x3;
 
+   status = SUCCESS;
    if (u32data != 0x1 || u32data == 0x2) {
-	status = FAIL;
-	LOG_NRM("NVME Controller Status Failed!!!\n");
-
 	if ((u32data & 0x1) == 0x0)
-		LOG_NRM("NVME Controller is not ready...\n");
+		LOG_NRM("NVME Controller is not ready (RDY)...");
 
-	if ((u32data & 0x2) == 0x2)
-		LOG_NRM("NVME Controller Fatal Status is set...\n");
+	if ((u32data & 0x2) == 0x2) {
+		status = FAIL;
+		LOG_ERR("NVME Controller Fatal Status (CFS) is set...");
+	}
    } else {
-	LOG_NRM("NVME Controller Status Success\n");
-	status = SUCCESS;
+	LOG_NRM("NVME Controller Status (CSTS) Success");
    }
 
    u32data = tmp;
@@ -85,18 +93,18 @@ int nvme_controller_status(struct pci_dev *pdev)
    u32data >>= 2;
 
    switch (u32data) {
-	LOG_NRM("The Shutdown Status of the NVME Controller:\n");
+	LOG_DBG("The Shutdown Status of the NVME Controller (SHST):");
    case 0:
-	LOG_NRM("No Shutdown requested\n");
+	LOG_DBG("No Shutdown requested");
 	break;
    case 1:
-	LOG_NRM("Shutdown Processing occuring\n");
+	LOG_DBG("Shutdown Processing occuring");
 	break;
    case 2:
-	LOG_NRM("Shutdown Process Complete\n");
+	LOG_DBG("Shutdown Process Complete");
 	break;
    case 3:
-	LOG_NRM("Reserved Bits set\n");
+	LOG_DBG("Reserved Bits set");
 	break;
    }
 
@@ -114,77 +122,86 @@ int device_status_next(struct pci_dev *pdev)
 {
    int status;
    int ret_code;
-   u16 pci_offset;
+   u16 pci_offset = 0;
    u32 cap_aer;
    u16 next_item = 1;
    u16 capability;
    u16 data; /* unsinged 16 bit data. */
+   u8 power_management_feature = 0;
 
+   LOG_NRM("Checking NEXT Capabilities of the NVME Controller");
+   LOG_NRM("Checks if PMCS is supported as a minimum");
 
    /*
    * Check if CAP pointer points to next available
    * linked list resgisters in the PCI Header.
    */
-   ret_code = pci_read_config_word(pdev, CAP_REG, &pci_offset);
+   ret_code = pci_read_config_byte(pdev, CAP_REG, (u8 *)&pci_offset);
 
    if (ret_code < 0)
-	LOG_ERR("pci_read_config failed in driver error check\n");
+	LOG_ERR("pci_read_config failed in driver error check");
 
+   LOG_DBG("CAP_REG Contents = 0x%X", pci_offset);
    /*
-   * Read 32 bits of data from the Next pointer as AER is 32 bit
-   * which is maximum.
+   * Read 16 bits of data from the Next pointer as PMS bit
+   * which is must
    */
-   ret_code = pci_read_config_dword(pdev, pci_offset, &cap_aer);
+   ret_code = pci_read_config_word(pdev, pci_offset, (u16 *)&cap_aer);
    if (ret_code < 0)
-	LOG_ERR("pci_read_config failed in driver error check\n");
+	LOG_ERR("pci_read_config failed in driver error check");
 
+   cap_aer = (u16)(cap_aer & LOWER_16BITS);
    /*
    * Enter into loop if cap_aer has non zero value.
    * next_item is set to 1 for entering this loop for first time.
    */
    while (cap_aer != 0 || next_item != 0) {
 
-	LOG_DBG("AER CAP Value = %x\n", cap_aer);
+	LOG_DBG("CAP Value 16/32 Bits = 0x%X", cap_aer);
 	/*
 	* AER error mask is used for checking if it is not AER type.
 	*/
-	if (!(cap_aer & AER_ERR_MASK)) {
+	if ((cap_aer & AER_ERR_MASK) != AER_ERR_MASK) {
 		capability = (u16)(cap_aer & LOWER_16BITS);
 		/* Mask out higher bits */
 		next_item = (capability & NEXT_MASK) >> 8;
 		/* Get next item offset */
 		cap_aer = 0; /* Reset cap_aer */
-		LOG_DBG("Capability Value = %x\n", capability);
+		LOG_DBG("Capability Value = 0x%X", capability);
 
 		/* Switch based on which ID Capabilty indicates */
 		switch (capability & ~NEXT_MASK) {
 		case PMCAP_ID:
-			LOG_DBG("Entering PCI Pwr Mgmt Capabilities\n");
+			LOG_NRM("PCI Pwr Mgmt is Supported (PMCS Exists)");
+			LOG_NRM("Checking PCI Pwr Mgmt Capabilities Status");
+
+			/* Set power management is supported */
+			power_management_feature = 1;
 
 			if ((0x0 != pci_offset) && (MAX_PCI_HDR < pci_offset)) {
 				/* Compute the PMCS offset from CAP data */
 				pci_offset = pci_offset + PMCS;
 
 				ret_code = pci_read_config_word
-				(pdev, pci_offset, &data);
+						(pdev, pci_offset, &data);
 				if (ret_code < 0)
-					LOG_ERR("pci_read_config failed\n");
+					LOG_ERR("pci_read_config failed");
 
 				status = device_status_pmcs(data);
 			} else {
-				LOG_DBG("Invalid offset = %d\n", pci_offset);
+				LOG_DBG("Invalid offset = %d", pci_offset);
 			}
 			break;
 		case MSICAP_ID:
-			LOG_DBG("Entering into MSI Capabilities\n");
+			LOG_NRM("Checing MSI Capabilities");
 			status = device_status_msicap(pdev, pci_offset);
 			break;
 		case MSIXCAP_ID:
-			LOG_DBG("Entering into MSI-X Capabilities\n");
+			LOG_NRM("Checking MSI-X Capabilities");
 			status = device_status_msixcap(pdev, pci_offset);
 			break;
 		case PXCAP_ID:
-			LOG_DBG("Entering into PCI Express Capabilities\n");
+			LOG_NRM("Checking PCI Express Capabilities");
 			status = device_status_pxcap(pdev, pci_offset);
 			break;
 		default:
@@ -192,33 +209,42 @@ int device_status_next(struct pci_dev *pdev)
 		} /* end of switch case */
 
 	} else {
-		LOG_DBG("All Advaned Error Reporting..\n");
+		LOG_DBG("All Advaned Error Reporting..");
 		/* Advanced Error capabilty function */
 		next_item = (cap_aer >> 20) & MAX_PCI_EXPRESS_CFG;
 
 		switch (cap_aer & AER_ID_MASK) {
 		case AER_CAP_ID:
-			LOG_DBG("Advanced Error Reporting Capability\n");
+			LOG_NRM("Checking Advanced Error Reporting Capability");
 			status = device_status_aercap(pdev, pci_offset);
 			break;
 		}
 
 		/* Check if more items are there*/
 		if (next_item == 0) {
-			LOG_DBG("No NEXT item in the list Exiting..1\n");
+			LOG_NRM("No NEXT item in the list Exiting..1");
 			break;
 		}
 	} /* end of else if cap_aer */
 
 	/* If item exists then read else break here */
 	if (next_item != 0 && pci_offset != 0) {
+		/* Get the next item in the linked lint */
 		ret_code = pci_read_config_word(pdev, next_item, &pci_offset);
+		/* Read 32 bits as next item could be AER cap */
 		ret_code = pci_read_config_dword(pdev, pci_offset, &cap_aer);
 	} else {
-		LOG_DBG("There is no NEXT item in the list so exiting...2\n");
+		LOG_NRM("No NEXT item in the list exiting...2");
 		break;
 	}
    } /* end of while loop */
+
+   /* Check if PCI Power Management cap is supported as a min */
+   if (power_management_feature == 0) {
+	LOG_ERR("The controller should support PCI Pwr management as a min");
+	LOG_ERR("PCI Power Management Capability is not Supported.");
+	status = FAIL;
+   }
 
    return status;
 }
@@ -237,7 +263,7 @@ int device_status_pmcs(u16 device_data)
    */
    status = SUCCESS;
 
-   LOG_DBG("PCI Power Management Control and Status = %x\n", device_data);
+   LOG_DBG("PCI Power Management Control and Status = %x", device_data);
 
    return status;
 }
@@ -255,7 +281,7 @@ int device_status_msicap(struct pci_dev *pdev, u16 device_data)
    */
    status = SUCCESS;
 
-   LOG_DBG("PCI MSI Cap= %x\n", device_data);
+   LOG_DBG("PCI MSI Cap= %x", device_data);
 
    return status;
 }
@@ -272,7 +298,7 @@ int device_status_msixcap(struct pci_dev *pdev, u16 device_data)
    */
    status = SUCCESS;
 
-   LOG_DBG("PCI MSI-X Cap= %x\n", device_data);
+   LOG_DBG("PCI MSI-X Cap= %x", device_data);
 
    return status;
 }
@@ -289,7 +315,7 @@ int device_status_pxcap(struct pci_dev *pdev, u16 device_data)
    */
    status = SUCCESS;
 
-   LOG_DBG("PXCap= %x\n", device_data);
+   LOG_DBG("PXCap= %x", device_data);
 
    return status;
 }
@@ -306,7 +332,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 device_data)
    */
    status = SUCCESS;
 
-   LOG_DBG("AER Cap= %x\n", device_data);
+   LOG_DBG("AER Cap= %x", device_data);
 
    return status;
 }

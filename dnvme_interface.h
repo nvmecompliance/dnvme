@@ -14,8 +14,8 @@ enum nvme_io_space {
 
 /**
 * This struct is the basic structure which has important
-* parameter for the generic read funtion to seek the correct
-* offset and length while reading data from nvme card.
+* parameter for the generic read  and write funtion to seek the correct
+* offset and length while reading or writing to nvme card.
 */
 struct rw_generic {
    enum nvme_io_space type;

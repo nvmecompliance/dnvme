@@ -25,7 +25,7 @@ int device_status_chk(struct pci_dev *pdev,
 {
    /* Local variable declaration. */
    u16 data; /* unsinged 16 bit data. */
-   int ret_code = EINVAL; /* initialize ret code to invalid */
+   int ret_code = -EINVAL; /* initialize ret code to invalid */
    /*
    * Pointer for user data to be copied to user space from
    * kernel space. Initialize with user passed data pointer.
@@ -41,7 +41,7 @@ int device_status_chk(struct pci_dev *pdev,
    * Check the return code to know if pci read is succes.
    */
    if (ret_code < 0) {
-	LOG_ERR("pci_read_config failed in driver error check\n");
+	LOG_ERR("pci_read_config failed in driver error check");
 	return -EINVAL;
    }
 
@@ -51,26 +51,26 @@ int device_status_chk(struct pci_dev *pdev,
    *status = device_status_pci(data);
 
    /* Print out to kernel log the device status */
-   if (*status == SUCCESS) {
-	LOG_DBG("PCI Device Status SUCCESS = %d\n", *status);
-	ret_code = 0;
-   } else {
-	LOG_ERR("PCI Device Status FAIL = %d\n", *status);
-	ret_code = -EINVAL;
-   }
+   if (*status == SUCCESS)
+	LOG_NRM("PCI Device Status SUCCESS (STS)");
+   else
+	LOG_ERR("PCI Device Status FAIL (STS)");
 
-   *status = device_status_next(pdev);
+   *status = (*status == SUCCESS) ? device_status_next(pdev) : FAIL;
+
    /* Print out to kernel log the device status */
-   if (*status == SUCCESS) {
-	LOG_DBG("NEXT Capability Status SUCCESS = %d\n", *status);
-	ret_code = 0;
-   } else {
-	LOG_ERR("NEXT Capabilty status FAIL!!!\n");
-	LOG_ERR("Check individual error messages for cause = %d\n", *status);
-	ret_code = -EINVAL;
-   }
+   if (*status == SUCCESS)
+	LOG_NRM("NEXT Capability Status SUCCESS.");
+   else
+	LOG_ERR("NEXT Capabilty status FAIL");
 
-   *status = nvme_controller_status(pdev);
+   *status = (*status == SUCCESS) ? nvme_controller_status(pdev) : FAIL;
+   /* Print out to kernel log the device status */
+   if (*status == SUCCESS)
+	LOG_NRM("NVME Controller Status SUCCESS (CSTS)");
+   else
+	LOG_ERR("iNVME Controller Status FAIL (CSTS)");
+   
    /*
    *  Efficient way to copying data to user buffer datap
    *  using in a single copy function call.
@@ -103,7 +103,7 @@ int driver_generic_read(struct file *file,
 
    nvme = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
    if (nvme == NULL) {
-	LOG_ERR("Unable to allocate kernel mem in generic read\n");
+	LOG_ERR("Unable to allocate kernel mem in generic read");
 	LOG_ERR("Exiting from here...");
 	return -ENOMEM;
    }
@@ -115,20 +115,20 @@ int driver_generic_read(struct file *file,
    switch (nvme_data->type) {
    case NVMEIO_PCI_HDR: /* Switch case for NVME PCI Header type. */
 
-	LOG_DBG("User App request to read  the PCI Header Space\n");
-	LOG_DBG("Read request for bytes = %x\n", nvme_data->nBytes);
+	LOG_DBG("User App request to read  the PCI Header Space");
+	LOG_DBG("Read request for bytes = %x", nvme_data->nBytes);
 	/*
 	* Loop through the number of bytes that are specified in the
 	* bBytes parameter.
 	*/
 	for (index = 0; index < nvme_data->nBytes; index++) {
 		/* Check where you are reading */
-		LOG_DBG("Reading for index = %d\n", index);
-		LOG_DBG("PCI Offset = %d\n", nvme_data->offset + index);
+		LOG_DBG("Reading for index = %d", index);
+		LOG_DBG("PCI Offset = %d", nvme_data->offset + index);
 
 		if ((nvme_data->offset + index) > MAX_PCI_EXPRESS_CFG) {
-			LOG_ERR("Offset is more than the PCI Express ");
-			LOG_ERR("Extended config space...\n");
+			LOG_ERR("Offset is more than the PCI Express");
+			LOG_ERR("Extended config space...");
 			return -EINVAL;
 		}
 		/*
@@ -139,11 +139,11 @@ int driver_generic_read(struct file *file,
 			(pdev, (nvme_data->offset + index), &data);
 
 		if (ret_code < 0) {
-			LOG_ERR("pci_read_config failed\n");
+			LOG_ERR("pci_read_config failed");
 			return ret_code;
 		}
 
-		LOG_DBG("Reading PCI header from offset = %d, data = 0x%x\n",
+		LOG_DBG("Reading PCI header from offset = %d, data = 0x%x",
 					(nvme_data->offset + index), data);
 
 		/*
@@ -152,7 +152,7 @@ int driver_generic_read(struct file *file,
 		*/
 		datap[index] = data;
 
-		LOG_DBG("Index = %d data 2 user = %d\n", index, datap[index]);
+		LOG_DBG("Index = %d data 2 user = %d", index, datap[index]);
 	}
 
 	/*
@@ -162,7 +162,7 @@ int driver_generic_read(struct file *file,
 
    case NVMEIO_BAR01:
 	/* Registers are aligned and so */
-	LOG_DBG("Invoking User App request for to read from NVME space\n");
+	LOG_DBG("Invoking User App request to read from NVME space");
 
 	/* Remap io mem for this device. */
 	nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
@@ -170,11 +170,11 @@ int driver_generic_read(struct file *file,
 
 	/* Check if remap was success */
 	if (!nvme->bar0mapped) {
-		LOG_ERR("Unable to map io region nmve..exit\n");
+		LOG_ERR("Unable to map io region nmve..exit");
 		return -EINVAL;
 	}
 
-	LOG_NRM("[Nvme_Drv]Using Bar0 address: %llx, length %d\n",
+	LOG_NRM("Using Bar0 address: %llx, length %d",
 		(uint64_t)nvme->bar0mapped, (int) pci_resource_len(pdev, 0));
 
 	/* Assign the BAR remapped into nvme space control register */
@@ -221,8 +221,8 @@ int driver_generic_write(struct file *file,
    u16 index = 0; /* Index to loop */
    int ret_code = -EINVAL; /* return code to verify if written success. */
 
-   struct nvme_space nvme_ctrl_reg_space;
-   struct nvme_dev_entry *nvme = NULL;
+   struct nvme_space l_ctrl_reg_space;
+   struct nvme_dev_entry *nvme_dev = NULL;
    /*
    * Pointer for user data to be copied to user space from
    * kernel space. Initialize with user passed data pointer.
@@ -231,9 +231,9 @@ int driver_generic_write(struct file *file,
 
    LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
-   nvme = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
-   if (nvme == NULL) {
-	LOG_ERR("Unable to allocate kernel mem in generic read\n");
+   nvme_dev = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
+   if (nvme_dev == NULL) {
+	LOG_ERR("Unable to allocate kernel mem in generic read");
 	LOG_ERR("Exiting from here...");
 	return -ENOMEM;
    }
@@ -281,7 +281,7 @@ int driver_generic_write(struct file *file,
 			return ret_code;
 		}
 
-		LOG_NRM("Writing to PCI header offset,data = %d, %x\n",
+		LOG_NRM("Writing to PCI header offset,data = %d, %x",
 				(nvme_data->offset + index), datap[index]);
 	}
 	/* Done writing user requested data, returning. */
@@ -290,27 +290,27 @@ int driver_generic_write(struct file *file,
 	LOG_DBG("Invoking User App request to write NVME Space using BAR01");
 
 	/* Remap io mem for this device. */
-	nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
+	nvme_dev->bar0mapped = ioremap(pci_resource_start(pdev, 0),
 				pci_resource_len(pdev, 0));
 
 	/* Check if remap was success */
-	if (!nvme->bar0mapped) {
-		LOG_ERR("Unable to map io region nmve..exit\n");
+	if (!nvme_dev->bar0mapped) {
+		LOG_ERR("Unable to map io region nmve..exit");
 		return -EINVAL;
 	}
 
-	LOG_NRM("[Nvme_Drv]Using Bar0 address: %llx, length %d\n",
-		(uint64_t)nvme->bar0mapped, (int) pci_resource_len(pdev, 0));
+	LOG_NRM("Using Bar0 address: %llx, length %d",
+	(uint64_t)nvme_dev->bar0mapped, (int) pci_resource_len(pdev, 0));
 
 	/* Assign the BAR remapped into nvme space control register */
-	nvme_ctrl_reg_space.bar_dev = (void __iomem *)nvme->bar0mapped;
+	l_ctrl_reg_space.bar_dev = (void __iomem *)nvme_dev->bar0mapped;
 
 	/*
 	* Write NVME register space with datap from offset until
 	* nBytes are written.
 	*/
 	ret_code = write_nvme_reg_generic(
-			nvme_ctrl_reg_space,
+			l_ctrl_reg_space,
 			(u8 *)datap,
 			nvme_data->nBytes,
 			nvme_data->offset
