@@ -103,7 +103,6 @@ int driver_generic_read(struct file *file,
    nvme = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
    if (nvme == NULL) {
 	LOG_ERR("Unable to allocate kernel mem in generic read");
-	LOG_ERR("Exiting from here...");
 	return -ENOMEM;
    }
 
@@ -115,15 +114,15 @@ int driver_generic_read(struct file *file,
    case NVMEIO_PCI_HDR: /* Switch case for NVME PCI Header type. */
 
 	LOG_DBG("User App request to read  the PCI Header Space");
-	LOG_DBG("Read request for bytes = %x", nvme_data->nBytes);
+	LOG_DBG("Read request for bytes = 0x%x", nvme_data->nBytes);
 	/*
 	* Loop through the number of bytes that are specified in the
 	* bBytes parameter.
 	*/
 	for (index = 0; index < nvme_data->nBytes; index++) {
 		/* Check where you are reading */
-		LOG_DBG("Reading for index = %d", index);
-		LOG_DBG("PCI Offset = %d", nvme_data->offset + index);
+		LOG_DBG("Reading for index = 0x%x", index);
+		LOG_DBG("PCI Offset = 0x%x", nvme_data->offset + index);
 
 		if ((nvme_data->offset + index) > MAX_PCI_EXPRESS_CFG) {
 			LOG_ERR("Offset is more than the PCI Express");
@@ -142,7 +141,7 @@ int driver_generic_read(struct file *file,
 			return ret_code;
 		}
 
-		LOG_DBG("Reading PCI header from offset = %d, data = 0x%x",
+		LOG_DBG("Reading PCI header from offset = 0x%x, data = 0x%x",
 					(nvme_data->offset + index), data);
 
 		/*
@@ -151,7 +150,7 @@ int driver_generic_read(struct file *file,
 		*/
 		datap[index] = data;
 
-		LOG_DBG("Index = %d data 2 user = %d", index, datap[index]);
+		LOG_DBG("Index = 0x%x data 2 user = 0x%x", index, datap[index]);
 	}
 
 	/*
@@ -173,7 +172,7 @@ int driver_generic_read(struct file *file,
 		return -EINVAL;
 	}
 
-	LOG_NRM("Using Bar0 address: %llx, length %d",
+	LOG_NRM("Using Bar0 address: 0x%llx, length 0x%x",
 		(uint64_t)nvme->bar0mapped, (int) pci_resource_len(pdev, 0));
 
 	/* Assign the BAR remapped into nvme space control register */
@@ -275,12 +274,12 @@ int driver_generic_write(struct file *file,
 			(pdev, (nvme_data->offset + index), datap[index]);
 
 		if (ret_code < 0) {
-			LOG_ERR("Unable to write to location = %d data = %x",
+			LOG_ERR("Unable to write to location = 0x%x data = 0%x",
 				(nvme_data->offset + index), datap[index]);
 			return ret_code;
 		}
 
-		LOG_NRM("Writing to PCI header offset,data = %d, %x",
+		LOG_NRM("Writing to PCI header offset,data = 0x%x, 0x%x",
 				(nvme_data->offset + index), datap[index]);
 	}
 	/* Done writing user requested data, returning. */
@@ -298,7 +297,7 @@ int driver_generic_write(struct file *file,
 		return -EINVAL;
 	}
 
-	LOG_NRM("Using Bar0 address: %llx, length %d",
+	LOG_NRM("Using Bar0 address: 0x%llx, length 0x%x",
 	(uint64_t)nvme_dev->bar0mapped, (int) pci_resource_len(pdev, 0));
 
 	/* Assign the BAR remapped into nvme space control register */

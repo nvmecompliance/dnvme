@@ -73,14 +73,14 @@ int nvme_controller_status(struct pci_dev *pdev)
    tmp = u32data;
 
    LOG_NRM("NVME Controller Status CSTS = 0x%X", u32data);
-   u32data &= 0x3;
+   u32data &= NVME_CSTS_RSVD;
 
    status = SUCCESS;
-   if (u32data != 0x1 || u32data == 0x2) {
-	if ((u32data & 0x1) == 0x0)
+   if (u32data != NVME_CSTS_RDY || u32data == NVME_CSTS_CFS) {
+	if ((u32data & NVME_CSTS_RDY) == 0x0)
 		LOG_NRM("NVME Controller is not ready (RDY)...");
 
-	if ((u32data & 0x2) == 0x2) {
+	if ((u32data & NVME_CSTS_CFS) == NVME_CSTS_CFS) {
 		status = FAIL;
 		LOG_ERR("NVME Controller Fatal Status (CFS) is set...");
 	}
@@ -89,21 +89,23 @@ int nvme_controller_status(struct pci_dev *pdev)
    }
 
    u32data = tmp;
-   u32data &= 0xC;
+   u32data &= NVME_CSTS_SHST_MASK;
+
+   /* Right shift by 2 bits. */
    u32data >>= 2;
 
    switch (u32data) {
 	LOG_DBG("The Shutdown Status of the NVME Controller (SHST):");
-   case 0:
+   case NVME_CSTS_NRML_OPER:
 	LOG_DBG("No Shutdown requested");
 	break;
-   case 1:
+   case NVME_CSTS_SHT_OCC:
 	LOG_DBG("Shutdown Processing occuring");
 	break;
-   case 2:
+   case NVME_CSTS_SHT_COMP:
 	LOG_DBG("Shutdown Process Complete");
 	break;
-   case 3:
+   case NVME_CSTS_SHT_RSVD:
 	LOG_DBG("Reserved Bits set");
 	break;
    }
@@ -160,11 +162,15 @@ int device_status_next(struct pci_dev *pdev)
 	LOG_DBG("CAP Value 16/32 Bits = 0x%X", cap_aer);
 	/*
 	* AER error mask is used for checking if it is not AER type.
+	* Right Shift bby 16 bits.
 	*/
-	if ((cap_aer & AER_ERR_MASK) != AER_ERR_MASK) {
+	if (((cap_aer & AER_ERR_MASK) >> 16) != NVME_AER_CVER) {
+
 		capability = (u16)(cap_aer & LOWER_16BITS);
+
 		/* Mask out higher bits */
 		next_item = (capability & NEXT_MASK) >> 8;
+
 		/* Get next item offset */
 		cap_aer = 0; /* Reset cap_aer */
 		LOG_DBG("Capability Value = 0x%X", capability);
@@ -189,7 +195,7 @@ int device_status_next(struct pci_dev *pdev)
 
 				status = device_status_pmcs(data);
 			} else {
-				LOG_DBG("Invalid offset = %d", pci_offset);
+				LOG_DBG("Invalid offset = 0x%x", pci_offset);
 			}
 			break;
 		case MSICAP_ID:
@@ -210,7 +216,11 @@ int device_status_next(struct pci_dev *pdev)
 
 	} else {
 		LOG_DBG("All Advaned Error Reporting..");
-		/* Advanced Error capabilty function */
+
+		/*
+		* Advanced Error capabilty function.
+		* Right shift by 20 bits to get the next item.
+		*/
 		next_item = (cap_aer >> 20) & MAX_PCI_EXPRESS_CFG;
 
 		switch (cap_aer & AER_ID_MASK) {

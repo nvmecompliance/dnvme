@@ -107,6 +107,36 @@
 #define AERCAP_ID			0x0001
 
 /**
+* enums for bit positions specified in NVME Controller Status
+* offset 0x1Ch CSTS register.
+*/
+enum {
+	NVME_CSTS_RDY = 0x1,
+	NVME_CSTS_CFS = 0x2,
+	NVME_CSTS_SHST = 0x3,
+	NVME_CSTS_SHST_MASK = 0xC,
+	NVME_CSTS_RSVD = 0xF,
+};
+
+/**
+* enums for bit positions specified in NVME controller status
+* offset 1C CSTS in bits 02:03
+*/
+enum {
+	NVME_CSTS_NRML_OPER = 0x0,
+	NVME_CSTS_SHT_OCC = 0x1,
+	NVME_CSTS_SHT_COMP = 0x2,
+	NVME_CSTS_SHT_RSVD = 0x3,
+};
+
+/**
+* enums for capabilty version indicated in the AER capability ID
+* Offset AERCAP:AERID
+*/
+enum {
+	NVME_AER_CVER = 0x2,
+};
+/**
 * device_status_pci function returns the device status of
 * the PCI Device status register set in STS register. The offset for this
 * register is 0x06h as specified in NVME Expres 1.0a spec.

@@ -111,7 +111,7 @@ static int dnvme_init(void)
 	} else {
 
 		NVME_MAJOR = nvme_major;
-		LOG_DBG("Major Number = %d", NVME_MAJOR);
+		LOG_DBG("Major Number = 0x%x", NVME_MAJOR);
 	}
    }
 
@@ -218,7 +218,7 @@ static int dnvme_init(void)
 	return retCode;
    }
 
-   LOG_DBG("PCI Registration Success return code = %d", retCode);
+   LOG_DBG("PCI Registration Success return code = 0x%x", retCode);
    return 0;
 }
 
@@ -249,7 +249,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    }
 
    /* Why does retcode is negative here and still success? TSK */
-   LOG_DBG("PCI enable Success!. Return Code = %d", retCode);
+   LOG_DBG("PCI enable Success!. Return Code = 0x%x", retCode);
 
    if (pci_enable_device_mem(pdev)) {
 	LOG_ERR("pci_enalbe_device_mem not successful");
@@ -276,8 +276,8 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 	LOG_DBG("Select regions success");
    }
 
-   LOG_DBG("Mask for PCI BARS = %d", bars);
-   LOG_DBG("PCI Probe Success!. Return Code = %d", retCode);
+   LOG_DBG("Mask for PCI BARS = 0x%x", bars);
+   LOG_DBG("PCI Probe Success!. Return Code = 0x%x", retCode);
 
    /**
    *  Try Allocating the device memory in the host and check
@@ -336,12 +336,12 @@ int dnvme_blk_gendisk(struct pci_dev *pdev, int which)
 
     disk = alloc_disk(NVME_MINORS);
     if (!disk) {
-	LOG_ERR("Disk Allocation %d Failed", disk->major);
+	LOG_ERR("Disk Allocation 0x%x Failed", disk->major);
 	return -EINVAL;
     } else {
-	LOG_DBG("Major Allocation %d", disk->major);
-	LOG_DBG("Minor Allocation %d", disk->minors);
-	LOG_DBG("First Minor Allocation %d", disk->first_minor);
+	LOG_DBG("Major Allocation 0x%x", disk->major);
+	LOG_DBG("Minor Allocation 0x%x", disk->minors);
+	LOG_DBG("First Minor Allocation 0x%x", disk->first_minor);
     }
 
    disk->major = NVME_MAJOR;
