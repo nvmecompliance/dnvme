@@ -70,7 +70,6 @@ int device_status_chk(struct pci_dev *pdev,
 	LOG_NRM("NVME Controller Status SUCCESS (CSTS)");
    else
 	LOG_ERR("iNVME Controller Status FAIL (CSTS)");
-   
    /*
    *  Efficient way to copying data to user buffer datap
    *  using in a single copy function call.
