@@ -439,7 +439,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
    /* Mask the reserved bits */
    u32aer_sts &= ~NVME_AERUCES_RSVD;
 
-   /* compute the mas offset */
+   /* compute the mask offset */
    offset = base_offset + NVME_AERUCEM_OFFSET;
 
    /* get the mask bits */
@@ -469,7 +469,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
 		status = FAIL;
 		LOG_ERR("Flow Control Protocol Error Status (FCPES)");
 	}
-	/* check if completion tim out status is set */
+	/* check if completion time out status is set */
 	if ((u32aer_sts & NVME_AERUCES_CTS) >> 14) {
 		status = FAIL;
 		LOG_ERR("Completion Time Out Status (CTS)");
@@ -484,16 +484,13 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
 		status = FAIL;
 		LOG_ERR("Unexpected Completion Status (UCS)");
 	}
-	/* Check if Receiver Over Flow status is set */
-	if ((u32aer_sts & NVME_AERUCES_ROS) >> 17) {
-		status = FAIL;
+	/* Check if Receiver Over Flow status is set, status not error */
+	if ((u32aer_sts & NVME_AERUCES_ROS) >> 17)
 		LOG_ERR("Receiver Overflow Status (ROS)");
-	}
-	/* Check if Malformed TLP Status is set */
-	if ((u32aer_sts & NVME_AERUCES_MTS) >> 18) {
-		status = FAIL;
+	/* Check if Malformed TLP Status is set, not an error */
+	if ((u32aer_sts & NVME_AERUCES_MTS) >> 18)
 		LOG_ERR("Malformed TLP Status (MTS)");
-	}
+
 	/* ECRC error status check */
 	if ((u32aer_sts & NVME_AERUCES_ECRCES) >> 19) {
 		status = FAIL;
@@ -575,7 +572,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
 		status = FAIL;
 		LOG_ERR("BAD DLLP Status (BDS)");
 	}
-	/* Check if RRS is set */
+	/* Check if RRS is set, status not an error */
 	if ((u32aer_sts & NVME_AERCS_RRS) >> 8)
 		LOG_ERR("REPLAY_NUM Rollover Status (RRS)");
 
@@ -594,7 +591,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
 		status = FAIL;
 		LOG_ERR("Corrected Internal Error Status (CIES)");
 	}
-	/* check if HLOS is set */
+	/* check if HLOS is set, Status not an error */
 	if ((u32aer_sts & NVME_AERCS_HLOS) >> 15)
 		LOG_ERR("Header Log Overflow Status (HLOS)");
 
