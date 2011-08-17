@@ -133,18 +133,18 @@ int device_status_chk(struct pci_dev *pdev,
 * @param status
 */
 int driver_create_asq(
-                struct nvme_asq_gen *nvme_asq_cr,
-                struct nvme_dev_entry *nvme_dev
-                );
+		struct nvme_asq_gen *nvme_asq_cr,
+		struct nvme_dev_entry *nvme_dev
+		);
 
 /*
 *   driver_iotcl_init - Driver Initialization routine before strting to
 *   issue  ioctls.
 */
 int driver_ioctl_init(
-                struct nvme_dev_entry *nvme_dev,
-                struct pci_dev *pdev
-                );
+		struct nvme_dev_entry *nvme_dev,
+		struct pci_dev *pdev
+		);
 
 
 #endif

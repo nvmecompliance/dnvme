@@ -336,7 +336,7 @@ int driver_create_asq(
 {
    int ret_code = -EINVAL; /* ret code to verify if ASQ creation succeeded */
 
-   if(!nvme_dev->init_flag) {
+   if (!nvme_dev->init_flag) {
 	LOG_ERR("The device send for ASQ creation is not initialized");
 	return ret_code;
    }
@@ -362,7 +362,7 @@ int driver_ioctl_init(
 
    /* Remap io mem for this device. */
    nvme_dev->bar0mapped = ioremap(pci_resource_start(pdev, 0),
-                                pci_resource_len(pdev, 0));
+					pci_resource_len(pdev, 0));
    /* Check if remap was success */
    if (!nvme_dev->bar0mapped) {
 	LOG_ERR("IOCTL init failed");

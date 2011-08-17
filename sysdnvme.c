@@ -431,7 +431,7 @@ int dnvme_ioctl_device(
 	nvme_dev_entry->slot, nvme_dev_entry->func);
 	}
 
-   if(!nvme_dev) {
+   if (!nvme_dev) {
 	nvme_dev = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
 	if (nvme_dev == NULL) {
 		LOG_ERR("Unable to allocate kernel mem in ioctl initilization");
@@ -478,7 +478,7 @@ int dnvme_ioctl_device(
 
 	nvme_asq_cr = (struct nvme_asq_gen *)ioctl_param;
 
-	LOG_NRM("Admin SQ Size requested by user = 0x%x\n", nvme_asq_cr->asq_size);
+	LOG_NRM("Admin SQ Size req by user:0x%x", nvme_asq_cr->asq_size);
 
 	ret_val = driver_create_asq(nvme_asq_cr, nvme_dev);
 
@@ -486,7 +486,6 @@ int dnvme_ioctl_device(
 		LOG_NRM("Admin SQ Creation Success");
 	else
 		LOG_NRM("Admin SQ Creation Failed");
-	
 
 	break;
 
@@ -496,7 +495,7 @@ int dnvme_ioctl_device(
 
 	nvme_acq_cr = (struct nvme_acq_gen *)ioctl_param;
 
-	LOG_NRM("Admin CQ Size requested by user = 0x%x\n", nvme_acq_cr->acq_size);
+	LOG_NRM("Admin CQ Size req by user:0x%x", nvme_acq_cr->acq_size);
 
 	break;
 

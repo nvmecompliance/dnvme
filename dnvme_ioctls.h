@@ -55,7 +55,7 @@ enum {
 * this ioctl from user level to kernel level.
 */
 #define NVME_IOCTL_CREATE_ADMN_SQ _IOWR('A', NVME_CREATE_ADMN_SQ,\
-                                                struct nvme_asq_gen)
+						struct nvme_asq_gen)
 
 /**
 * @def NVME_IOCTL_CREATE_ADMN_CQ
@@ -66,6 +66,6 @@ enum {
 * this ioctl from user level to kernel level.
 */
 #define NVME_IOCTL_CREATE_ADMN_CQ _IOWR('A', NVME_CREATE_ADMN_CQ,\
-                                                struct nvme_acq_gen)
+						struct nvme_acq_gen)
 
 #endif
