@@ -4,6 +4,7 @@
 #include <linux/init.h>
 
 #include "dnvme_sts_chk.h"
+#include "dnvme_queue.h"
 #include "definitions.h"
 #include "sysdnvme.h"
 #include "dnvme_reg.h"

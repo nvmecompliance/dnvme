@@ -24,4 +24,12 @@ struct rw_generic {
    unsigned char *buffer;
 };
 
+struct nvme_asq_gen {
+   unsigned int asq_size;
+};
+
+struct nvme_acq_gen {
+   unsigned int acq_size;
+};
+
 #endif

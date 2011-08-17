@@ -10,6 +10,9 @@
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 
+#include "dnvme_reg.h"
+#include "sysdnvme.h"
+
 /**
 * This File is mainly for creating the function prototypes
 */
@@ -120,6 +123,28 @@ int driver_generic_write(struct file *file,
 */
 int device_status_chk(struct pci_dev *pdev,
 			int *status);
+
+
+/**
+* driver_create_asq - Driver Admin Submission Queue creation routine
+* which checks error registers and set kernel
+* alert if a error is detected.
+* @param pdev
+* @param status
+*/
+int driver_create_asq(
+                struct nvme_asq_gen *nvme_asq_cr,
+                struct nvme_dev_entry *nvme_dev
+                );
+
+/*
+*   driver_iotcl_init - Driver Initialization routine before strting to
+*   issue  ioctls.
+*/
+int driver_ioctl_init(
+                struct nvme_dev_entry *nvme_dev,
+                struct pci_dev *pdev
+                );
 
 
 #endif

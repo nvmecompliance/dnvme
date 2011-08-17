@@ -17,8 +17,10 @@
 #include "dnvme_interface.h"
 #include "definitions.h"
 #include "sysfuncproto.h"
+#include "dnvme_reg.h"
 #include "sysdnvme.h"
 #include "dnvme_ioctls.h"
+#include "dnvme_queue.h"
 #include "version.h"
 
 #define	DRV_NAME		"dnvme"
@@ -76,6 +78,7 @@ static const struct block_device_operations dnvme_fops = {
 static int NVME_MAJOR;
 static struct class *class_nvme;
 static struct device *nvme_devices;
+struct nvme_dev_entry *nvme_dev;
 struct nvme_dev_char *dev;
 struct device *device;
 LIST_HEAD(nvme_devices_llist);
@@ -417,6 +420,8 @@ int dnvme_ioctl_device(
    struct nvme_device_entry *nvme_dev_entry;
    int *nvme_dev_err_sts;
    struct pci_dev *pdev = NULL;
+   struct nvme_asq_gen *nvme_asq_cr;
+   struct nvme_acq_gen *nvme_acq_cr;
 
    /* Get the device from the linked list */
    list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
@@ -426,6 +431,17 @@ int dnvme_ioctl_device(
 	nvme_dev_entry->slot, nvme_dev_entry->func);
 	}
 
+   if(!nvme_dev) {
+	nvme_dev = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
+	if (nvme_dev == NULL) {
+		LOG_ERR("Unable to allocate kernel mem in ioctl initilization");
+		LOG_ERR("Exiting from here...");
+		return -ENOMEM;
+	}
+   }
+
+   if (nvme_dev->init_flag != NVME_DEV_INIT)
+	driver_ioctl_init(nvme_dev, pdev);
    /*
    * Given a ioctl_num invoke corresponding function
    */
@@ -456,8 +472,32 @@ int dnvme_ioctl_device(
 	ret_val = driver_generic_write(file, nvme_data, pdev);
 	break;
 
-   case NVME_IOCTL_CREATE_ADMN_Q:
-	LOG_DBG("IOCTL for Create Admin Q");
+   case NVME_IOCTL_CREATE_ADMN_SQ:
+	LOG_DBG("IOCTL for Create Admin SQ");
+	LOG_NRM("Invoke IOCTL call to Create Admin Submission Queue");
+
+	nvme_asq_cr = (struct nvme_asq_gen *)ioctl_param;
+
+	LOG_NRM("Admin SQ Size requested by user = 0x%x\n", nvme_asq_cr->asq_size);
+
+	ret_val = driver_create_asq(nvme_asq_cr, nvme_dev);
+
+	if (ret_val >= 0)
+		LOG_NRM("Admin SQ Creation Success");
+	else
+		LOG_NRM("Admin SQ Creation Failed");
+	
+
+	break;
+
+   case NVME_IOCTL_CREATE_ADMN_CQ:
+	LOG_DBG("IOCTL for Create Admin CQ");
+	LOG_NRM("Invoke IOCTL call to Create Admin Completion Queue");
+
+	nvme_acq_cr = (struct nvme_acq_gen *)ioctl_param;
+
+	LOG_NRM("Admin CQ Size requested by user = 0x%x\n", nvme_acq_cr->acq_size);
+
 	break;
 
    case NVME_IOCTL_DEL_ADMN_Q:
@@ -503,6 +543,7 @@ static void __exit dnvme_exit(void)
 *  Driver Module Calls.
 */
 MODULE_DESCRIPTION("Kernel Device Driver for NMVE 1.0a Spec PCI Express");
+MODULE_AUTHOR("T Sravan Kumar <sravan.kumar.thokala@intel.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:"DRV_NAME);

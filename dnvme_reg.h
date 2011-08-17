@@ -27,6 +27,10 @@ struct nvme_ctrl_reg {
 struct nvme_dev_entry {
 	struct pci_dev *pdev;
 	u8 *bar0mapped;
+	struct nvme_ctrl_reg __iomem *nvme_ctrl_space;
+	u8 init_flag;
+	u32 __iomem *dbs;
+	u32 ctrl_config;
 };
 
 /**

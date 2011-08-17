@@ -128,8 +128,8 @@ enum {
 * offset 0x1Ch CSTS register.
 */
 enum {
-	NVME_CSTS_RDY       = 0x1,
-	NVME_CSTS_CFS       = 0x2,
+//	NVME_CSTS_RDY       = 0x1,
+//	NVME_CSTS_CFS       = 0x2,
 	NVME_CSTS_SHST      = 0x3,
 	NVME_CSTS_SHST_MASK = 0xC,
 	NVME_CSTS_RSVD      = 0xF,

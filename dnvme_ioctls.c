@@ -14,6 +14,7 @@
 #include "sysfuncproto.h"
 #include "sysdnvme.h"
 #include "dnvme_sts_chk.h"
+#include "dnvme_queue.h"
 
 /*
 *  device_status_chk  - Generic error checking function
@@ -190,7 +191,7 @@ int driver_generic_read(struct file *file,
 	break;
 
    default:
-	LOG_DBG("Could not find switch case using defuult");
+	LOG_DBG("Could not find switch case using default");
    }
 
    /*
@@ -324,7 +325,65 @@ int driver_generic_write(struct file *file,
    return ret_code;
 }
 
+/*
+*   driver_create_asq - Driver Admin Submission Queue creation routine
+*   from ASQ create ioctl.
+*/
+int driver_create_asq(
+		struct nvme_asq_gen *nvme_asq_cr,
+		struct nvme_dev_entry *nvme_dev
+		)
+{
+   int ret_code = -EINVAL; /* ret code to verify if ASQ creation succeeded */
 
+   if(!nvme_dev->init_flag) {
+	LOG_ERR("The device send for ASQ creation is not initialized");
+	return ret_code;
+   }
+
+   ret_code = create_admn_sq(nvme_dev, nvme_asq_cr->asq_size);
+
+   return ret_code;
+}
+
+/*
+*   driver_iotcl_init - Driver Initialization routine before strting to
+*   issue  ioctls.
+*/
+int driver_ioctl_init(
+		struct nvme_dev_entry *nvme_dev,
+		struct pci_dev *pdev
+		)
+{
+   int ret_code = -EINVAL; /* ret code to verify if ASQ creation succeeded */
+
+   LOG_DBG("Inside driver IOCTL init function");
+   LOG_NRM("Intializing the BAR01 and NMVE Controller Space");
+
+   /* Remap io mem for this device. */
+   nvme_dev->bar0mapped = ioremap(pci_resource_start(pdev, 0),
+                                pci_resource_len(pdev, 0));
+   /* Check if remap was success */
+   if (!nvme_dev->bar0mapped) {
+	LOG_ERR("IOCTL init failed");
+	return -EINVAL;
+   }
+
+   /* Assign the 64bit address mapped to controller space in nvme_dev */
+   nvme_dev->nvme_ctrl_space = (void __iomem *)nvme_dev->bar0mapped;
+
+   /* Set the init flag to initialization done flag. */
+   nvme_dev->init_flag = NVME_DEV_INIT;
+
+   LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
+	(uint64_t)nvme_dev->nvme_ctrl_space);
+
+   nvme_dev->pdev = pdev;
+
+   ret_code = SUCCESS;
+
+   return ret_code;
+}
 /*
 *   driver_default_ioctl - Default if none of the switch
 *   in ioctl gets called.
