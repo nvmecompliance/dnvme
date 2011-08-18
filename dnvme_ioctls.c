@@ -336,12 +336,37 @@ int driver_create_asq(
 {
    int ret_code = -EINVAL; /* ret code to verify if ASQ creation succeeded */
 
+   /* Check if the nvme_dev init flag is set */
    if (!nvme_dev->init_flag) {
 	LOG_ERR("The device send for ASQ creation is not initialized");
 	return ret_code;
    }
 
+   /* Call routine to create admin Submision queue */
    ret_code = create_admn_sq(nvme_dev, nvme_asq_cr->asq_size);
+
+   return ret_code;
+}
+
+/*
+*   driver_create_acq - Driver Admin Completion Queue creation routine
+*   from ACQ create ioctl.
+*/
+int driver_create_acq(
+		struct nvme_acq_gen *nvme_acq_cr,
+		struct nvme_dev_entry *nvme_dev
+		)
+{
+   int ret_code = -EINVAL; /* ret code to verify if ACQ creation succeeded */
+
+   /* Check if the nvme_dev init flag is set */
+   if (!nvme_dev->init_flag) {
+	LOG_ERR("The device send for ACQ creation is not initialized");
+	return ret_code;
+   }
+
+   /* Call routine to create admin Submision queue */
+   ret_code = create_admn_cq(nvme_dev, nvme_acq_cr->acq_size);
 
    return ret_code;
 }

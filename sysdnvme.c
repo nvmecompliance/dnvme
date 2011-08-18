@@ -415,13 +415,13 @@ int dnvme_ioctl_device(
 		unsigned int ioctl_num,	/* number and param for ioctl */
 		unsigned long ioctl_param)
 {
-   int ret_val = -EINVAL;
-   struct rw_generic *nvme_data;
-   struct nvme_device_entry *nvme_dev_entry;
-   int *nvme_dev_err_sts;
-   struct pci_dev *pdev = NULL;
-   struct nvme_asq_gen *nvme_asq_cr;
-   struct nvme_acq_gen *nvme_acq_cr;
+   int ret_val = -EINVAL; /* set ret val to invalid and check for success */
+   struct rw_generic *nvme_data; /* Local struct var for nvme rw data */
+   struct nvme_device_entry *nvme_dev_entry; /* entry for nvme devie  */
+   int *nvme_dev_err_sts; /* nvme device error status */
+   struct pci_dev *pdev = NULL; /* pointer to pci device */
+   struct nvme_asq_gen *nvme_asq_cr; /* nvme ASQ creation parameters */
+   struct nvme_acq_gen *nvme_acq_cr; /* nvme ACQ creation parameters */
 
    /* Get the device from the linked list */
    list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
@@ -431,6 +431,7 @@ int dnvme_ioctl_device(
 	nvme_dev_entry->slot, nvme_dev_entry->func);
 	}
 
+   /* Allocate mem fo nvme device with kernel memory */
    if (!nvme_dev) {
 	nvme_dev = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
 	if (nvme_dev == NULL) {
@@ -440,6 +441,7 @@ int dnvme_ioctl_device(
 	}
    }
 
+   /* Check if nvme device is initialized atleast once */
    if (nvme_dev->init_flag != NVME_DEV_INIT)
 	driver_ioctl_init(nvme_dev, pdev);
    /*
@@ -473,15 +475,19 @@ int dnvme_ioctl_device(
 	break;
 
    case NVME_IOCTL_CREATE_ADMN_SQ:
+
 	LOG_DBG("IOCTL for Create Admin SQ");
 	LOG_NRM("Invoke IOCTL call to Create Admin Submission Queue");
 
+	/* Assign user passed parameters to local struct */
 	nvme_asq_cr = (struct nvme_asq_gen *)ioctl_param;
 
 	LOG_NRM("Admin SQ Size req by user:0x%x", nvme_asq_cr->asq_size);
 
+	/* Call driver routine to create ASQ */
 	ret_val = driver_create_asq(nvme_asq_cr, nvme_dev);
 
+	/* Display if ASQ creation was success or fail */
 	if (ret_val >= 0)
 		LOG_NRM("Admin SQ Creation Success");
 	else
@@ -490,12 +496,23 @@ int dnvme_ioctl_device(
 	break;
 
    case NVME_IOCTL_CREATE_ADMN_CQ:
+
 	LOG_DBG("IOCTL for Create Admin CQ");
 	LOG_NRM("Invoke IOCTL call to Create Admin Completion Queue");
 
+	/* Assign user passed parameters to local struct */
 	nvme_acq_cr = (struct nvme_acq_gen *)ioctl_param;
 
 	LOG_NRM("Admin CQ Size req by user:0x%x", nvme_acq_cr->acq_size);
+
+	/* Call driver routine to create ACQ */
+	ret_val = driver_create_acq(nvme_acq_cr, nvme_dev);
+
+	/* Display if ACQ creation was success or fail */
+	if (ret_val >= 0)
+		LOG_NRM("Admin CQ Creation Success");
+	else
+		LOG_NRM("Admin CQ Creation Failed");
 
 	break;
 

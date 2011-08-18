@@ -24,10 +24,19 @@ struct rw_generic {
    unsigned char *buffer;
 };
 
+/**
+* This struct is the basic structure which has important parameter for
+* creating admin submission queue and gets the size from user.
+*/
 struct nvme_asq_gen {
    unsigned int asq_size;
 };
 
+/**
+* This struct is the basic structure which has important parameter for
+* creating admin completion queue and gets the size from user including
+* priority for Q creation.
+*/
 struct nvme_acq_gen {
    unsigned int acq_size;
 };

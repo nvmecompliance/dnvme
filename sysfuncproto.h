@@ -127,10 +127,9 @@ int device_status_chk(struct pci_dev *pdev,
 
 /**
 * driver_create_asq - Driver Admin Submission Queue creation routine
-* which checks error registers and set kernel
-* alert if a error is detected.
-* @param pdev
-* @param status
+* @param nvme_asq_cr
+* @param nvme_dev
+* @return ASQ creation SUCCESS or FAIL
 */
 int driver_create_asq(
 		struct nvme_asq_gen *nvme_asq_cr,
@@ -138,13 +137,26 @@ int driver_create_asq(
 		);
 
 /*
-*   driver_iotcl_init - Driver Initialization routine before strting to
-*   issue  ioctls.
+* driver_iotcl_init - Driver Initialization routine before strting to
+* issue  ioctls.
+* @param nvme_dev
+* @param pdev
+* @return init SUCCESS or FAIL
 */
 int driver_ioctl_init(
 		struct nvme_dev_entry *nvme_dev,
 		struct pci_dev *pdev
 		);
 
+/**
+* driver_create_acq - Driver Admin completion  Queue creation routine
+* @param nvme_acq_cr
+* @param nvme_dev
+* @return ACQ creation SUCCESS or FAIL
+*/
+int driver_create_acq(
+		struct nvme_acq_gen *nvme_acq_cr,
+		struct nvme_dev_entry *nvme_dev
+		);
 
 #endif

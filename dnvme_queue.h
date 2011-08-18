@@ -63,6 +63,7 @@ struct nvme_queue {
 	spinlock_t		q_lock;
 	struct	nvme_command	*nvme_sq_cmds;
 	void			*virt_asq_addr;
+	void			*virt_acq_addr;
 	dma_addr_t		asq_dma_addr;
 	dma_addr_t		acq_dma_addr;
 	u16			asq_depth;
@@ -72,18 +73,41 @@ struct nvme_queue {
 	u8			q_init;
 };
 
+
 /**
-*
+* The user selection of IOCTL for creating admin cq eventually calls
+* this function if init is successful. This will create infrastructure
+* for Admin Completion Q creation
+* @param nvme_dev
+* @param qsize
+* @return whether ACQ creation successful or not.
+*/
+int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize);
+
+/**
+* The user selection of IOCTL for creating admin sq eventually calls
+* this function if init is successful. This will create infrastructure
+* for Admin Submission Q creation
+* @param nvme_dev
+* @param qsize
+* @return whether ASQ creation successful or not.
 */
 int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize);
 
 /**
-*
+* this function initialized Q parameters. This will create infrastructure
+* for Admin Submission Q creation and Admin Completion Q creation
+* @param nvme_dev
+* @param qsize
+* @return whether initailization was success or not.
 */
-int nvme_queue_init(struct nvme_queue *nvme_q, u16 qsize);
+int nvme_queue_init(struct nvme_dev_entry *nvme_dev, u16 qsize);
 
 /**
-*
+* This is the timer handler which will be invoked by the kernel when the timer
+* expires in the timer.expires field. This function will set a flag which is
+* used by the create admn sq routine to exit.
+* @param arg
 */
 void jit_timer_fn(unsigned long arg);
 
