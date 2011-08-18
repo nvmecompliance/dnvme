@@ -364,7 +364,7 @@ int driver_create_acq(
 	LOG_ERR("The device send for ACQ creation is not initialized");
 	return ret_code;
    }
-
+   /* As we are doing polling based so irq feild is not used for now */
    /* Call routine to create admin Submision queue */
    ret_code = create_admn_cq(nvme_dev, nvme_acq_cr->acq_size);
 

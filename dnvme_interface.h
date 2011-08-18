@@ -25,6 +25,14 @@ struct rw_generic {
 };
 
 /**
+* These enums are used for creating Admin Completion Q types based on reqeusted
+* user type.
+*/
+enum nvme_qop_type {
+   NVME_Q_POLLING, /* Polling based Q */
+   NVME_Q_IRQ,   /* Interrupt Based Q */
+};
+/**
 * This struct is the basic structure which has important parameter for
 * creating admin submission queue and gets the size from user.
 */
@@ -38,6 +46,7 @@ struct nvme_asq_gen {
 * priority for Q creation.
 */
 struct nvme_acq_gen {
+   enum nvme_qop_type cq_type;
    unsigned int acq_size;
 };
 
