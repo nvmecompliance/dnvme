@@ -104,7 +104,6 @@ enum {
      NVME_SUBMIT_IO,
      NVME_DOWNLOAD_FW, /** < enum to Download Firmware. */
      NVME_ACTIVATE_FW, /** < enum to activate the downloaded Firmware. */
-     NVME_CREATE_ADMN_Q, /** < enum Create a new Admin Queue. */
      NVME_DEL_ADMN_Q, /** < enum Delete aprev create admin Queue. */
      NVME_SEND_ADMN_CMD, /** < enum Send and admin command. */
 };
@@ -185,18 +184,6 @@ enum {
 * level to kernel level.
 */
 #define NVME_IOCTL_ACTIVATE_FW	_IOWR('A', NVME_ACTIVATE_FW, int)
-
-/**
-* @def NVME_IOCTL_CREATE_ADMN_Q
-* define unique value for creating admin queue.
-* the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
-* the second parameter is type within the group.
-* the third parameter give the size of data and
-* type of data that is passed to this ioctl from user
-* level to kernel level.
-*/
-#define NVME_IOCTL_CREATE_ADMN_Q _IOWR('A', NVME_CREATE_ADMN_Q, int)
 
 /**
 * @def NVME_IOCTL_DEL_ADMN_Q
