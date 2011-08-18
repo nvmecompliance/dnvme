@@ -25,12 +25,13 @@ struct nvme_ctrl_reg {
 * bar mapped value.
 */
 struct nvme_dev_entry {
-	struct pci_dev *pdev;
-	u8 *bar0mapped;
+	struct pci_dev *pdev; /* Pointer to pci dev                      */
+	u8 *bar0mapped;       /* Bar 0 IO remapped value                 */
 	struct nvme_ctrl_reg __iomem *nvme_ctrl_space;
-	u8 init_flag;
-	u32 __iomem *dbs;
-	u32 ctrl_config;
+				/* Pointer to NVME controller space      */
+	u8 init_flag;         /* indicates initiazation for this sturct  */
+	u32 __iomem *dbs;     /* Door Bell stride                        */
+	u32 ctrl_config;      /* Controller Configuration Value 32 bit   */
 };
 
 /**

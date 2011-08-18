@@ -400,10 +400,11 @@ int driver_ioctl_init(
    /* Set the init flag to initialization done flag. */
    nvme_dev->init_flag = NVME_DEV_INIT;
 
+   /* Set the pci device of the nvme_dev to point to pdev from ioctl */
+   nvme_dev->pdev = pdev;
+
    LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
 	(uint64_t)nvme_dev->nvme_ctrl_space);
-
-   nvme_dev->pdev = pdev;
 
    ret_code = SUCCESS;
 

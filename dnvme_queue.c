@@ -159,7 +159,7 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
    /* As the TO is in lower 32 of 64 bit cap readl is good enough */
    timer_delay = readl(&nvme_dev->nvme_ctrl_space->cap) & NVME_TO_MASK;
 
-   /* Modigy TO as it is specified in 500ms units, timer needs in jiffies */
+   /* Modify TO as it is specified in 500ms units, timer needs in jiffies */
    timer_delay >>= 24;
    timer_delay *= NVME_MSEC_2_JIFFIES;
    init_timer(&asq_timer);
@@ -220,7 +220,7 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 {
 
    int ret_code = SUCCESS; /* Ret code set to SUCCESS check for otherwise */
-   u16 acq_id;             /* Admin Submisssion Q Id                      */
+   u16 acq_id;          /* Admin Submisssion Q Id                         */
    u32 aqa;		/* Admin Q attributes in 32 bits size             */
    u32 tmp_aqa;		/* Temp var to hold admin q attributes            */
 
@@ -260,10 +260,13 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 
    LOG_NRM("ACQ DMA Address: 0x%llx", (u64)nvme_q->acq_dma_addr);
 
+   /* Read, Modify and write the Admin Q attributes */
    aqa = qsize << 16;
    aqa &= ACQS_MASK;
    tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->aqa);
    tmp_aqa &= ~ACQS_MASK;
+
+   /* Final value to write to AQA Register */
    aqa |= tmp_aqa;
 
    LOG_DBG("Modified Attributes (AQA) = 0x%x", tmp_aqa);
