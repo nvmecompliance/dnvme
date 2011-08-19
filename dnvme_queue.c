@@ -93,6 +93,7 @@ int nvme_ctrlrdy_capto(struct nvme_dev_entry *nvme_dev)
    /* Timer function is done so delete before leaving*/
    del_timer(&asq_timer);
 
+   LOG_NRM("NVME Controller is Ready to process commands");
    return SUCCESS;
 
 }
@@ -101,21 +102,14 @@ int nvme_ctrlrdy_capto(struct nvme_dev_entry *nvme_dev)
 * nvme_queue_init - NVME Q initialization routine which initailized the
 * queue parameters as per the user size.
 */
-int nvme_queue_init(struct nvme_dev_entry *nvme_dev, u16 qsize)
+int nvme_queue_init(struct nvme_dev_entry *nvme_dev)
 {
-   unsigned qdepth_req;
 
    LOG_NRM("Performing Queue Initializations...");
 
-   /*
-   * As the qsize send is in number of entries this computes the no. of bytes
-   * needed for the q size to allocate memeory.
-   */
-   qdepth_req = qsize * sizeof(struct nvme_command);
-
    /* Check if Q is allocated else do allocation */
    if (!nvme_q) {
-	nvme_q = kzalloc(qdepth_req, GFP_KERNEL);
+	nvme_q = kzalloc(sizeof(struct nvme_queue), GFP_KERNEL);
 	if (nvme_q == NULL) {
 		LOG_ERR("Unable to alloc kern mem in queue initialization!!");
 		return -ENOMEM;
@@ -123,9 +117,6 @@ int nvme_queue_init(struct nvme_dev_entry *nvme_dev, u16 qsize)
    }
    /* Assign DMA device in Queue structure */
    nvme_q->dmadev = &nvme_dev->pdev->dev;
-
-   /* Assign nvme device at one place in nvme_q */
-   nvme_q->dev = nvme_dev;
 
    /* Initialize spin lock */
    spin_lock_init(&nvme_q->q_lock);
@@ -150,10 +141,8 @@ int nvme_ctrl_enable(struct nvme_dev_entry *nvme_dev)
    /* BIT 0 is set to 1 i.e., CC.EN = 1 */
    ctrl_config |= 0x1;
 
-  if (nvme_q) {
-	/* Write the enable bit into CC register */
-	writel(ctrl_config, &nvme_q->dev->nvme_ctrl_space->cc);
-  }
+   /* Write the enable bit into CC register */
+   writel(ctrl_config, &nvme_dev->nvme_ctrl_space->cc);
 
   /* Check the Timeout flag */
   if (nvme_ctrlrdy_capto(nvme_dev) != SUCCESS) {
@@ -178,14 +167,14 @@ int nvme_ctrl_disable(struct nvme_dev_entry *nvme_dev)
    /* BIT 0 is set to 0 i.e., CC.EN = 0 */
    ctrl_config &= ~0x1;
 
-  if (nvme_q) {
-	/* Write the enable bit into CC register */
-	writel(ctrl_config, &nvme_q->dev->nvme_ctrl_space->cc);
+   /* Write the enable bit into CC register */
+   writel(ctrl_config, &nvme_dev->nvme_ctrl_space->cc);
 
-	/* Do clean up */
-	/* Write the enable bit into CC register */
-	writel(0, &nvme_q->dev->nvme_ctrl_space->cc);
+   /* Do clean up */
+   /* Write the enable bit into CC register */
+   writel(0, &nvme_dev->nvme_ctrl_space->cc);
 
+  if (nvme_q != NULL) {
 	dma_free_coherent(nvme_q->dmadev, nvme_q->asq_depth,
 		(void *)nvme_q->virt_asq_addr, nvme_q->asq_dma_addr);
 	dma_free_coherent(nvme_q->dmadev, nvme_q->acq_depth,
@@ -206,8 +195,6 @@ int nvme_ctrl_disable(struct nvme_dev_entry *nvme_dev)
 */
 int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 {
-   int ret_code = SUCCESS;
-			/* Set to SUCCES and verify if fails in this func */
    u16 asq_id;		/* Admin Submisssion Q Id                         */
    u32 aqa;		/* Admin Q attributes in 32 bits size             */
    u32 tmp_aqa;		/* Temp var to hold admin q attributes            */
@@ -217,12 +204,12 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
    /* Check if the q structure is initialized else init here */
    if (!nvme_q) {
 	/* Call the initialization function */
-	nvme_queue_init(nvme_dev, qsize);
-	if (nvme_q->q_init != 1) {
-		LOG_ERR("Q Init Failed");
-		return -EINVAL;
+	if (nvme_queue_init(nvme_dev) < 0) {
+		LOG_ERR("NVME Q Init Failed");
+		return -ENOMEM;
 	}
    }
+
    /* As the Admin Q ID is always 0*/
    asq_id = 0;
 
@@ -262,17 +249,15 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
    LOG_NRM("AQA Attributes in ASQ:0x%x", aqa);
 
    /* Write new ASQ size using AQA */
-   writel(aqa, &nvme_q->dev->nvme_ctrl_space->aqa);
+   writel(aqa, &nvme_dev->nvme_ctrl_space->aqa);
 
    /* Write the DMA address into ASQ base address */
-   WRITEQ(nvme_q->asq_dma_addr, &nvme_q->dev->nvme_ctrl_space->asq);
+   WRITEQ(nvme_q->asq_dma_addr, &nvme_dev->nvme_ctrl_space->asq);
 
 #ifdef DEBUG
    /* stmt be moved to create_acq function once values are retained in QEMU */
-//   WRITEQ(nvme_q->acq_dma_addr, &nvme_q->dev->nvme_ctrl_space->acq);
-#endif
-
-#ifdef DEBUG
+   LOG_DBG("Admin CQ Base Address = 0x%x",
+	(u32)readl(&nvme_dev->nvme_ctrl_space->acq));
    /* Read the AQA attributes after writing and check */
    tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->aqa);
 
@@ -285,7 +270,7 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 #endif
 
    /* returns success or failure*/
-   return ret_code;
+   return SUCCESS;
 }
 
 /*
@@ -309,12 +294,12 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
    /* Check if the q structure is initialized else init here */
    if (!nvme_q) {
 	/* Call the initialization function */
-	nvme_queue_init(nvme_dev, qsize);
-	if (nvme_q->q_init != 1) {
-		LOG_ERR("Q Init Failed");
-		return -EINVAL;
+	if (nvme_queue_init(nvme_dev) < 0) {
+		LOG_ERR("NVME Q Init Failed");
+		return -ENOMEM;
 	}
    }
+
    /* As the Admin Q ID is always 0*/
    acq_id = 0;
 
@@ -353,10 +338,10 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
    LOG_NRM("AQA Attributes in ACQ:0x%x", aqa);
 
    /* Write new ASQ size using AQA */
-   writel(aqa, &nvme_q->dev->nvme_ctrl_space->aqa);
+   writel(aqa, &nvme_dev->nvme_ctrl_space->aqa);
 
    /* Write the DMA address into ACQ base address */
-   WRITEQ(nvme_q->acq_dma_addr, &nvme_q->dev->nvme_ctrl_space->acq);
+   WRITEQ(nvme_q->acq_dma_addr, &nvme_dev->nvme_ctrl_space->acq);
 
 #ifdef DEBUG
    /* Read the AQA attributes after writing and check */

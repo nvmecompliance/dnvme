@@ -324,6 +324,16 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
    nvme_dev_list->slot = PCI_SLOT(pdev->devfn);
    nvme_dev_list->func = PCI_FUNC(pdev->devfn);
    list_add_tail(&nvme_dev_list->list, &nvme_devices_llist);
+
+   /* Allocate mem fo nvme device with kernel memory */
+   nvme_dev = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
+	if (nvme_dev == NULL) {
+		LOG_ERR("Unable to allocate kernel mem in ioctl initilization");
+		LOG_ERR("Exiting from here...");
+		return -ENOMEM;
+	}
+    driver_ioctl_init(nvme_dev, pdev);
+
    return retCode;
 }
 
@@ -432,19 +442,6 @@ int dnvme_ioctl_device(
 	nvme_dev_entry->slot, nvme_dev_entry->func);
 	}
 
-   /* Allocate mem fo nvme device with kernel memory */
-   if (!nvme_dev) {
-	nvme_dev = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
-	if (nvme_dev == NULL) {
-		LOG_ERR("Unable to allocate kernel mem in ioctl initilization");
-		LOG_ERR("Exiting from here...");
-		return -ENOMEM;
-	}
-   }
-
-   /* Check if nvme device is initialized atleast once */
-   if (nvme_dev->init_flag != NVME_DEV_INIT)
-	driver_ioctl_init(nvme_dev, pdev);
    /*
    * Given a ioctl_num invoke corresponding function
    */

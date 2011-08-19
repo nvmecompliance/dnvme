@@ -1,6 +1,8 @@
 #ifndef _DNVME_QUEUE_H_
 #define _DNVME_QUEUE_H_
 
+#include "dnvme_reg.h"
+
 /* Admin SQ tail Door bell offset */
 #define NVME_SQ0TBDL	0x1000
 
@@ -70,7 +72,6 @@ struct nvme_command {
 */
 struct nvme_queue {
 	struct	device		*dmadev;
-	struct	nvme_dev_entry	*dev;
 	spinlock_t		q_lock;
 	struct	nvme_command	*nvme_sq_cmds;
 	void			*virt_asq_addr;
@@ -109,10 +110,9 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize);
 * this function initialized Q parameters. This will create infrastructure
 * for Admin Submission Q creation and Admin Completion Q creation
 * @param nvme_dev
-* @param qsize
 * @return whether initailization was success or not.
 */
-int nvme_queue_init(struct nvme_dev_entry *nvme_dev, u16 qsize);
+int nvme_queue_init(struct nvme_dev_entry *nvme_dev);
 
 /**
 * This is the timer handler which will be invoked by the kernel when the timer
