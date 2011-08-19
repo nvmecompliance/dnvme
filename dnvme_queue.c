@@ -255,7 +255,7 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
    WRITEQ(nvme_q->asq_dma_addr, &nvme_dev->nvme_ctrl_space->asq);
 
 #ifdef DEBUG
-   /* stmt be moved to create_acq function once values are retained in QEMU */
+   /* Debug statements */
    LOG_DBG("Admin CQ Base Address = 0x%x",
 	(u32)readl(&nvme_dev->nvme_ctrl_space->acq));
    /* Read the AQA attributes after writing and check */
