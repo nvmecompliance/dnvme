@@ -50,4 +50,19 @@ struct nvme_acq_gen {
    unsigned int acq_size;
 };
 
+/**
+* This enums are used while enabling or disabling the controller.
+*/
+enum nvme_en_dis {
+   NVME_CTLR_ENABLE, /* It does controller reset functionality */
+   NVME_CTLR_DISABLE, /* It shuts down the controller*/
+};
+
+/**
+* This Struct is used for setting the contrller either
+*/
+struct nvme_ctrl_enum {
+   enum nvme_en_dis nvme_status;
+};
+
 #endif

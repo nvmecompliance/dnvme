@@ -336,11 +336,13 @@ int driver_create_asq(
 {
    int ret_code = -EINVAL; /* ret code to verify if ASQ creation succeeded */
 
+#ifdef DEBUG
    /* Check if the nvme_dev init flag is set */
    if (!nvme_dev->init_flag) {
 	LOG_ERR("The device send for ASQ creation is not initialized");
 	return ret_code;
    }
+#endif
 
    /* Call routine to create admin Submision queue */
    ret_code = create_admn_sq(nvme_dev, nvme_asq_cr->asq_size);
@@ -359,11 +361,14 @@ int driver_create_acq(
 {
    int ret_code = -EINVAL; /* ret code to verify if ACQ creation succeeded */
 
+#ifdef DEBUG
    /* Check if the nvme_dev init flag is set */
    if (!nvme_dev->init_flag) {
 	LOG_ERR("The device send for ACQ creation is not initialized");
 	return ret_code;
    }
+#endif
+
    /* As we are doing polling based so irq feild is not used for now */
    /* Call routine to create admin Submision queue */
    ret_code = create_admn_cq(nvme_dev, nvme_acq_cr->acq_size);

@@ -412,16 +412,17 @@ int dnvme_ioctl(struct block_device *bdev, fmode_t mode,
 int dnvme_ioctl_device(
 		struct inode *inode,	/* see include/linux/fs.h */
 		struct file *file,	/* ditto */
-		unsigned int ioctl_num,	/* number and param for ioctl */
+		unsigned int ioctl_num,	/* nmbr and param for ioctl */
 		unsigned long ioctl_param)
 {
-   int ret_val = -EINVAL; /* set ret val to invalid and check for success */
-   struct rw_generic *nvme_data; /* Local struct var for nvme rw data */
-   struct nvme_device_entry *nvme_dev_entry; /* entry for nvme devie  */
-   int *nvme_dev_err_sts; /* nvme device error status */
-   struct pci_dev *pdev = NULL; /* pointer to pci device */
+   int ret_val = -EINVAL; /* set ret val to invalid, chk for success */
+   struct rw_generic *nvme_data; /* Local struct var for nvme rw dat */
+   struct nvme_device_entry *nvme_dev_entry; /* entry for nvme devie */
+   int *nvme_dev_err_sts; /* nvme device error status                */
+   struct pci_dev *pdev = NULL; /* pointer to pci device             */
    struct nvme_asq_gen *nvme_asq_cr; /* nvme ASQ creation parameters */
    struct nvme_acq_gen *nvme_acq_cr; /* nvme ACQ creation parameters */
+   struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr     */
 
    /* Get the device from the linked list */
    list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
@@ -514,6 +515,23 @@ int dnvme_ioctl_device(
 	else
 		LOG_NRM("Admin CQ Creation Failed");
 
+	break;
+
+   case NVME_IOCTL_CTLR_STATE:
+
+	LOG_DBG("IOCTL for nvme controller set/reset Command");
+	LOG_NRM("Invoke IOCTL for contoller Status Setting");
+	/* Assign user passed parameters to local struct */
+	nvme_ctrl_sts = (struct nvme_ctrl_enum *)ioctl_param;
+
+	if (nvme_ctrl_sts->nvme_status == NVME_CTLR_ENABLE) {
+		LOG_NRM("Ctrlr is getting ENABLED...");
+		ret_val = nvme_ctrl_enable(nvme_dev);
+
+	} else {
+		LOG_NRM("Ctrlr is going to DISABLE/RESET...");
+		ret_val = nvme_ctrl_disable(nvme_dev);
+	}
 	break;
 
    case NVME_IOCTL_DEL_ADMN_Q:

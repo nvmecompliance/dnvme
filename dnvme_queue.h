@@ -19,6 +19,17 @@
 #define NVME_MSEC_2_JIFFIES (500 * HZ / 1000)
 
 /*
+* This lines are commented to use inline functions.
+* if required at multiple places uncomment this.
+*/
+#if 0
+#ifdef QEMU
+#define WRITEQ(a, b) { writel(a, b); writel(a >> 32, b + 4); }
+#else
+#define WRITEQ(a, b) { writeq(a, b); }
+#endif
+#endif
+/*
 * Enumerating the differnt NVME Controller Capabilities of the
 * PCI Express device as per NVME Spec 1.0a.
 */
@@ -111,5 +122,22 @@ int nvme_queue_init(struct nvme_dev_entry *nvme_dev, u16 qsize);
 */
 void jit_timer_fn(unsigned long arg);
 
+/**
+* nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
+* flag and this function which call the timer handler and check for the timer
+* expiration. It returns success if the ctrl in rdy before timeout.
+* @param nvme_dev
+* @return SUCCESS or FAIL
+*/
+int nvme_ctrl_enable(struct nvme_dev_entry *nvme_dev);
+
+/**
+* nvme_ctrl_disable - NVME controller disable function.This will reset the
+* CAP.EN flag and this function which call the timer handler and check for
+* the timer expiration. It returns success if the ctrl in rdy before timeout.
+* @param nvme_dev
+* @return SUCCESS or FAIL
+*/
+int nvme_ctrl_disable(struct nvme_dev_entry *nvme_dev);
 
 #endif

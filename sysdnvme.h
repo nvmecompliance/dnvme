@@ -16,6 +16,7 @@
 #define LOG_DBG(fmt, ...)
 #endif
 
+#define QEMU
 /**
 *  NVME Express Device Structure Parameters.
 *  the list of devices is maintained in this stucture
@@ -35,4 +36,4 @@ struct nvme_device_entry {
     char   firmware_rev[8]; /** Firmware revision of NMVE device */
 };
 
-#endif
+#endif /* sysdnvme.h*/
