@@ -288,6 +288,18 @@ int driver_generic_write(struct file *file,
    case NVMEIO_BAR01:
 	LOG_DBG("Invoking User App request to write NVME Space using BAR01");
 
+	/*
+	* Checking for 4 bytes boundary. If either nBytes or offser is not
+	* 4 bytes aligned return error.
+	*/
+	if (
+		((nvme_data->nBytes % 4) != 0) ||
+		((nvme_data->offset % 4) != 0)
+	) {
+		LOG_ERR("Either Offset or nBytes is not Aligned...");
+		LOG_ERR("Provide them on 4 bytes Boundaray");
+		return -EINVAL;
+	}
 	/* Remap io mem for this device. */
 	nvme_dev->bar0mapped = ioremap(pci_resource_start(pdev, 0),
 				pci_resource_len(pdev, 0));
