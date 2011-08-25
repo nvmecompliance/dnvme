@@ -13,6 +13,7 @@
 /* structure for nvme queue */
 struct nvme_queue *nvme_q;
 
+/* Conditional compilation for QEMU related modifications. */
 #ifdef QEMU
 /*
 * if QEMU is defined then we do 64 bit write in two 32 bit writes uinsg

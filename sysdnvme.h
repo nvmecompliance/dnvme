@@ -16,7 +16,13 @@
 #define LOG_DBG(fmt, ...)
 #endif
 
+/**
+* This definition is intended for making modification or quirks necesary to
+* make the driver work with QEMU. This can be commented when an actual NVME
+* hardware device is being tested.
+*/
 #define QEMU
+
 /**
 *  NVME Express Device Structure Parameters.
 *  the list of devices is maintained in this stucture
