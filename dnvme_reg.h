@@ -29,7 +29,7 @@ struct nvme_dev_entry {
 	u8 *bar0mapped;       /* Bar 0 IO remapped value                 */
 	struct nvme_ctrl_reg __iomem *nvme_ctrl_space;
 				/* Pointer to NVME controller space      */
-	u8 init_flag;         /* indicates initiazation for this sturct  */
+	u8 init_flag;         /* indicates initiazation for this struct  */
 	u32 __iomem *dbs;     /* Door Bell stride                        */
 	u32 ctrl_config;      /* Controller Configuration Value 32 bit   */
 };

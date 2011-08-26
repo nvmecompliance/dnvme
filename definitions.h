@@ -57,7 +57,7 @@
 /**
 * @def AER_CAP_ID
 * Indicate that this capability structure is an Advanced Error
-* reporting capabilty.
+* reporting capability.
 */
 #define AER_CAP_ID			0x1
 
@@ -117,7 +117,7 @@ enum {
 * @def NVME_IOCTL_IDENTIFY_NS
 * define a unique value for identify NS
 * the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
+* IOCTL type belongs to, generally from (0-255)
 * the second parameter is type within the group.
 * the third parameter give the size of data and
 * type of data that is passed to this ioctl from user
@@ -129,7 +129,7 @@ enum {
 * @def NVME_IOCTL_IDENTIFY_CTRL
 * define a unique value for identify controller
 * the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
+* IOCTL type belongs to, generally from (0-255)
 * the second parameter is type within the group.
 * the third parameter give the size of data and
 * type of data that is passed to this ioctl from user
@@ -141,7 +141,7 @@ enum {
 * @def NVME_IOCTL_GET_RANGE_TYPE
 * define a unique value for get nvme range type
 * the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
+* IOCTL type belongs to, generally from (0-255)
 * the second parameter is type within the group.
 * the third parameter give the size of data and
 * type of data that is passed to this ioctl from user
@@ -153,7 +153,7 @@ enum {
 * @def NVME_IOCTL_SUBMIT_IO
 * define a unique value for submit input output command
 * the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
+* IOCTL type belongs to, generally from (0-255)
 * the second parameter is type within the group.
 * the third parameter give the size of data and
 * type of data that is passed to this ioctl from user
@@ -165,7 +165,7 @@ enum {
 * @def NVME_IOCTL_DOWNLOAD_FW
 * define a unique value for download firmware
 * the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
+* IOCTL type belongs to, generally from (0-255)
 * the second parameter is type within the group.
 * the third parameter give the size of data and
 * type of data that is passed to this ioctl from user
@@ -177,7 +177,7 @@ enum {
 * @def NVME_IOCTL_ACTIVATE_FW
 * define a unique value for active firmware switch
 * the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
+* IOCTL type belongs to, generally from (0-255)
 * the second parameter is type within the group.
 * the third parameter give the size of data and
 * type of data that is passed to this ioctl from user
@@ -189,7 +189,7 @@ enum {
 * @def NVME_IOCTL_DEL_ADMN_Q
 * define unique value for deleting admin queue.
 * the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
+* IOCTL type belongs to, generally from (0-255)
 * the second parameter is type within the group.
 * the third parameter give the size of data and
 * type of data that is passed to this ioctl from user
@@ -201,7 +201,7 @@ enum {
 * @def NVME_IOCTL_SEND_ADMN_CMD
 * define unique ioctl for sending admin queue command.
 * the first parameter is the group to which this
-* IOCTL type belongs to, genererally from (0-255)
+* IOCTL type belongs to, generally from (0-255)
 * the second parameter is type within the group.
 * the third parameter give the size of data and
 * type of data that is passed to this ioctl from user

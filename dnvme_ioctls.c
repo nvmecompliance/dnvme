@@ -25,7 +25,7 @@ int device_status_chk(struct pci_dev *pdev,
 			int *status)
 {
    /* Local variable declaration. */
-   u16 data; /* unsinged 16 bit data. */
+   u16 data; /* Unsigned 16 bit data. */
    int ret_code = -EINVAL; /* initialize ret code to invalid */
    /*
    * Pointer for user data to be copied to user space from
@@ -39,7 +39,7 @@ int device_status_chk(struct pci_dev *pdev,
    */
    ret_code = pci_read_config_word(pdev, PCI_DEVICE_STATUS, &data);
    /*
-   * Check the return code to know if pci read is succes.
+   * Check the return code to know if pci read is success.
    */
    if (ret_code < 0) {
 	LOG_ERR("pci_read_config failed in driver error check");
@@ -85,7 +85,7 @@ int device_status_chk(struct pci_dev *pdev,
 
 /*
 *   driver_genric_read - Generic Read functionality for reading
-*   NVME PCIe registers and memory mapped addres
+*   NVME PCIe registers and memory mapped address
 */
 int driver_generic_read(struct file *file,
 			struct rw_generic *nvme_data,
@@ -98,7 +98,7 @@ int driver_generic_read(struct file *file,
    struct nvme_dev_entry *nvme = NULL;
    unsigned char __user *datap = (unsigned char __user *)nvme_data->buffer;
 
-   LOG_DBG("Inside Generic Read Funtion of the IOCTLs");
+   LOG_DBG("Inside Generic Read Function of the IOCTLs");
 
    nvme = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
    if (nvme == NULL) {
@@ -167,8 +167,8 @@ int driver_generic_read(struct file *file,
 			/* increment by byte size */
 			index++;
 		} else {
-			LOG_ERR("PCI space acccessed by DWORD, WORD or BYTE");
-			LOG_ERR("Wrong PCI acccess width specified or");
+			LOG_ERR("PCI space accessed by DWORD, WORD or BYTE");
+			LOG_ERR("Wrong PCI access width specified or");
 			LOG_ERR("Wrong no. of bytes specified.");
 			return -EINVAL;
 		}
@@ -187,7 +187,7 @@ int driver_generic_read(struct file *file,
 	LOG_DBG("Invoking User App request to read from NVME space");
 
 	/*
-	* Checking for 4 bytes boundary. If either nBytes or offser is not
+	* Checking for 4 bytes boundary. If either nBytes or offset is not
 	* 4 bytes aligned return error.
 	*/
 	if (
@@ -357,7 +357,7 @@ int driver_generic_write(struct file *file,
 	LOG_DBG("Invoking User App request to write NVME Space using BAR01");
 
 	/*
-	* Checking for 4 bytes boundary. If either nBytes or offser is not
+	* Checking for 4 bytes boundary. If either nBytes or offset is not
 	* 4 bytes aligned return error.
 	*/
 	if (
@@ -365,7 +365,7 @@ int driver_generic_write(struct file *file,
 		((nvme_data->offset % 4) != 0)
 	) {
 		LOG_ERR("Either Offset or nBytes is not Aligned...");
-		LOG_ERR("Provide them on 4 bytes Boundaray");
+		LOG_ERR("Provide them on 4 bytes Boundary");
 		return -EINVAL;
 	}
 	/* Remap io mem for this device. */
@@ -424,7 +424,7 @@ int driver_create_asq(
    }
 #endif
 
-   /* Call routine to create admin Submision queue */
+   /* Call routine to create admin Submission queue */
    ret_code = create_admn_sq(nvme_dev, nvme_asq_cr->asq_size);
 
    return ret_code;
@@ -450,14 +450,14 @@ int driver_create_acq(
 #endif
 
    /* As we are doing polling based so irq feild is not used for now */
-   /* Call routine to create admin Submision queue */
+   /* Call routine to create admin Submission queue */
    ret_code = create_admn_cq(nvme_dev, nvme_acq_cr->acq_size);
 
    return ret_code;
 }
 
 /*
-*   driver_iotcl_init - Driver Initialization routine before strting to
+*   driver_iotcl_init - Driver Initialization routine before starting to
 *   issue  ioctls.
 */
 int driver_ioctl_init(
@@ -468,7 +468,7 @@ int driver_ioctl_init(
    int ret_code = -EINVAL; /* ret code to verify if ASQ creation succeeded */
 
    LOG_DBG("Inside driver IOCTL init function");
-   LOG_NRM("Intializing the BAR01 and NMVE Controller Space");
+   LOG_NRM("Initializing the BAR01 and NMVE Controller Space");
 
    /* Remap io mem for this device. */
    nvme_dev->bar0mapped = ioremap(pci_resource_start(pdev, 0),

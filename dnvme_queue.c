@@ -16,7 +16,7 @@ struct nvme_queue *nvme_q;
 /* Conditional compilation for QEMU related modifications. */
 #ifdef QEMU
 /*
-* if QEMU is defined then we do 64 bit write in two 32 bit writes uinsg
+* if QEMU is defined then we do 64 bit write in two 32 bit writes using
 * writel's otherwise directly call writeq.
 */
 static inline void WRITEQ(__u64 val, volatile void __iomem *addr)
@@ -100,7 +100,7 @@ int nvme_ctrlrdy_capto(struct nvme_dev_entry *nvme_dev)
 }
 
 /*
-* nvme_queue_init - NVME Q initialization routine which initailized the
+* nvme_queue_init - NVME Q initialization routine which initialized the
 * queue parameters as per the user size.
 */
 int nvme_queue_init(struct nvme_dev_entry *nvme_dev)
@@ -196,7 +196,7 @@ int nvme_ctrl_disable(struct nvme_dev_entry *nvme_dev)
 */
 int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 {
-   u16 asq_id;		/* Admin Submisssion Q Id                         */
+   u16 asq_id;		/* Admin Submission Q Id                         */
    u32 aqa;		/* Admin Q attributes in 32 bits size             */
    u32 tmp_aqa;		/* Temp var to hold admin q attributes            */
 
@@ -286,7 +286,7 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 {
 
    int ret_code = SUCCESS; /* Ret code set to SUCCESS check for otherwise */
-   u16 acq_id;          /* Admin Submisssion Q Id                         */
+   u16 acq_id;          /* Admin Submission Q Id                         */
    u32 aqa;		/* Admin Q attributes in 32 bits size             */
    u32 tmp_aqa;		/* Temp var to hold admin q attributes            */
 

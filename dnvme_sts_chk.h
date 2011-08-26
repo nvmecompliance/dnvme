@@ -16,7 +16,7 @@
 /**
 * @def DEV_ERR_MASK
 * The bit positions that are set in this 16 bit word
-* implies that the error is defined for those poistionis in
+* implies that the error is defined for those positions in
 * STS register. The bits that are 0 are non error positions.
 */
 #define DEV_ERR_MASK                    0xB100
@@ -24,7 +24,7 @@
 /**
 * @def DPE
 * This bit position indicates data parity error.
-* Set to 1 by h/w when the controlller detects a
+* Set to 1 by h/w when the controller detects a
 * parity error on its interface.
 */
 #define DPE                             0x8000
@@ -103,7 +103,7 @@
 /**
 * PCI Express Device Status- PXDS
 * The below enums are for PCI express device status reister
-* individual status bits and offset positon.
+* individual status bits and offset position.
 */
 enum {
 	NVME_PXDS_CED   = 0x1 << 0, /* Correctable Error */
@@ -145,7 +145,7 @@ enum {
 };
 
 /**
-* enums for capabilty version indicated in the AER capability ID
+* enums for capability version indicated in the AER capability ID
 * Offset AERCAP:AERID
 */
 enum {
@@ -210,7 +210,7 @@ enum {
 /**
 * device_status_pci function returns the device status of
 * the PCI Device status register set in STS register. The offset for this
-* register is 0x06h as specified in NVME Expres 1.0b spec.
+* register is 0x06h as specified in NVME Express 1.0b spec.
 * @param device_data
 * @return SUCCESS or FAIL
 */
@@ -242,7 +242,7 @@ int device_status_pmcs(u16 device_data);
 
 /**
 * device_status_msicap function returns the device status of
-* Message signalled Interrupt status register in MC and MPEND
+* Message signaled Interrupt status register in MC and MPEND
 * @param pdev
 * @param device_data
 * @return SUCCESS or FAIL
@@ -251,7 +251,7 @@ int device_status_msicap(struct pci_dev *pdev, u16 device_data);
 
 /**
 * device_status_msixcap function returns the device status of
-* Message signalled Interrupt-X status register in MXC
+* Message signaled Interrupt-X status register in MXC
 * @param pdev
 * @param device_data
 * @return SUCCESS or FAIL
@@ -260,7 +260,7 @@ int device_status_msixcap(struct pci_dev *pdev, u16 device_data);
 
 /**
 * device_status_pxcap function returns the device status of
-* PCI express capabilty device status register in PXDS.
+* PCI express capability device status register in PXDS.
 * @param pdev
 * @param base_offset
 * @return SUCCESS or FAIL
@@ -269,7 +269,7 @@ int device_status_pxcap(struct pci_dev *pdev, u16 base_offset);
 
 /**
 * device_status_aercap function returns the device status of
-* Advanced Error Reporting AER capabilty device status registers
+* Advanced Error Reporting AER capability device status registers
 * The register checked are AERUCES, AERCS and AERCC
 * @param pdev
 * @param base_offset

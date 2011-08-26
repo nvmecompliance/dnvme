@@ -1,6 +1,6 @@
 /*
 * sysdnvme.c
-* NMVE Express Device Driver for Test Complinace.
+* NMVE Express Device Driver for Test Compliance.
 *
 * Copyright (c) 2011, Intel Corporation.
 *
@@ -67,7 +67,7 @@ struct nvme_dev_char {
 };
 
 /*
-* Block deivce ioctls when necessary in future.
+* Block device ioctls when necessary in future.
 */
 static const struct block_device_operations dnvme_fops = {
       .owner = THIS_MODULE,
@@ -89,7 +89,7 @@ MODULE_LICENSE("GPL");
 *   First initialization for Driver code.
 *   dnvme_init - Perform early initialization of the host
 *   host: dnvme host to initialize
-*   @return returns 0 if iniitalization was successful.
+*   @return returns 0 if initialization was successful.
 *   @author T.Sravan Kumar
 */
 static int dnvme_init(void)
@@ -200,7 +200,7 @@ static int dnvme_init(void)
 	return err;
    }
 
-   /* Create deivce with class name class_nvme */
+   /* Create device with class name class_nvme */
    device = device_create(class_nvme, NULL, devno, NULL,
 				NVME_DEVICE_NAME"%d", nvme_minor);
    if (IS_ERR(device)) {
@@ -377,7 +377,7 @@ int dnvme_blk_gendisk(struct pci_dev *pdev, int which)
 }
 
 /*
-* dnvme_ioctl  - Call correcponding ioctl functions from Blk driver.
+* dnvme_ioctl  - Call corresponding ioctl functions from Blk driver.
 * This function is used only when the device is initialized as block
 * device otherwise the char type ioctl is used.
 */
@@ -427,7 +427,7 @@ int dnvme_ioctl_device(
 {
    int ret_val = -EINVAL; /* set ret val to invalid, chk for success */
    struct rw_generic *nvme_data; /* Local struct var for nvme rw dat */
-   struct nvme_device_entry *nvme_dev_entry; /* entry for nvme devie */
+   struct nvme_device_entry *nvme_dev_entry; /* entry for nvme dev   */
    int *nvme_dev_err_sts; /* nvme device error status                */
    struct pci_dev *pdev = NULL; /* pointer to pci device             */
    struct nvme_asq_gen *nvme_asq_cr; /* nvme ASQ creation parameters */
@@ -517,7 +517,7 @@ int dnvme_ioctl_device(
    case NVME_IOCTL_CTLR_STATE:
 
 	LOG_DBG("IOCTL for nvme controller set/reset Command");
-	LOG_NRM("Invoke IOCTL for contoller Status Setting");
+	LOG_NRM("Invoke IOCTL for controller Status Setting");
 	/* Assign user passed parameters to local struct */
 	nvme_ctrl_sts = (struct nvme_ctrl_enum *)ioctl_param;
 

@@ -129,7 +129,7 @@ int device_status_next(struct pci_dev *pdev)
    u32 cap_aer    = 0;
    u16 next_item  = 1;
    u16 capability = 0;
-   u16 data       = 0; /* unsinged 16 bit data. */
+   u16 data       = 0; /* Unsigned 16 bit data. */
    u8 power_management_feature = 0;
 
    LOG_NRM("Checking NEXT Capabilities of the NVME Controller");
@@ -144,7 +144,7 @@ int device_status_next(struct pci_dev *pdev)
 
    /*
    * Check if CAP pointer points to next available
-   * linked list resgisters in the PCI Header.
+   * linked list registers in the PCI Header.
    */
    ret_code = pci_read_config_byte(pdev, CAP_REG, (u8 *)&pci_offset);
 
@@ -170,7 +170,7 @@ int device_status_next(struct pci_dev *pdev)
 	LOG_DBG("CAP Value 16/32 Bits = 0x%X", cap_aer);
 	/*
 	* AER error mask is used for checking if it is not AER type.
-	* Right Shift bby 16 bits.
+	* Right Shift by 16 bits.
 	*/
 	if (((cap_aer & AER_ERR_MASK) >> 16) != NVME_AER_CVER) {
 
@@ -183,7 +183,7 @@ int device_status_next(struct pci_dev *pdev)
 		cap_aer = 0; /* Reset cap_aer */
 		LOG_DBG("Capability Value = 0x%X", capability);
 
-		/* Switch based on which ID Capabilty indicates */
+		/* Switch based on which ID Capability indicates */
 		switch (capability & ~NEXT_MASK) {
 		case PMCAP_ID:
 			LOG_NRM("PCI Pwr Mgmt is Supported (PMCS Exists)");
@@ -208,7 +208,7 @@ int device_status_next(struct pci_dev *pdev)
 			}
 			break;
 		case MSICAP_ID:
-			LOG_NRM("Checing MSI Capabilities");
+			LOG_NRM("Checking MSI Capabilities");
 			status = (status == SUCCESS) ?
 				device_status_msicap(pdev, pci_offset) : FAIL;
 			break;
@@ -228,7 +228,7 @@ int device_status_next(struct pci_dev *pdev)
 		} /* end of switch case */
 
 	} else {
-		LOG_DBG("All Advaned Error Reporting..");
+		LOG_DBG("All Advanced Error Reporting..");
 
 		/*
 		* Advanced Error capabilty function.
@@ -297,7 +297,7 @@ int device_status_pmcs(u16 device_data)
 }
 
 /*
-* device_status_msicap: This function checks the Message Signalled Interrupt
+* device_status_msicap: This function checks the Message Signaled Interrupt
 * control and status bits.
 */
 int device_status_msicap(struct pci_dev *pdev, u16 device_data)
@@ -314,7 +314,7 @@ int device_status_msicap(struct pci_dev *pdev, u16 device_data)
    return status;
 }
 /*
-* device_status_msixcap: This func checks the Message Signalled Interrupt - X
+* device_status_msixcap: This func checks the Message Signaled Interrupt - X
 * control and status bits.
 */
 int device_status_msixcap(struct pci_dev *pdev, u16 device_data)
@@ -332,7 +332,7 @@ int device_status_msixcap(struct pci_dev *pdev, u16 device_data)
 }
 /*
 * device_status_pxcap: This func checks the PCI Express
-* capabiltiy status register
+* Capability status register
 */
 int device_status_pxcap(struct pci_dev *pdev, u16 base_offset)
 {
@@ -373,14 +373,14 @@ int device_status_pxcap(struct pci_dev *pdev, u16 base_offset)
 
    /* Check in device status register if any error bit is set */
    /*
-   * Each Bit position has different stauts indication as indicated
+   * Each Bit position has different status indication as indicated
    * in NVME Spec 1.0b.
    */
    if (pxcap_sts_reg) {
 	/* Check if Correctable error is detected */
 	if (pxcap_sts_reg & NVME_PXDS_CED) {
 		status = FAIL;
-		LOG_ERR("Correctalbe Error Detected (CED) in PXDS");
+		LOG_ERR("Correctable Error Detected (CED) in PXDS");
 	}
 	/* Check if Non fatal error is detected */
 	if ((pxcap_sts_reg & NVME_PXDS_NFED) >> 1) {
@@ -411,7 +411,7 @@ int device_status_pxcap(struct pci_dev *pdev, u16 base_offset)
 
 /*
 * device_status_aerap: This func checks the status register of
-* Advanced error reporting capabiltiy of PCI express device.
+* Advanced error reporting capability of PCI express device.
 */
 int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
 {
@@ -419,7 +419,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
    u16 offset; /* Offset 16 bit for PCIE space */
    u32 u32aer_sts = 0; /* AER Cap Status data */
    u32 u32aer_msk = 0; /* AER Mask bits data */
-   int ret_code = 0; /* Reurn code for pci reads */
+   int ret_code = 0; /* Return code for pci reads */
    /*
    * Set the status to SUCCESS and eventually verify any error
    * really got set.
@@ -461,7 +461,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
 		status = FAIL;
 		LOG_ERR("Data Link Protocol Error Status is Set (DLPES)");
 	}
-	/* Poinsed TLP status, not an error. */
+	/* Pointed TLP status, not an error. */
 	if ((u32aer_sts & NVME_AERUCES_PTS) >> 12)
 		LOG_ERR("Poisoned TLP Status (PTS)");
 
@@ -538,7 +538,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
    /* zero out Reserved Bits*/
    u32aer_sts &= ~NVME_AERCS_RSVD;
 
-   /* Compute the offser for AER correctable Mask register */
+   /* Compute the offset for AER correctable Mask register */
    offset = base_offset + NVME_AERCM_OFFSET;
 
    /*
@@ -558,7 +558,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
    * check if any error is set which is not masked.
    */
    if (u32aer_sts & ~u32aer_msk) {
-	/* Checked if reciever error status is set */
+	/* Checked if receiver error status is set */
 	if (u32aer_sts & NVME_AERCS_RES) {
 		status = FAIL;
 		LOG_ERR("Receiver Error Status (RES)");
@@ -582,7 +582,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
 		status = FAIL;
 		LOG_ERR("Replay Timer Timeout Status (RTS)");
 	}
-	/* Check if non fatatl error is set */
+	/* Check if non fatal error is set */
 	if ((u32aer_sts & NVME_AERCS_ANFES) >> 13) {
 		status = FAIL;
 		LOG_ERR("Advisory Non Fatal Error Status (ANFES)");

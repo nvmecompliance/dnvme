@@ -30,9 +30,9 @@ int dnvme_pci_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id);
 
 /**
-* This function protoype specifies the device ioctl entry point
+* This function prototype specifies the device ioctl entry point
 * for block type of device.
-* The ioctl main entry starts from this function whcih takes
+* The ioctl main entry starts from this function which takes
 * argument specific to block device.
 * @param bdev
 * @param mode
@@ -60,7 +60,7 @@ int dnvme_blk_gendisk(
 /**
 * This is the main entry point for IOCTL char device type.
 * The user selection of IOCTL required is specified in the
-* ioctl_num parameter based on which corresponing IOCTL
+* ioctl_num parameter based on which corresponding IOCTL
 * call is made. The data supplied by used is in ioctl_param.
 * @param inode
 * @param file
@@ -137,7 +137,7 @@ int driver_create_asq(
 		);
 
 /*
-* driver_iotcl_init - Driver Initialization routine before strting to
+* driver_iotcl_init - Driver Initialization routine before starting to
 * issue  ioctls.
 * @param nvme_dev
 * @param pdev

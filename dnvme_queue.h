@@ -32,7 +32,7 @@
 #endif
 #endif
 /*
-* Enumerating the differnt NVME Controller Capabilities of the
+* Enumerating the different NVME Controller Capabilities of the
 * PCI Express device as per NVME Spec 1.0b.
 */
 enum {
@@ -110,7 +110,7 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize);
 * this function initialized Q parameters. This will create infrastructure
 * for Admin Submission Q creation and Admin Completion Q creation
 * @param nvme_dev
-* @return whether initailization was success or not.
+* @return whether initialization was success or not.
 */
 int nvme_queue_init(struct nvme_dev_entry *nvme_dev);
 

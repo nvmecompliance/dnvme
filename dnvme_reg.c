@@ -82,7 +82,7 @@ int write_nvme_reg_generic(
 	/* Write data to NVME space */
 	writel(u32data, bar);
 
-	/* increment by offset 4 as bar is unsinged int */
+	/* increment by offset 4 as bar is unsigned int */
 	bar++;
    }
 

@@ -17,7 +17,7 @@
 #endif
 
 /**
-* This definition is intended for making modification or quirks necesary to
+* This definition is intended for making modification or quirks necessary to
 * make the driver work with QEMU. This can be commented when an actual NVME
 * hardware device is being tested.
 */
@@ -25,7 +25,7 @@
 
 /**
 *  NVME Express Device Structure Parameters.
-*  the list of devices is maintained in this stucture
+*  the list of devices is maintained in this structure
 *  using kernel linked list structure list_head
 */
 struct nvme_device_entry {
@@ -38,7 +38,7 @@ struct nvme_device_entry {
     u32    *bar;   /**base address 0 for this device */
     struct list_head namespaces; /** list head linked list for namespaces. */
     char   serial[20]; /** Serial no. for the PCI device. */
-    char   model[40]; /** Modle no. for this device. */
+    char   model[40]; /** Model no. for this device. */
     char   firmware_rev[8]; /** Firmware revision of NMVE device */
 };
 

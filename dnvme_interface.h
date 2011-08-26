@@ -14,7 +14,7 @@ enum nvme_io_space {
 
 /**
 * This struct is the basic structure which has important
-* parameter for the generic read  and write funtion to seek the correct
+* parameter for the generic read  and write function to seek the correct
 * offset and length while reading or writing to nvme card.
 */
 struct rw_generic {
@@ -26,7 +26,7 @@ struct rw_generic {
 };
 
 /**
-* These enums are used for creating Admin Completion Q types based on reqeusted
+* These enums are used for creating Admin Completion Q types based on requested
 * user type.
 */
 enum nvme_qop_type {
@@ -60,7 +60,7 @@ enum nvme_en_dis {
 };
 
 /**
-* This Struct is used for setting the contrller either
+* This Struct is used for setting the controller either
 */
 struct nvme_ctrl_enum {
    enum nvme_en_dis nvme_status;
