@@ -92,7 +92,6 @@ int driver_generic_read(struct file *file,
 			struct pci_dev *pdev)
 {
    /* Local variable declaration. */
-   u8 data; /*  data read from PCI space. */
    u16 index; /* index for looping till the end. */
    int ret_code = -EINVAL; /* to verify if return code is success. */
    struct nvme_space nvme_ctrl_reg_space;
@@ -116,11 +115,12 @@ int driver_generic_read(struct file *file,
 
 	LOG_DBG("User App request to read  the PCI Header Space");
 	LOG_DBG("Read request for bytes = 0x%x", nvme_data->nBytes);
+	LOG_DBG("offset:acc= 0x%x:%c", nvme_data->offset, nvme_data->acc_type);
 	/*
 	* Loop through the number of bytes that are specified in the
 	* bBytes parameter.
 	*/
-	for (index = 0; index < nvme_data->nBytes; index++) {
+	for (index = 0; index < nvme_data->nBytes;) {
 		/* Check where you are reading */
 		LOG_DBG("Reading for index = 0x%x", index);
 		LOG_DBG("PCI Offset = 0x%x", nvme_data->offset + index);
@@ -131,37 +131,73 @@ int driver_generic_read(struct file *file,
 			return -EINVAL;
 		}
 		/*
-		* Read a byte from the configuration register
-		* and pass it to user.
+		* Check the access width and access the PCI space as per
+		* the requested width.
 		*/
-		ret_code = pci_read_config_byte
-			(pdev, (nvme_data->offset + index), &data);
+		if (((nvme_data->acc_type == 'l') ||
+			(nvme_data->acc_type == 'L'))
+			&& (nvme_data->nBytes % 4 == 0)) {
+			/* Read dword from the PCI register space. */
+			ret_code = pci_read_config_dword(pdev,
+			(nvme_data->offset + index), (u32 *)&datap[index]);
+			LOG_NRM("Reading PCI offset, data = 0x%x, 0x%x",
+				(nvme_data->offset + index), (u32)datap[index]);
 
+			/* increment by dword size */
+			index += 4;
+		} else if (((nvme_data->acc_type == 'w') ||
+			(nvme_data->acc_type == 'W'))
+			&& (nvme_data->nBytes % 2 == 0)) {
+			/* Read a word from the PCI register space. */
+			ret_code = pci_read_config_word(pdev,
+			(nvme_data->offset + index), (u16 *)&datap[index]);
+			LOG_NRM("Reading PCI offset, data = 0x%x, 0x%x",
+				(nvme_data->offset + index), (u16)datap[index]);
+
+			/* increment by word size */
+			index += 2;
+		} else if ((nvme_data->acc_type == 'b') ||
+			(nvme_data->acc_type == 'B')) {
+			/* Read a byte from the PCI register space. */
+			ret_code = pci_read_config_byte(pdev,
+			(nvme_data->offset + index), (u8 *) &datap[index]);
+			LOG_NRM("Reading PCI offset, data = 0x%x, 0x%x",
+				(nvme_data->offset + index), (u8)datap[index]);
+
+			/* increment by byte size */
+			index++;
+		} else {
+			LOG_ERR("PCI space acccessed by DWORD, WORD or BYTE");
+			LOG_ERR("Wrong PCI acccess width specified or");
+			LOG_ERR("Wrong no. of bytes specified.");
+			return -EINVAL;
+		}
+
+		/* Check if reading is successful */
 		if (ret_code < 0) {
 			LOG_ERR("pci_read_config failed");
 			return ret_code;
 		}
-
-		LOG_DBG("Reading PCI header from offset = 0x%x, data = 0x%x",
-					(nvme_data->offset + index), data);
-
-		/*
-		* copy each data read from pci space to user pointer.
-		* Index points to the next data location.
-		*/
-		datap[index] = data;
-
-		LOG_DBG("Index = 0x%x data 2 user = 0x%x", index, datap[index]);
 	}
-
-	/*
-	* done required reading then break and return.
-	*/
+	/* done required reading then break and return.	*/
 	break;
 
    case NVMEIO_BAR01:
 	/* Registers are aligned and so */
 	LOG_DBG("Invoking User App request to read from NVME space");
+
+	/*
+	* Checking for 4 bytes boundary. If either nBytes or offser is not
+	* 4 bytes aligned return error.
+	*/
+	if (
+		((nvme_data->nBytes % 4) != 0) ||
+		((nvme_data->offset % 4) != 0)
+	) {
+		LOG_ERR("Either Offset or nBytes is not Aligned...");
+		LOG_ERR("Provide them on 4 bytes Boundaray");
+		return -EINVAL;
+	}
 
 	/* Remap io mem for this device. */
 	nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
@@ -269,19 +305,51 @@ int driver_generic_write(struct file *file,
 	for (index = 0; index < nvme_data->nBytes; index++) {
 		/*
 		* write user data to pci config space at location
-		* indicated by (offset + index).
+		* indicated by (offset + index) as per access width.
 		*/
-		ret_code = pci_write_config_byte
-			(pdev, (nvme_data->offset + index), datap[index]);
+		if (((nvme_data->acc_type == 'l') ||
+			(nvme_data->acc_type == 'L'))
+			&& (nvme_data->nBytes % 4 == 0)) {
+			/* Write a word to PCI register space. */
+			ret_code = pci_write_config_dword(pdev,
+				(nvme_data->offset + index), datap[index]);
+			LOG_NRM("Writing to PCI offset, data = 0x%x, 0x%x",
+				(nvme_data->offset + index), (u32)datap[index]);
+			/* increment by dword size */
+			index += 4;
+		} else if (((nvme_data->acc_type == 'w') ||
+			(nvme_data->acc_type == 'W'))
+			&& (nvme_data->nBytes % 2 == 0)) {
+			/* Write a word to PCI register space. */
+			ret_code = pci_write_config_word(pdev,
+				(nvme_data->offset + index), datap[index]);
+			LOG_NRM("Writing to PCI offset, data = 0x%x, 0x%x",
+				(nvme_data->offset + index), (u16)datap[index]);
+			/* increment by word size */
+			index += 2;
+		} else if ((nvme_data->acc_type == 'b') ||
+			(nvme_data->acc_type == 'B')) {
+			/* Write a byte from to PCI register space. */
+			ret_code = pci_write_config_byte(pdev,
+				(nvme_data->offset + index), datap[index]);
 
+			LOG_NRM("Writing to PCI offset, data = 0x%x, 0x%x",
+				(nvme_data->offset + index), (u8)datap[index]);
+			/* increment by byte size */
+			index++;
+		} else {
+			LOG_ERR("PCI space acccessed by DWORD, WORD or BYTE");
+			LOG_ERR("Wrong PCI acccess width specified or ");
+			LOG_ERR("Wrong no of bytes specified");
+			return -EINVAL;
+		}
+		/* Check if reading is successful */
 		if (ret_code < 0) {
+			LOG_ERR("pci_read_config failed");
 			LOG_ERR("Unable to write to location = 0x%x data = 0%x",
 				(nvme_data->offset + index), datap[index]);
 			return ret_code;
 		}
-
-		LOG_NRM("Writing to PCI header offset,data = 0x%x, 0x%x",
-				(nvme_data->offset + index), datap[index]);
 	}
 	/* Done writing user requested data, returning. */
 	break;

@@ -21,6 +21,7 @@ struct rw_generic {
    enum nvme_io_space type;
    unsigned int  offset;
    unsigned int  nBytes;
+   char acc_type;
    unsigned char *buffer;
 };
 
