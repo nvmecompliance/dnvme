@@ -33,7 +33,7 @@
 #endif
 /*
 * Enumerating the differnt NVME Controller Capabilities of the
-* PCI Express device as per NVME Spec 1.0a.
+* PCI Express device as per NVME Spec 1.0b.
 */
 enum {
 	NVME_CC_ENABLE		= 1 << 0,

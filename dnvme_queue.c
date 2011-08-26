@@ -237,7 +237,7 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 
    LOG_NRM("ASQ DMA Address: 0x%llx", (u64)nvme_q->asq_dma_addr);
 
-   /* Set the door bell or ASQ to 0x1000 as per spec 1.0a */
+   /* Set the door bell or ASQ to 0x1000 as per spec 1.0b */
    nvme_dev->dbs = ((void __iomem *)nvme_dev->nvme_ctrl_space) + NVME_SQ0TBDL;
 
    /* Read, Modify, Write  the aqa as per the q size requested */

@@ -3,7 +3,7 @@
 
 /**
 * nvme_ctrl_reg defines the register space for the
-* nvme controller registers as defined in NVME Spec 1.0a.
+* nvme controller registers as defined in NVME Spec 1.0b.
 */
 struct nvme_ctrl_reg {
 	__u64	cap;    /* Controller Capabilities */

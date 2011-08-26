@@ -5,7 +5,7 @@
 * @def PCI_DEVICE_STATUS
 * define the offset for STS register
 * from the start of PCI config space as specified in the
-* NVME_Comliance 1.0a. offset 06h:STS - Device status.
+* NVME_Comliance 1.0b. offset 06h:STS - Device status.
 * This register has error status for NVME PCI Exress
 * Card. After reading data from this reagister, the driver
 * will identify if any error is set during the operation and
@@ -166,7 +166,7 @@ enum {
 
 /**
 * enums for AER Uncorrectable Error Status and Mask bits.
-* The bit positions for status and Mask are same in the NVME Spec 1.0a
+* The bit positions for status and Mask are same in the NVME Spec 1.0b
 * so here we have only this bit positions defined for both AERUCES
 * and AERUCEM, mask register.
 */
@@ -191,7 +191,7 @@ enum {
 
 /**
 * enums for AER Correctable Error Status and Mask bits.
-* The bit positions for status and Mask are same in the NVME Spec 1.0a
+* The bit positions for status and Mask are same in the NVME Spec 1.0b
 * so here we have only this bit positions defined for both AERCS
 * and AERCEM, mask register.
 */
@@ -210,7 +210,7 @@ enum {
 /**
 * device_status_pci function returns the device status of
 * the PCI Device status register set in STS register. The offset for this
-* register is 0x06h as specified in NVME Expres 1.0a spec.
+* register is 0x06h as specified in NVME Expres 1.0b spec.
 * @param device_data
 * @return SUCCESS or FAIL
 */

@@ -36,13 +36,13 @@
 
 /**
 * @def CAP_REG
-* Set to offset defined in NVME Spec 1.0a.
+* Set to offset defined in NVME Spec 1.0b.
 */
 #define CAP_REG				0x34
 
 /**
 * @def PMCS
-* Set to offset defined in NVME Spec 1.0a.
+* Set to offset defined in NVME Spec 1.0b.
 */
 #define PMCS				0x4
 
@@ -63,7 +63,7 @@
 
 /**
 * This is a structure that defines all the PCI
-* header information laid out in NVME SPec 1.0a
+* header information laid out in NVME SPec 1.0b
 * PCI Header section.
 */
 struct nvme_pci_header {

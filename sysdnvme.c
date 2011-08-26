@@ -25,7 +25,7 @@
 
 #define	DRV_NAME		"dnvme"
 #define	NVME_DEVICE_NAME	"qnvme"
-#define DRV_VERSION		"NVME_1.0a"
+#define DRV_VERSION		"NVME_1.0b"
 #define NVME_N_DEVICES		1
 #define _CLASSIC_		1
 #define NVME_BLOCK_SIZE		512
@@ -573,7 +573,7 @@ static void __exit dnvme_exit(void)
 /*
 *  Driver Module Calls.
 */
-MODULE_DESCRIPTION("Kernel Device Driver for NMVE 1.0a Spec PCI Express");
+MODULE_DESCRIPTION("Kernel Device Driver for NMVE 1.0b Spec PCI Express");
 MODULE_AUTHOR("T Sravan Kumar <sravan.kumar.thokala@intel.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);

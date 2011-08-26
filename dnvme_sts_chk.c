@@ -374,7 +374,7 @@ int device_status_pxcap(struct pci_dev *pdev, u16 base_offset)
    /* Check in device status register if any error bit is set */
    /*
    * Each Bit position has different stauts indication as indicated
-   * in NVME Spec 1.0a.
+   * in NVME Spec 1.0b.
    */
    if (pxcap_sts_reg) {
 	/* Check if Correctable error is detected */
