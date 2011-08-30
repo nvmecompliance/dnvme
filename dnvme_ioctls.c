@@ -134,8 +134,7 @@ int driver_generic_read(struct file *file,
 		* Check the access width and access the PCI space as per
 		* the requested width.
 		*/
-		if (((nvme_data->acc_type == 'l') ||
-			(nvme_data->acc_type == 'L'))
+		if ((nvme_data->acc_type == DWORD_LEN)
 			&& (nvme_data->nBytes % 4 == 0)) {
 			/* Read dword from the PCI register space. */
 			ret_code = pci_read_config_dword(pdev,
@@ -145,8 +144,7 @@ int driver_generic_read(struct file *file,
 
 			/* increment by dword size */
 			index += 4;
-		} else if (((nvme_data->acc_type == 'w') ||
-			(nvme_data->acc_type == 'W'))
+		} else if ((nvme_data->acc_type == WORD_LEN)
 			&& (nvme_data->nBytes % 2 == 0)) {
 			/* Read a word from the PCI register space. */
 			ret_code = pci_read_config_word(pdev,
@@ -156,8 +154,7 @@ int driver_generic_read(struct file *file,
 
 			/* increment by word size */
 			index += 2;
-		} else if ((nvme_data->acc_type == 'b') ||
-			(nvme_data->acc_type == 'B')) {
+		} else if (nvme_data->acc_type == BYTE_LEN) {
 			/* Read a byte from the PCI register space. */
 			ret_code = pci_read_config_byte(pdev,
 			(nvme_data->offset + index), (u8 *) &datap[index]);
@@ -307,8 +304,7 @@ int driver_generic_write(struct file *file,
 		* write user data to pci config space at location
 		* indicated by (offset + index) as per access width.
 		*/
-		if (((nvme_data->acc_type == 'l') ||
-			(nvme_data->acc_type == 'L'))
+		if ((nvme_data->acc_type == DWORD_LEN)
 			&& (nvme_data->nBytes % 4 == 0)) {
 			/* Write a word to PCI register space. */
 			ret_code = pci_write_config_dword(pdev,
@@ -317,8 +313,7 @@ int driver_generic_write(struct file *file,
 				(nvme_data->offset + index), (u32)datap[index]);
 			/* increment by dword size */
 			index += 4;
-		} else if (((nvme_data->acc_type == 'w') ||
-			(nvme_data->acc_type == 'W'))
+		} else if ((nvme_data->acc_type == WORD_LEN)
 			&& (nvme_data->nBytes % 2 == 0)) {
 			/* Write a word to PCI register space. */
 			ret_code = pci_write_config_word(pdev,
@@ -327,8 +322,7 @@ int driver_generic_write(struct file *file,
 				(nvme_data->offset + index), (u16)datap[index]);
 			/* increment by word size */
 			index += 2;
-		} else if ((nvme_data->acc_type == 'b') ||
-			(nvme_data->acc_type == 'B')) {
+		} else if (nvme_data->acc_type == BYTE_LEN) {
 			/* Write a byte from to PCI register space. */
 			ret_code = pci_write_config_byte(pdev,
 				(nvme_data->offset + index), datap[index]);

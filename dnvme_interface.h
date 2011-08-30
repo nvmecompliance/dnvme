@@ -13,6 +13,18 @@ enum nvme_io_space {
 };
 
 /**
+* These are the enum types used for specifying the
+* required access width of registers or memory space.
+*/
+enum nvme_acc_type {
+	BYTE_LEN,
+	WORD_LEN,
+	DWORD_LEN,
+	QUAD_LEN,
+	ACC_FENCE
+};
+
+/**
 * This struct is the basic structure which has important
 * parameter for the generic read  and write function to seek the correct
 * offset and length while reading or writing to nvme card.
@@ -21,7 +33,7 @@ struct rw_generic {
    enum nvme_io_space type;
    unsigned int  offset;
    unsigned int  nBytes;
-   char acc_type;
+   enum nvme_acc_type acc_type;
    unsigned char *buffer;
 };
 
