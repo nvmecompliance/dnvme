@@ -95,8 +95,8 @@ int nvme_ctrlrdy_capto(struct nvme_dev_entry *nvme_dev)
    del_timer(&asq_timer);
 
    LOG_NRM("NVME Controller is Ready to process commands");
-   return SUCCESS;
 
+   return SUCCESS;
 }
 
 /*
@@ -184,6 +184,7 @@ int nvme_ctrl_disable(struct nvme_dev_entry *nvme_dev)
 	LOG_NRM("NVME Controller is not set yet");
 	return -EINVAL;
    }
+
   return SUCCESS;
 }
 /*
@@ -351,6 +352,7 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
    LOG_NRM("Reading AQA after writing in ACQ = 0x%x\n", tmp_aqa);
 
 #endif
+
    /* returns success or failure*/
    return ret_code;
 }

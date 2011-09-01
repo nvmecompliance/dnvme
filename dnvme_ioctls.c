@@ -506,4 +506,3 @@ int driver_default_ioctl(struct file *file,
 
     return 0;
 }
-
