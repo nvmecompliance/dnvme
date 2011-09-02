@@ -25,7 +25,7 @@
 
 #define	DRV_NAME		"dnvme"
 #define	NVME_DEVICE_NAME	"qnvme"
-#define DRV_VERSION		"NVME_1.0b"
+#define DRV_VERSION		"1.0"
 #define NVME_N_DEVICES		1
 #define _CLASSIC_		1
 #define NVME_BLOCK_SIZE		512

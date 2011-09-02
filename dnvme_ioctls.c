@@ -115,7 +115,7 @@ int driver_generic_read(struct file *file,
 
 	LOG_DBG("User App request to read  the PCI Header Space");
 	LOG_DBG("Read request for bytes = 0x%x", nvme_data->nBytes);
-	LOG_DBG("offset:acc= 0x%x:%c", nvme_data->offset, nvme_data->acc_type);
+	LOG_DBG("offset:acc= 0x%x:0x%2x", nvme_data->offset, nvme_data->acc_type);
 	/*
 	* Loop through the number of bytes that are specified in the
 	* bBytes parameter.

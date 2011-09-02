@@ -17,9 +17,16 @@ static inline __u64 READQ(const volatile void __iomem *addr)
 {
     const volatile u32 __iomem *p = addr;
     u32 low, high;
+    u64 u64data;
+
+    LOG_DBG("ADDR=0x%llx:p=0x%llx", addr, p);
     low = readl(p);
     high = readl(p + 1);
-    return low + ((u64)high << 32);
+
+    u64data = high;
+    u64data = (u64data << 32) + low;
+    LOG_DBG("High:low:u64data = 0x%x:0x%x:0x%llx", high, low, u64data);
+    return u64data;
 }
 /*
 * if QEMU is defined then we do 64 bit write in two 32 bit writes using
@@ -58,6 +65,7 @@ int read_nvme_reg_generic(
 {
    int index = 0; /* index to loop for total bytes in count of 4 */
    u32 u32data; /* temp data buffer for readl call. */
+   u64 u64data;
    unsigned int *bar; /* base address for nvme space from cap */
 
    /*
@@ -73,9 +81,11 @@ int read_nvme_reg_generic(
    for (index = 0; index < nbytes;) {
 	/* Read data from NVME space */
 	if (acc_type == DWORD_LEN) {
+
 		u32data = readl(bar);
 
-		LOG_NRM("NVME Reg Reading Data at 0x%0X:0x%0X", *bar, u32data);
+		LOG_NRM("NVME Read Dword at 0x%0X:0x%0X", *bar, u32data);
+
 		/* Increments in multiples of 4 (size of int) */
 		bar++;
 		/* Copy data to user buffer. */
@@ -85,10 +95,16 @@ int read_nvme_reg_generic(
 
 	} else if (acc_type == QUAD_LEN) {
 		/* Directly copy into buffer */
-		udata[index] = (u64)READQ(bar);
+		u64data = READQ(bar);
+
+		/* Copy data to user buffer. */
+		memcpy((u8 *)&udata[index], &u64data, sizeof(u64));
+
+		LOG_NRM("NVME Read Quad at 0x%llX:0x%llX", (u64)bar, (u64)udata[index]);
 
 		/* increment address by 8 bytes */
-		bar += 2;
+		bar++;
+		bar++;
 
 		/* move index by 8 bytes */
 		index += 8;
@@ -116,6 +132,7 @@ int write_nvme_reg_generic(
    int index = 0; /* index to loop for total bytes in count of 4 */
    unsigned int *bar; /* base address for nvme space from cap */
    u32 u32data;
+   u64 u64data;
    /*
    * Assign base address of the Controller Register to bar as the
    * starting point.
@@ -128,26 +145,36 @@ int write_nvme_reg_generic(
    /* loop until user requested nbytes are written. */
    for (index = 0; index < nbytes;) {
 
-	/* Copy u32 type data variable */
+	/* Check the acc_type and do write as per the access type  */
 	if (acc_type == DWORD_LEN) {
+
+		/* Dword access so do 32 bit access */
 		memcpy((u8 *)&u32data, &u8data[index], sizeof(u32));
 
-		LOG_NRM("NVME Space Writing at Addr:Val::0x%lX:0x%X",
+		LOG_NRM("NVME Writing DWORD at Addr:Val::0x%lX:0x%X",
 				(unsigned long int)bar, u32data);
-		/* Write data to NVME space */
+		/* Write 32 bit data to NVME space */
 		writel(u32data, bar);
 
-		/* increment by offset 4 as bar is unsigned int */
+		/* increment offset by 4 as bar is unsigned int */
 		bar++;
 
 		/* Move index by 4 bytes */
 		index += 4;
 	} else if (acc_type == QUAD_LEN) {
+
+		/* QUAD access so do 64 bit access */
+		memcpy((u8 *)&u64data, &u8data[index], sizeof(u64));
+
+		LOG_NRM("NVME Writing QUAD at Addr:Val::0x%lX:0x%llX",
+				(unsigned long int)bar, u64data);
+
 		/* Write 8 bytes of data */
-		WRITEQ((u64)u8data[index], bar);
+		WRITEQ(u64data, bar);
 
 		/* Increment address by 8 bytes */
-		bar += 2;
+		bar++;
+		bar++;
 
 		/* Move index by 8 bytes */
 		index += 8;
