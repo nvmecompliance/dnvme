@@ -187,14 +187,26 @@ int driver_generic_read(struct file *file,
 	* Checking for 4 bytes boundary. If either nBytes or offset is not
 	* 4 bytes aligned return error.
 	*/
-	if (
-		((nvme_data->nBytes % 4) != 0) ||
-		((nvme_data->offset % 4) != 0)
-	) {
-		LOG_ERR("Either Offset or nBytes is not Aligned...");
-		LOG_ERR("Provide them on 4 bytes Boundaray");
-		return -EINVAL;
-	}
+	if ((nvme_data->acc_type == DWORD_LEN) &&
+		(((nvme_data->nBytes % 4) != 0) ||
+		((nvme_data->offset % 4) != 0))
+		) {
+			LOG_ERR("Offiset or nBytes is not DWORD Aligned");
+			LOG_ERR("Provide them on 4 bytes Boundaray");
+			return -EINVAL;
+		} else if ((nvme_data->acc_type == QUAD_LEN) &&
+			(((nvme_data->nBytes % 8) != 0) ||
+			((nvme_data->offset % 4) != 0))
+			) {
+			/*
+			* Only nbytes need to be QUAD aligned and offset may be
+			* DWORD or QUAD aligned.
+			*/
+			LOG_ERR("Offset is not DWORD Aligned");
+			LOG_ERR("nbytes is not QUAD Aligned");
+			LOG_ERR("Provide them on 8 bytes Boundaray");
+			return -EINVAL;
+		}
 
 	/* Remap io mem for this device. */
 	nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
@@ -213,13 +225,18 @@ int driver_generic_read(struct file *file,
 	nvme_ctrl_reg_space.bar_dev = (void __iomem *)nvme->bar0mapped;
 
 	/* Read NVME register space. */
-	read_nvme_reg_generic(
+	ret_code = read_nvme_reg_generic(
 			nvme_ctrl_reg_space,
 			datap,
 			nvme_data->nBytes,
-			nvme_data->offset
+			nvme_data->offset,
+			nvme_data->acc_type
 			);
 
+	if (ret_code < 0) {
+		LOG_ERR("Read NVME Space failed");
+		return -EINVAL;
+	}
 	/* done with nvme space reading break from this case .*/
 	break;
 
@@ -354,14 +371,22 @@ int driver_generic_write(struct file *file,
 	* Checking for 4 bytes boundary. If either nBytes or offset is not
 	* 4 bytes aligned return error.
 	*/
-	if (
-		((nvme_data->nBytes % 4) != 0) ||
-		((nvme_data->offset % 4) != 0)
-	) {
-		LOG_ERR("Either Offset or nBytes is not Aligned...");
-		LOG_ERR("Provide them on 4 bytes Boundary");
-		return -EINVAL;
-	}
+	if ((nvme_data->acc_type == DWORD_LEN) &&
+		(((nvme_data->nBytes % 4) != 0) ||
+		((nvme_data->offset % 4) != 0))
+		) {
+			LOG_ERR("Either Offset or nBytes is not DWORD Aligned");
+			LOG_ERR("Provide them on 4 bytes Boundaray");
+			return -EINVAL;
+		} else if ((nvme_data->acc_type == QUAD_LEN) &&
+			(((nvme_data->nBytes % 8) != 0) ||
+			((nvme_data->offset % 4) != 0))
+			) {
+			LOG_ERR("Either Offset or nBytes is not QUAD Aligned");
+			LOG_ERR("Provide them on 8 bytes Boundaray");
+			return -EINVAL;
+		}
+
 	/* Remap io mem for this device. */
 	nvme_dev->bar0mapped = ioremap(pci_resource_start(pdev, 0),
 				pci_resource_len(pdev, 0));
@@ -386,7 +411,8 @@ int driver_generic_write(struct file *file,
 			l_ctrl_reg_space,
 			(u8 *)datap,
 			nvme_data->nBytes,
-			nvme_data->offset
+			nvme_data->offset,
+			nvme_data->acc_type
 			);
 
 	/* done with nvme space writing break from this case .*/

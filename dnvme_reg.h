@@ -1,6 +1,8 @@
 #ifndef _DNVME_REG_H_
 #define _DNVME_REG_H_
 
+#include "dnvme_interface.h"
+
 /**
 * nvme_ctrl_reg defines the register space for the
 * nvme controller registers as defined in NVME Spec 1.0b.
@@ -47,11 +49,12 @@ struct nvme_space {
 * user specified offset and bytes. Copies data back to udata
 * pointer which points to user space buffer.
 */
-void read_nvme_reg_generic(
+int read_nvme_reg_generic(
 	struct nvme_space nvme_ctrl_reg_space,
 	u8 *udata,
 	int nbytes,
-	int offset
+	int offset,
+	enum nvme_acc_type acc_type
 );
 
 
@@ -64,7 +67,8 @@ int write_nvme_reg_generic(
 	struct nvme_space nvme_ctrl_reg_space,
 	u8 *u8data,
 	int nbytes,
-	int offset
+	int offset,
+	enum nvme_acc_type acc_type
 );
 
 #endif
