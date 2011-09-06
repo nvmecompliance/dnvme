@@ -573,7 +573,7 @@ static void __exit dnvme_exit(void)
 /*
 *  Driver Module Calls.
 */
-MODULE_DESCRIPTION("Kernel Device Driver for NMVE 1.0b Spec PCI Express");
+MODULE_DESCRIPTION("Kernel Device Driver for NMVE PCI Express card");
 MODULE_AUTHOR("T Sravan Kumar <sravan.kumar.thokala@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
