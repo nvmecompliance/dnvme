@@ -191,7 +191,7 @@ int driver_generic_read(struct file *file,
 		(((nvme_data->nBytes % 4) != 0) ||
 		((nvme_data->offset % 4) != 0))
 		) {
-			LOG_ERR("Offiset or nBytes is not DWORD Aligned");
+			LOG_ERR("Offset or nBytes is not DWORD Aligned");
 			LOG_ERR("Provide them on 4 bytes Boundaray");
 			return -EINVAL;
 		} else if ((nvme_data->acc_type == QUAD_LEN) &&

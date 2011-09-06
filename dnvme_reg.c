@@ -19,7 +19,7 @@ static inline __u64 READQ(const volatile void __iomem *addr)
     u32 low, high;
     u64 u64data;
 
-    LOG_DBG("ADDR=0x%llx:p=0x%llx", addr, p);
+    LOG_DBG("ADDR=0x%llx:p=0x%llx", (u64)addr, (u64)p);
     low = readl(p);
     high = readl(p + 1);
 
@@ -100,7 +100,8 @@ int read_nvme_reg_generic(
 		/* Copy data to user buffer. */
 		memcpy((u8 *)&udata[index], &u64data, sizeof(u64));
 
-		LOG_NRM("NVME Read Quad at 0x%llX:0x%llX", (u64)bar, (u64)udata[index]);
+		LOG_NRM("NVME Read Quad 0x%llX:0x%llX",
+					(u64)bar, (u64)udata[index]);
 
 		/* increment address by 8 bytes */
 		bar++;
@@ -109,7 +110,7 @@ int read_nvme_reg_generic(
 		/* move index by 8 bytes */
 		index += 8;
 	} else {
-		LOG_ERR("Unknown access width specified");
+		LOG_ERR("Unknown access width specified, use only DWORD/QUAD");
 		return -EINVAL;
 	}
    }
@@ -178,6 +179,9 @@ int write_nvme_reg_generic(
 
 		/* Move index by 8 bytes */
 		index += 8;
+	} else {
+		LOG_ERR("Unknown access width specified, use only DWORD/QUAD");
+		return -EINVAL;
 	}
    }
 
