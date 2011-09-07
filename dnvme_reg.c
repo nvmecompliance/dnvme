@@ -90,7 +90,7 @@ int read_nvme_reg_generic(
 		/* Byte wise access requested */
 		u8data = readb(u8bar);
 
-		LOG_NRM("NVME Read byte at 0x%0X:0x%0X", *u8bar, u8data);
+		LOG_NRM("NVME Read byte at 0x%llX:0x%0X", (u64)u8bar, u8data);
 
 		/* Increments in multiples of bytes */
 		u8bar++;
@@ -106,14 +106,14 @@ int read_nvme_reg_generic(
 		/* Read data using word access */
 		u16data = readw(u8bar);
 
-		LOG_NRM("NVME Read WORD at 0x%0X:0x%0X", *u8bar, u16data);
+		LOG_NRM("NVME Read WORD at 0x%llX:0x%X", (u64)u8bar, u16data);
 
 		/* Increments in multiples of 2 (size of 2 bytes) */
 		u8bar++;
 		u8bar++;
 
 		/* Copy data to user buffer. */
-		memcpy((u16 *)&udata[index], &u16data, sizeof(u16));
+		memcpy((u8 *)&udata[index], &u16data, sizeof(u16));
 
 		/* Increments in multiples of word */
 		index += 2;
@@ -122,7 +122,7 @@ int read_nvme_reg_generic(
 
 		u32data = readl(bar);
 
-		LOG_NRM("NVME Read DWORD at 0x%0X:0x%0X", *bar, u32data);
+		LOG_NRM("NVME Read DWORD at 0x%llX:0x%X", (u64)bar, u32data);
 
 		/* Increments in multiples of 4 (size of int) */
 		bar++;
