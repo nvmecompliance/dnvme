@@ -39,7 +39,7 @@ struct nvme_device_entry {
     struct list_head namespaces; /** list head linked list for namespaces. */
     char   serial[20]; /** Serial no. for the PCI device. */
     char   model[40]; /** Model no. for this device. */
-    char   firmware_rev[8]; /** Firmware revision of NMVE device */
+    char   firmware_rev[8]; /** Firmware revision of NVME device */
 };
 
 #endif /* sysdnvme.h*/

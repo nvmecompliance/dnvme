@@ -1,6 +1,6 @@
 /*
 * sysdnvme.c
-* NMVE Express Device Driver for Test Compliance.
+* NVME Express Device Driver for Test Compliance.
 *
 * Copyright (c) 2011, Intel Corporation.
 *
@@ -51,7 +51,7 @@ static struct pci_driver dnvme_pci_driver = {
 
 /*
 *   This is the main ioctl for char type device
-*   this ioctl invoke the dnmve device ioctls.
+*   this ioctl invoke the dnvme device ioctls.
 */
 static const struct file_operations dnvme_fops_f = {
       .owner = THIS_MODULE,
@@ -550,7 +550,7 @@ int dnvme_ioctl_device(
 
 /*
 *  Module Exit code.
-*  dnvme_exit -sTODO  Perform clean exit
+*  dnvme_exit - Perform clean exit
 */
 static void __exit dnvme_exit(void)
 {
@@ -573,7 +573,7 @@ static void __exit dnvme_exit(void)
 /*
 *  Driver Module Calls.
 */
-MODULE_DESCRIPTION("Kernel Device Driver for NMVE PCI Express card");
+MODULE_DESCRIPTION("Kernel Device Driver for NVME PCI Express card");
 MODULE_AUTHOR("T Sravan Kumar <sravan.kumar.thokala@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);

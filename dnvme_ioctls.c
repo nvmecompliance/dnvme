@@ -206,7 +206,11 @@ int driver_generic_read(struct file *file,
 			LOG_ERR("nbytes is not QUAD Aligned");
 			LOG_ERR("Provide them on 8 bytes Boundaray");
 			return -EINVAL;
-		}
+		} else if ((nvme_data->acc_type == WORD_LEN) &&
+			((nvme_data->nBytes % 2) != 0)) {
+			LOG_ERR("nBytes is not WORD aligned");
+			return -EINVAL;
+		} 
 
 	/* Remap io mem for this device. */
 	nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
@@ -214,7 +218,7 @@ int driver_generic_read(struct file *file,
 
 	/* Check if remap was success */
 	if (!nvme->bar0mapped) {
-		LOG_ERR("Unable to map io region nmve..exit");
+		LOG_ERR("Unable to map io region nvme..exit");
 		return -EINVAL;
 	}
 
@@ -385,7 +389,11 @@ int driver_generic_write(struct file *file,
 			LOG_ERR("Either Offset or nBytes is not QUAD Aligned");
 			LOG_ERR("Provide them on 8 bytes Boundaray");
 			return -EINVAL;
-		}
+		} else if ((nvme_data->acc_type == WORD_LEN) &&
+			((nvme_data->nBytes % 2) != 0)) {
+			LOG_ERR("nBytes is not WORD aligned");
+			return -EINVAL;
+		} 
 
 	/* Remap io mem for this device. */
 	nvme_dev->bar0mapped = ioremap(pci_resource_start(pdev, 0),
@@ -393,7 +401,7 @@ int driver_generic_write(struct file *file,
 
 	/* Check if remap was success */
 	if (!nvme_dev->bar0mapped) {
-		LOG_ERR("Unable to map io region nmve..exit");
+		LOG_ERR("Unable to map io region nvme..exit");
 		return -EINVAL;
 	}
 
@@ -488,7 +496,7 @@ int driver_ioctl_init(
    int ret_code = -EINVAL; /* ret code to verify if ASQ creation succeeded */
 
    LOG_DBG("Inside driver IOCTL init function");
-   LOG_NRM("Initializing the BAR01 and NMVE Controller Space");
+   LOG_NRM("Initializing the BAR01 and NVME Controller Space");
 
    /* Remap io mem for this device. */
    nvme_dev->bar0mapped = ioremap(pci_resource_start(pdev, 0),
