@@ -1,0 +1,109 @@
+#ifndef _DNVME_DS_H_
+#define _DNVME_DS_H_
+
+#include <linux/list.h>
+#include "dnvme_interface.h"
+
+#define    NVME_DS_VERSION    1.1
+
+/*
+ * Structure to define a global list of interrupt vector and
+ * associated completion queue id. All the completion queue id's
+ * created must have an associated interrupt vector which needs to
+ * be populated in this isr tracking structure. The association of
+ * is either 1 -- 1 or 1 -- * (INTVEC -- CQ ID's).
+ */
+struct isr_track {
+    struct    list_head    isr_list_hd;    /* List head of isr tracker    */
+    u16        intVec;                     /* Interrupt vector            */
+    u16        cq_id[];                    /* List of associated CQ's     */
+};
+
+/*
+ * Structure definition for global PRP persistent element.
+ */
+struct prp_element {
+    struct    list_head    prp_list_hd; /* list head for prp list           */
+    u8        *prp_list;                /* pointer to prp list              */
+    u8        num_pages;                /* num pages in prp entry           */
+    u16        sq_id;                   /* Submission Q ID with prp         */
+    u16        unique_id;               /* drv assigned unique id for a cmd */
+};
+
+/*
+ * structure for the CQ tracking params with virtual address and size.
+ */
+struct nvme_trk_cq {
+    u8    *vir_kern_addr;  /* phy addr ptr to the q's allocated to kern mem */
+    /* TODO: remove the vir_kern_addr                */
+    u32    size;           /* length in bytes of the allocated Q in kernel  */
+};
+
+/*
+ * enum providing the definitions of the NVME commands.
+ */
+enum nvme_cmds {
+    CMD_ADMIN,
+    CMD_NVME,
+    CMD_AON,
+    CMD_FENCE,        /* last element for loop over-run */
+};
+
+/*
+ *    Structure definition for tracking the commands.
+ */
+struct cmd_track {
+    u16    unique_id;    /* driver assigned unique id for a particuler cmd.  */
+    u16    sq_id;        /* what is SQ id for this cmd to be submitted to    */
+    u8    opcode;        /* command opcode as per spec                       */
+    enum    nvme_cmds   cmdSet; /* what cmd set does this opcode belong to  */
+    struct  prp_element prp_nonpersist;
+    /* points to the prp list if prp list exists. */
+};
+
+/*
+ * structure definition for SQ tracking parameters.
+ */
+struct nvme_trk_sq {
+    u8    *vir_kern_addr; /* TODO remove this after clarification       */
+    u32    size;          /* length in bytes of allocated Q in kernel   */
+    u16    unique_cmd_id; /* unique to each SQ on a per device level    */
+    struct cmd_tack    *cmd_track_list;
+    /* to track a particular cmd */
+};
+
+/*
+ * Structure with Metrics of CQ. Has a node which makes it work with
+ * kernel linked lists.
+ */
+struct metrics_cq {
+    struct    list_head     cq_list_hd; /* linked list using the kernellist */
+    struct    nvme_gen_cq   public_cq;  /* parameters in nvme_gen_cq        */
+    struct    nvme_trk_cq   private_cq; /* parameters in nvme_trk_cq        */
+};
+
+/*
+ * Structure with Metrics of SQ. Has a node which makes it work with
+ * kernel linked lists.
+ */
+struct metrics_sq {
+    struct    list_head    sq_list_hd;  /* linkedlist using the kernel list */
+    struct    nvme_gen_cq  public_sq;   /* parameters in nvme_gen_sq        */
+    struct    nvme_trk_cq  private_sq;  /* parameters in nvme_trk_sq        */
+};
+
+
+/*
+ * Structure which defines the device list for all the data structures
+ * that are defined.
+ */
+struct metrics_device_list {
+    struct    isr_track    *isr_track_list;   /* ISR with CQ tracking list   */
+    struct    prp_element  *prp_persist_list; /* PRP linkedlist for tracking */
+    struct    metrics_cq   *metrics_cq_list;  /* CQ linked list              */
+    struct    metrics_sq   *metrics_sq_list;  /* SQ linked list              */
+};
+
+int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics);
+
+#endif

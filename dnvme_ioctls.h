@@ -12,7 +12,7 @@ enum {
      NVME_CREATE_ADMN_SQ,   /** < enum to invoke admin sq creation       */
      NVME_CREATE_ADMN_CQ,   /** < enum to invoke admin cq creation       */
      NVME_CTLR_STATE,       /** < enum to enable and disable ctlr        */
-
+     NVME_GET_Q_METRICS,    /** < enum for getting the Q metrics         */
 };
 
 /**
@@ -80,5 +80,13 @@ enum {
 */
 #define NVME_IOCTL_CTLR_STATE _IOWR('A', NVME_CTLR_STATE,\
 					struct nvme_ctrl_enum)
+
+/**
+* @def NVME_IOCTL_GET_Q_METRICS
+* define a unique value for getting the q metrics. The metrics is either for
+* Submission queue including Admin SQ or Completion Queue including Admin CQ.
+*/
+#define NVME_IOCTL_GET_Q_METRICS _IOWR('A', NVME_GET_Q_METRICS,\
+                    struct nvme_get_q_metrics)
 
 #endif

@@ -268,7 +268,7 @@ int driver_generic_read(struct file *file,
 *   NVME PCIe registers and memory mapped address
 */
 int driver_generic_write(struct file *file,
-			struct rw_generic *nvme_data,
+            struct rw_generic *nvme_data,
 			struct pci_dev *pdev)
 {
    u16 index = 0; /* Index to loop */

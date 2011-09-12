@@ -21,6 +21,7 @@
 #include "sysdnvme.h"
 #include "dnvme_ioctls.h"
 #include "dnvme_queue.h"
+#include "dnvme_ds.h"
 #include "version.h"
 
 #define	DRV_NAME		"dnvme"
@@ -433,6 +434,7 @@ int dnvme_ioctl_device(
    struct nvme_asq_gen *nvme_asq_cr; /* nvme ASQ creation parameters */
    struct nvme_acq_gen *nvme_acq_cr; /* nvme ACQ creation parameters */
    struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr     */
+   struct nvme_get_q_metrics *get_q_metrics; /* Q metrics structure  */
 
    /* Get the device from the linked list */
    list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
@@ -458,7 +460,7 @@ int dnvme_ioctl_device(
 
    case NVME_IOCTL_READ_GENERIC:
 
-	LOG_DBG("Invoking User App request to read  the PCI Header Space");
+        LOG_DBG("Invoking User App request to read  the PCI Header Space");
 	nvme_data = (struct rw_generic *)ioctl_param;
 
 	ret_val = driver_generic_read(file, nvme_data, pdev);
@@ -530,6 +532,15 @@ int dnvme_ioctl_device(
 		ret_val = nvme_ctrl_disable(nvme_dev);
 	}
 	break;
+
+   case NVME_IOCTL_GET_Q_METRICS:
+       LOG_DBG("User App Requested Q Metrics...");
+
+       /* Assign user passed parameters to q metrics structure. */
+       get_q_metrics = (struct nvme_get_q_metrics *)ioctl_param;
+
+       /* Call the Q metrics function and return the data to user. */
+       ret_val = nvme_get_q_metrics(get_q_metrics);
 
    case NVME_IOCTL_DEL_ADMN_Q:
 	LOG_DBG("IOCTL NVME_IOCTL_DEL_ADMN_Q Command");
