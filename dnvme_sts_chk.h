@@ -53,7 +53,7 @@
 * Set to 1 by h/w if when the controller receives a
 * target abort to a cycle it generated.
 */
-#define RTA                             0x1000
+#define RTA                  0x1000
 
 /**
 * @def CL_MASK
@@ -61,43 +61,43 @@
 * The controller should support the PCI Power Management cap as a
 * minimum.
 */
-#define CL_MASK                             0x0010
+#define CL_MASK              0x0010
 
 /**
 * @def NEXT_MASK
 * This indicates the location of the next capability item
 * in the list.
 */
-#define NEXT_MASK			0xFF00
+#define NEXT_MASK            0xFF00
 
-#define AER_ERR_MASK			0x20000
+#define AER_ERR_MASK         0x20000
 /**
 * @def PMCAP_ID
 * This bit indicates if the pointer leading to this position
 * is a PCI power management capability.
 */
-#define PMCAP_ID			0x1
+#define PMCAP_ID            0x1
 
 /**
 * @def MSICAP_ID
 * This bit indicates if the pointer leading to this position
 * is a capability.
 */
-#define MSICAP_ID			0x5
+#define MSICAP_ID            0x5
 
 /**
 * @def MSIXCAP_ID
 * This bit indicates if the pointer leading to this position
 * is a capability.
 */
-#define MSIXCAP_ID			0x11
+#define MSIXCAP_ID            0x11
 
 /**
 * @def PXCAP_ID
 * This bit indicates if the pointer leading to this position
 * is a capability.
 */
-#define PXCAP_ID			0x10
+#define PXCAP_ID            0x10
 
 
 /**
@@ -106,14 +106,14 @@
 * individual status bits and offset position.
 */
 enum {
-	NVME_PXDS_CED   = 0x1 << 0, /* Correctable Error */
-	NVME_PXDS_NFED  = 0x1 << 1, /* Non Fatal Error */
-	NVME_PXDS_FED   = 0x1 << 2, /* Fatal Error */
-	NVME_PXDS_URD   = 0x1 << 3, /* Unsupported Request*/
-	NVME_PXDS_APD   = 0x1 << 4, /* AUX Power */
-	NVME_PXDS_TP    = 0x1 << 5, /* Transactions Pending */
-	NVME_PXDS_RSVD  = 0xFFE0,   /* Reserved Bits in PXDS */
-	NVME_PXCAP_PXDS = 0xA,      /* Device Status offset from PXCAP */
+    NVME_PXDS_CED   = 0x1 << 0, /* Correctable Error */
+    NVME_PXDS_NFED  = 0x1 << 1, /* Non Fatal Error */
+    NVME_PXDS_FED   = 0x1 << 2, /* Fatal Error */
+    NVME_PXDS_URD   = 0x1 << 3, /* Unsupported Request*/
+    NVME_PXDS_APD   = 0x1 << 4, /* AUX Power */
+    NVME_PXDS_TP    = 0x1 << 5, /* Transactions Pending */
+    NVME_PXDS_RSVD  = 0xFFE0,   /* Reserved Bits in PXDS */
+    NVME_PXCAP_PXDS = 0xA,      /* Device Status offset from PXCAP */
 };
 
 /**
@@ -121,16 +121,16 @@ enum {
 * This bit indicates if the pointer leading to this position
 * is a capability.
 */
-#define AERCAP_ID			0x0001
+#define AERCAP_ID            0x0001
 
 /**
 * enums for bit positions specified in NVME Controller Status
 * offset 0x1Ch CSTS register.
 */
 enum {
-	NVME_CSTS_SHST      = 0x3,
-	NVME_CSTS_SHST_MASK = 0xC,
-	NVME_CSTS_RSVD      = 0xF,
+    NVME_CSTS_SHST      = 0x3,
+    NVME_CSTS_SHST_MASK = 0xC,
+    NVME_CSTS_RSVD      = 0xF,
 };
 
 /**
@@ -138,10 +138,10 @@ enum {
 * offset 1C CSTS in bits 02:03
 */
 enum {
-	NVME_CSTS_NRML_OPER = 0x0,
-	NVME_CSTS_SHT_OCC   = 0x1,
-	NVME_CSTS_SHT_COMP  = 0x2,
-	NVME_CSTS_SHT_RSVD  = 0x3,
+    NVME_CSTS_NRML_OPER = 0x0,
+    NVME_CSTS_SHT_OCC   = 0x1,
+    NVME_CSTS_SHT_COMP  = 0x2,
+    NVME_CSTS_SHT_RSVD  = 0x3,
 };
 
 /**
@@ -149,19 +149,19 @@ enum {
 * Offset AERCAP:AERID
 */
 enum {
-	NVME_AER_CVER = 0x2,
+    NVME_AER_CVER = 0x2,
 };
 
 /**
 * enums for Advanced Error reporting Status and Mask Registers offsets
 */
 enum {
-	NVME_AERUCES_OFFSET   = 0x4,
-	NVME_AERUCEM_OFFSET   = 0x8,
-	NVME_AERUCESEV_OFFSET = 0xC,
-	NVME_AERCS_OFFSET     = 0x10,
-	NVME_AERCM_OFFSET     = 0x14,
-	NVME_AERCC_OFFSET     = 0x14,
+    NVME_AERUCES_OFFSET   = 0x4,
+    NVME_AERUCEM_OFFSET   = 0x8,
+    NVME_AERUCESEV_OFFSET = 0xC,
+    NVME_AERCS_OFFSET     = 0x10,
+    NVME_AERCM_OFFSET     = 0x14,
+    NVME_AERCC_OFFSET     = 0x14,
 };
 
 /**
@@ -171,22 +171,22 @@ enum {
 * and AERUCEM, mask register.
 */
 enum {
-	NVME_AERUCES_RSVD   = 0xFC00002F,
-	NVME_AERUCES_DLPES  = 0x1 << 4,
-	NVME_AERUCES_PTS    = 0x1 << 12,
-	NVME_AERUCES_FCPES  = 0x1 << 13,
-	NVME_AERUCES_CTS    = 0x1 << 14,
-	NVME_AERUCES_CAS    = 0x1 << 15,
-	NVME_AERUCES_UCS    = 0x1 << 16,
-	NVME_AERUCES_ROS    = 0x1 << 17,
-	NVME_AERUCES_MTS    = 0x1 << 18,
-	NVME_AERUCES_ECRCES = 0x1 << 19,
-	NVME_AERUCES_URES   = 0x1 << 20,
-	NVME_AERUCES_ACSVS  = 0x1 << 21,
-	NVME_AERUCES_UIES   = 0x1 << 22,
-	NVME_AERUCES_MCBTS  = 0x1 << 23,
-	NVME_AERUCES_AOEBS  = 0x1 << 24,
-	NVME_AERUCES_TPBES  = 0x1 << 25,
+    NVME_AERUCES_RSVD   = 0xFC00002F,
+    NVME_AERUCES_DLPES  = 0x1 << 4,
+    NVME_AERUCES_PTS    = 0x1 << 12,
+    NVME_AERUCES_FCPES  = 0x1 << 13,
+    NVME_AERUCES_CTS    = 0x1 << 14,
+    NVME_AERUCES_CAS    = 0x1 << 15,
+    NVME_AERUCES_UCS    = 0x1 << 16,
+    NVME_AERUCES_ROS    = 0x1 << 17,
+    NVME_AERUCES_MTS    = 0x1 << 18,
+    NVME_AERUCES_ECRCES = 0x1 << 19,
+    NVME_AERUCES_URES   = 0x1 << 20,
+    NVME_AERUCES_ACSVS  = 0x1 << 21,
+    NVME_AERUCES_UIES   = 0x1 << 22,
+    NVME_AERUCES_MCBTS  = 0x1 << 23,
+    NVME_AERUCES_AOEBS  = 0x1 << 24,
+    NVME_AERUCES_TPBES  = 0x1 << 25,
 };
 
 /**
@@ -196,15 +196,15 @@ enum {
 * and AERCEM, mask register.
 */
 enum {
-	NVME_AERCS_RSVD  = 0xFFFF0E3E,
-	NVME_AERCS_HLOS  = 0x1 << 15,
-	NVME_AERCS_CIES  = 0x1 << 14,
-	NVME_AERCS_ANFES = 0x1 << 13,
-	NVME_AERCS_RTS   = 0x1 << 12,
-	NVME_AERCS_RRS   = 0x1 << 8,
-	NVME_AERCS_BDS   = 0x1 << 7,
-	NVME_AERCS_BTS   = 0x1 << 6,
-	NVME_AERCS_RES   = 0x1 << 0,
+    NVME_AERCS_RSVD  = 0xFFFF0E3E,
+    NVME_AERCS_HLOS  = 0x1 << 15,
+    NVME_AERCS_CIES  = 0x1 << 14,
+    NVME_AERCS_ANFES = 0x1 << 13,
+    NVME_AERCS_RTS   = 0x1 << 12,
+    NVME_AERCS_RRS   = 0x1 << 8,
+    NVME_AERCS_BDS   = 0x1 << 7,
+    NVME_AERCS_BTS   = 0x1 << 6,
+    NVME_AERCS_RES   = 0x1 << 0,
 };
 
 /**

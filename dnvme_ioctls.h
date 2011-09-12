@@ -6,13 +6,12 @@
 * kernel driver and user app layer ioctl functions.
 */
 enum {
-     NVME_READ_GENERIC = 0, /** < enum to invoke read generic func call. */
-     NVME_WRITE_GENERIC,    /** < enum to invoke write generic func call.*/
-     NVME_ERR_CHK,          /** < enum Generic device status check func  */
-     NVME_CREATE_ADMN_SQ,   /** < enum to invoke admin sq creation       */
-     NVME_CREATE_ADMN_CQ,   /** < enum to invoke admin cq creation       */
-     NVME_CTLR_STATE,       /** < enum to enable and disable ctlr        */
-     NVME_GET_Q_METRICS,    /** < enum for getting the Q metrics         */
+    NVME_READ_GENERIC = 0, /** < enum to invoke read generic func call. */
+    NVME_WRITE_GENERIC,    /** < enum to invoke write generic func call.*/
+    NVME_ERR_CHK,          /** < enum Generic device status check func  */
+    NVME_CREATE_ADMN_SQ,   /** < enum to invoke admin sq creation       */
+    NVME_CREATE_ADMN_CQ,   /** < enum to invoke admin cq creation       */
+    NVME_CTLR_STATE,       /** < enum to enable and disable ctlr        */
 };
 
 /**
@@ -24,7 +23,7 @@ enum {
 * to this ioctl from user level to kernel level.
 */
 #define NVME_IOCTL_READ_GENERIC _IOWR('A', NVME_READ_GENERIC,\
-						struct rw_generic)
+    struct rw_generic)
 
 
 /**
@@ -36,7 +35,7 @@ enum {
 * level to kernel level.
 */
 #define NVME_IOCTL_WRITE_GENERIC _IOWR('A', NVME_WRITE_GENERIC,\
-						struct rw_generic)
+    struct rw_generic)
 
 /**
 * @def NVME_IOCTL_ERR_CHK
@@ -57,7 +56,7 @@ enum {
 * this ioctl from user level to kernel level.
 */
 #define NVME_IOCTL_CREATE_ADMN_SQ _IOWR('A', NVME_CREATE_ADMN_SQ,\
-						struct nvme_asq_gen)
+    struct nvme_asq_gen)
 
 /**
 * @def NVME_IOCTL_CREATE_ADMN_CQ
@@ -68,7 +67,7 @@ enum {
 * this ioctl from user level to kernel level.
 */
 #define NVME_IOCTL_CREATE_ADMN_CQ _IOWR('A', NVME_CREATE_ADMN_CQ,\
-						struct nvme_acq_gen)
+    struct nvme_acq_gen)
 
 /**
 * @def NVME_IOCTL_CTLR_STATE
@@ -79,7 +78,7 @@ enum {
 * this ioctl from user level to kernel level.
 */
 #define NVME_IOCTL_CTLR_STATE _IOWR('A', NVME_CTLR_STATE,\
-					struct nvme_ctrl_enum)
+    struct nvme_ctrl_enum)
 
 /**
 * @def NVME_IOCTL_GET_Q_METRICS

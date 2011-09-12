@@ -86,9 +86,4 @@ rpmbuild: rpmzipsrc
 	cp -p $(RPMCOMPILEDIR)/RPMS/x86_64/*.rpm ./rpm
 	cp -p $(RPMCOMPILEDIR)/SRPMS/*.rpm ./rpm
 
-chksrc:
-	$(CDIR)checkpatch.pl --file --terse $(SOURCE)/*.c
-chkhdr:
-	$(CDIR)checkpatch.pl --file --terse $(SOURCE)/*.h
-
 .PHONY: all clean clobber doc src install rpmzipsrc rpmbuild
