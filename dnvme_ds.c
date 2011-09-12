@@ -33,6 +33,7 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
         }
     } else {
         LOG_ERR("Error in metrics Type...");
+        LOG_ERR("Metrics Type: METRICS_SQ/METRICS_CQ only");
         return -EINVAL;
     }
 

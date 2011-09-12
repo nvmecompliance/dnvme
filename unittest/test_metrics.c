@@ -21,12 +21,15 @@
 void ioctl_get_q_metrics(int file_desc)
 {
     int ret_val = -1;
-    int status = -1;
+    struct nvme_get_q_metrics get_q_metrics;
 
-    printf("User App Calling Get Q Metrics...");
+    printf("User App Calling Get Q Metrics...\n");
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_GET_Q_METRICS, &status);
-    if(status < 0)
+    get_q_metrics.q_id = 0;
+    get_q_metrics.type = METRICS_SQ;
+
+    ret_val = ioctl(file_desc, NVME_IOCTL_GET_Q_METRICS, &get_q_metrics);
+    if(ret_val < 0)
         printf("Q metrics could not be checked!\n");
     else
         printf("Q metrics checked see the log msgs\n");

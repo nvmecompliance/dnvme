@@ -269,10 +269,10 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
        LOG_DBG("Mask for PCI BARS = 0x%x", bars);
        LOG_DBG("PCI Probe Success!. Return Code = 0x%x", retCode);
 
-    /**
-    *  Try Allocating the device memory in the host and check
-    *  for success.
-    */
+    /*
+     *  Try Allocating the device memory in the host and check
+     *  for success.
+     */
 
     nvme_dev_list = kzalloc((int)sizeof(struct nvme_device_entry), GFP_KERNEL);
 
@@ -419,6 +419,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     struct nvme_asq_gen *nvme_asq_cr; /* nvme ASQ creation parameters */
     struct nvme_acq_gen *nvme_acq_cr; /* nvme ACQ creation parameters */
     struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr     */
+    struct nvme_get_q_metrics *get_q_metrics; /* metrics q params     */
 
     /* Get the device from the linked list */
     list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
@@ -524,8 +525,6 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         /* Call the Q metrics function and return the data to user. */
         ret_val = nvme_get_q_metrics(get_q_metrics);
 
-    case NVME_IOCTL_DEL_ADMN_Q:
-        LOG_DBG("IOCTL NVME_IOCTL_DEL_ADMN_Q Command");
         break;
 
     case NVME_IOCTL_DEL_ADMN_Q:

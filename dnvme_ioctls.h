@@ -12,6 +12,7 @@ enum {
     NVME_CREATE_ADMN_SQ,   /** < enum to invoke admin sq creation       */
     NVME_CREATE_ADMN_CQ,   /** < enum to invoke admin cq creation       */
     NVME_CTLR_STATE,       /** < enum to enable and disable ctlr        */
+    NVME_GET_Q_METRICS,    /** < enum to get the q metrics              */
 };
 
 /**
