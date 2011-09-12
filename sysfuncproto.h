@@ -26,8 +26,7 @@
 * @param id
 * @return whether probing was successful or not.
 */
-int dnvme_pci_probe(struct pci_dev *pdev,
-				const struct pci_device_id *id);
+int dnvme_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 
 /**
 * This function prototype specifies the device ioctl entry point
@@ -40,10 +39,8 @@ int dnvme_pci_probe(struct pci_dev *pdev,
 * @param arg
 * @return whether successful or not.
 */
-int dnvme_ioctl(
-			struct block_device *bdev,
-			fmode_t mode, unsigned int cmd,
-			unsigned long arg);
+int dnvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
+    unsigned long arg);
 
 /**
 * This function prototype is for assigning disk
@@ -53,9 +50,7 @@ int dnvme_ioctl(
 * @param which
 * @return whether successful or not.
 */
-int dnvme_blk_gendisk(
-			struct pci_dev *pdev,
-			int which);
+int dnvme_blk_gendisk(struct pci_dev *pdev, int which);
 
 /**
 * This is the main entry point for IOCTL char device type.
@@ -68,11 +63,8 @@ int dnvme_blk_gendisk(
 * @param ioctl_param
 * @return whether successful or not.
 */
-int dnvme_ioctl_device(
-			struct inode *inode,
-			struct file *file,
-			unsigned int ioctl_num,
-			unsigned long ioctl_param);
+int dnvme_ioctl_device(struct inode *inode, struct file *file,
+    unsigned int ioctl_num, unsigned long ioctl_param);
 /**
 * This is default Ioctl that gets called when the user
 * ioctl_num does not
@@ -82,10 +74,8 @@ int dnvme_ioctl_device(
 * @param length
 * @return whether successful or not.
 */
-int driver_default_ioctl(
-			struct file *file,
-			unsigned long buffer,
-			size_t length);
+int driver_default_ioctl(struct file *file, unsigned long buffer,
+    size_t length);
 
 /**
 * driver_generic_read is a function that is called from
@@ -97,9 +87,9 @@ int driver_default_ioctl(
 * @param pdev pointer to the device opened.
 * @return read success or failure.
 */
-int driver_generic_read(struct file *file,
-			struct rw_generic *data_usr,
-			struct pci_dev *pdev);
+int driver_generic_read(struct file *file, struct rw_generic *data_usr,
+    struct pci_dev *pdev);
+
 /**
 * driver_generic_write is a function that is called from
 * driver IOCTL when user want to write data to the
@@ -111,8 +101,7 @@ int driver_generic_read(struct file *file,
 * @return read success or failure.
 */
 int driver_generic_write(struct file *file,
-			struct rw_generic *data_usr,
-			struct pci_dev *pdev);
+    struct rw_generic *data_usr, struct pci_dev *pdev);
 
 /**
 * device_status_chk  - Generic error checking function
@@ -121,8 +110,7 @@ int driver_generic_write(struct file *file,
 * @param pdev
 * @param status
 */
-int device_status_chk(struct pci_dev *pdev,
-			int *status);
+int device_status_chk(struct pci_dev *pdev, int *status);
 
 
 /**
@@ -131,10 +119,8 @@ int device_status_chk(struct pci_dev *pdev,
 * @param nvme_dev
 * @return ASQ creation SUCCESS or FAIL
 */
-int driver_create_asq(
-		struct nvme_asq_gen *nvme_asq_cr,
-		struct nvme_dev_entry *nvme_dev
-		);
+int driver_create_asq(struct nvme_asq_gen *nvme_asq_cr,
+    struct nvme_dev_entry *nvme_dev);
 
 /*
 * driver_iotcl_init - Driver Initialization routine before starting to
@@ -143,10 +129,8 @@ int driver_create_asq(
 * @param pdev
 * @return init SUCCESS or FAIL
 */
-int driver_ioctl_init(
-		struct nvme_dev_entry *nvme_dev,
-		struct pci_dev *pdev
-		);
+int driver_ioctl_init(struct nvme_dev_entry *nvme_dev,
+    struct pci_dev *pdev);
 
 /**
 * driver_create_acq - Driver Admin completion  Queue creation routine
@@ -154,9 +138,7 @@ int driver_ioctl_init(
 * @param nvme_dev
 * @return ACQ creation SUCCESS or FAIL
 */
-int driver_create_acq(
-		struct nvme_acq_gen *nvme_acq_cr,
-		struct nvme_dev_entry *nvme_dev
-		);
+int driver_create_acq(struct nvme_acq_gen *nvme_acq_cr,
+    struct nvme_dev_entry *nvme_dev);
 
 #endif

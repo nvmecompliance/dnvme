@@ -21,13 +21,13 @@ struct nvme_queue *nvme_q;
 */
 static inline void WRITEQ(__u64 val, volatile void __iomem *addr)
 {
-   writel(val, addr);
-   writel(val >> 32, addr + 4);
+    writel(val, addr);
+    writel(val >> 32, addr + 4);
 }
 #else
 static inline void WRITEQ(__u64 val, volatile void __iomem *addr)
 {
-   writeq(val, addr);
+    writeq(val, addr);
 }
 #endif
 
@@ -37,9 +37,9 @@ static inline void WRITEQ(__u64 val, volatile void __iomem *addr)
 */
 void jit_timer_fn(unsigned long arg)
 {
-   unsigned long *data = (unsigned long *)arg;
-   *data = 0;
-   LOG_NRM("Inside Timer Handler...");
+    unsigned long *data = (unsigned long *)arg;
+    *data = 0;
+    LOG_NRM("Inside Timer Handler...");
 }
 
 /*
@@ -49,54 +49,54 @@ void jit_timer_fn(unsigned long arg)
 */
 int nvme_ctrlrdy_capto(struct nvme_dev_entry *nvme_dev)
 {
-   u32 timer_delay;	/* Timer delay read from CAP.TO register          */
-   unsigned long time_out_flag = 1;
-			/* Time Out flag for timer handler                */
-   struct timer_list asq_timer; /* asq timer declaration                  */
+    u32 timer_delay;    /* Timer delay read from CAP.TO register          */
+    unsigned long time_out_flag = 1;
+    /* Time Out flag for timer handler                */
+    struct timer_list asq_timer; /* asq timer declaration                  */
 
-   /* As the TO is in lower 32 of 64 bit cap readl is good enough */
-   timer_delay = readl(&nvme_dev->nvme_ctrl_space->cap) & NVME_TO_MASK;
+    /* As the TO is in lower 32 of 64 bit cap readl is good enough */
+    timer_delay = readl(&nvme_dev->nvme_ctrl_space->cap) & NVME_TO_MASK;
 
-   /* Modify TO as it is specified in 500ms units, timer needs in jiffies */
-   timer_delay >>= 24;
-   timer_delay *= NVME_MSEC_2_JIFFIES;
+    /* Modify TO as it is specified in 500ms units, timer needs in jiffies */
+    timer_delay >>= 24;
+    timer_delay *= NVME_MSEC_2_JIFFIES;
 
-   init_timer(&asq_timer);
+    init_timer(&asq_timer);
 
-   /* register the Timer function */
-   asq_timer.data     = (unsigned long)&time_out_flag;
-   asq_timer.function = jit_timer_fn;
-   asq_timer.expires  = timer_delay;
+    /* register the Timer function */
+    asq_timer.data     = (unsigned long)&time_out_flag;
+    asq_timer.function = jit_timer_fn;
+    asq_timer.expires  = timer_delay;
 
-   LOG_NRM("Checking NVME Device Status (CSTS.RDY = 1)...");
-   LOG_NRM("Timer Expires in %ld ms", asq_timer.expires);
+    LOG_NRM("Checking NVME Device Status (CSTS.RDY = 1)...");
+    LOG_NRM("Timer Expires in %ld ms", asq_timer.expires);
 
-   /* Add timer just before the status check */
-   add_timer(&asq_timer);
+    /* Add timer just before the status check */
+    add_timer(&asq_timer);
 
-   /* Check if the device status set to ready */
-   while (!(readl(&nvme_dev->nvme_ctrl_space->csts) & NVME_CSTS_RDY)) {
-	LOG_DBG("Waiting...");
-	msleep(100);
+    /* Check if the device status set to ready */
+    while (!(readl(&nvme_dev->nvme_ctrl_space->csts) & NVME_CSTS_RDY)) {
+        LOG_DBG("Waiting...");
+        msleep(100);
 
-	/* Check if the time out occured */
-	if (time_out_flag == 0) {
-		LOG_ERR("ASQ Setup Failed before Timeout");
-		LOG_NRM("Check if Admin Completion Queue is Created First");
+        /* Check if the time out occured */
+        if (time_out_flag == 0) {
+            LOG_ERR("ASQ Setup Failed before Timeout");
+            LOG_NRM("Check if Admin Completion Queue is Created First");
 
-		/* Delete the timer once failed */
-		del_timer(&asq_timer);
+            /* Delete the timer once failed */
+            del_timer(&asq_timer);
 
-		/* set return invalid/failed */
-		return -EINVAL;
-	}
-   }
-   /* Timer function is done so delete before leaving*/
-   del_timer(&asq_timer);
+            /* set return invalid/failed */
+            return -EINVAL;
+        }
+    }
+    /* Timer function is done so delete before leaving*/
+    del_timer(&asq_timer);
 
-   LOG_NRM("NVME Controller is Ready to process commands");
+    LOG_NRM("NVME Controller is Ready to process commands");
 
-   return SUCCESS;
+    return SUCCESS;
 }
 
 /*
@@ -105,28 +105,28 @@ int nvme_ctrlrdy_capto(struct nvme_dev_entry *nvme_dev)
 */
 int nvme_queue_init(struct nvme_dev_entry *nvme_dev)
 {
+    LOG_NRM("Performing Queue Initializations...");
 
-   LOG_NRM("Performing Queue Initializations...");
+    /* Check if Q is allocated else do allocation */
+    if (!nvme_q) {
+        nvme_q = kzalloc(sizeof(struct nvme_queue), GFP_KERNEL);
+        if (nvme_q == NULL) {
+            LOG_ERR("Unable to alloc kern mem in queue initialization!!");
+            return -ENOMEM;
+        }
+    }
+    /* Assign DMA device in Queue structure */
+    nvme_q->dmadev = &nvme_dev->pdev->dev;
 
-   /* Check if Q is allocated else do allocation */
-   if (!nvme_q) {
-	nvme_q = kzalloc(sizeof(struct nvme_queue), GFP_KERNEL);
-	if (nvme_q == NULL) {
-		LOG_ERR("Unable to alloc kern mem in queue initialization!!");
-		return -ENOMEM;
-	}
-   }
-   /* Assign DMA device in Queue structure */
-   nvme_q->dmadev = &nvme_dev->pdev->dev;
+    /* Initialize spin lock */
+    spin_lock_init(&nvme_q->q_lock);
 
-   /* Initialize spin lock */
-   spin_lock_init(&nvme_q->q_lock);
+    /* Set init flag to done */
+    nvme_q->q_init = 1;
 
-   /* Set init flag to done */
-   nvme_q->q_init = 1;
-
-   return SUCCESS;
+    return SUCCESS;
 }
+
 /*
 * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
 * flag and this function which call the timer handler and check for the timer
@@ -134,25 +134,26 @@ int nvme_queue_init(struct nvme_dev_entry *nvme_dev)
 */
 int nvme_ctrl_enable(struct nvme_dev_entry *nvme_dev)
 {
-   u32 ctrl_config;
+    u32 ctrl_config;
 
-   /* Read Controller Configuration as we can only write 32 bits */
-   ctrl_config = readl(&nvme_dev->nvme_ctrl_space->cc);
+    /* Read Controller Configuration as we can only write 32 bits */
+    ctrl_config = readl(&nvme_dev->nvme_ctrl_space->cc);
 
-   /* BIT 0 is set to 1 i.e., CC.EN = 1 */
-   ctrl_config |= 0x1;
+    /* BIT 0 is set to 1 i.e., CC.EN = 1 */
+    ctrl_config |= 0x1;
 
-   /* Write the enable bit into CC register */
-   writel(ctrl_config, &nvme_dev->nvme_ctrl_space->cc);
+    /* Write the enable bit into CC register */
+    writel(ctrl_config, &nvme_dev->nvme_ctrl_space->cc);
 
-  /* Check the Timeout flag */
-  if (nvme_ctrlrdy_capto(nvme_dev) != SUCCESS) {
-	LOG_ERR("Controller is not ready before time out");
-	return -EINVAL;
-  }
+   /* Check the Timeout flag */
+    if (nvme_ctrlrdy_capto(nvme_dev) != SUCCESS) {
+        LOG_ERR("Controller is not ready before time out");
+        return -EINVAL;
+    }
 
-  return SUCCESS;
+    return SUCCESS;
 }
+
 /*
 * nvme_ctrl_disable - NVME controller disable function.This will reset the
 * CAP.EN flag and this function which call the timer handler and check for
@@ -160,32 +161,32 @@ int nvme_ctrl_enable(struct nvme_dev_entry *nvme_dev)
 */
 int nvme_ctrl_disable(struct nvme_dev_entry *nvme_dev)
 {
-   u32 ctrl_config;
+    u32 ctrl_config;
 
-   /* Read Controller Configuration as we can only write 32 bits */
-   ctrl_config = readl(&nvme_dev->nvme_ctrl_space->cc);
+    /* Read Controller Configuration as we can only write 32 bits */
+    ctrl_config = readl(&nvme_dev->nvme_ctrl_space->cc);
 
-   /* BIT 0 is set to 0 i.e., CC.EN = 0 */
-   ctrl_config &= ~0x1;
+    /* BIT 0 is set to 0 i.e., CC.EN = 0 */
+    ctrl_config &= ~0x1;
 
-   /* Write the enable bit into CC register */
-   writel(ctrl_config, &nvme_dev->nvme_ctrl_space->cc);
+    /* Write the enable bit into CC register */
+    writel(ctrl_config, &nvme_dev->nvme_ctrl_space->cc);
 
-   /* Do clean up */
-   /* Write the enable bit into CC register */
-   writel(0, &nvme_dev->nvme_ctrl_space->cc);
+    /* Do clean up */
+    /* Write the enable bit into CC register */
+    writel(0, &nvme_dev->nvme_ctrl_space->cc);
 
-  if (nvme_q != NULL) {
-	dma_free_coherent(nvme_q->dmadev, nvme_q->asq_depth,
-		(void *)nvme_q->virt_asq_addr, nvme_q->asq_dma_addr);
-	dma_free_coherent(nvme_q->dmadev, nvme_q->acq_depth,
-		(void *)nvme_q->virt_acq_addr, nvme_q->acq_dma_addr);
-   } else {
-	LOG_NRM("NVME Controller is not set yet");
-	return -EINVAL;
-   }
+    if (nvme_q != NULL) {
+        dma_free_coherent(nvme_q->dmadev, nvme_q->asq_depth,
+            (void *)nvme_q->virt_asq_addr, nvme_q->asq_dma_addr);
+        dma_free_coherent(nvme_q->dmadev, nvme_q->acq_depth,
+            (void *)nvme_q->virt_acq_addr, nvme_q->acq_dma_addr);
+    } else {
+        LOG_NRM("NVME Controller is not set yet");
+        return -EINVAL;
+    }
 
-  return SUCCESS;
+    return SUCCESS;
 }
 /*
 * create_admn_sq - This routine is called when the driver invokes the ioctl for
@@ -197,82 +198,82 @@ int nvme_ctrl_disable(struct nvme_dev_entry *nvme_dev)
 */
 int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 {
-   u16 asq_id;		/* Admin Submission Q Id                         */
-   u32 aqa;		/* Admin Q attributes in 32 bits size             */
-   u32 tmp_aqa;		/* Temp var to hold admin q attributes            */
+    u16 asq_id;        /* Admin Submission Q Id                         */
+    u32 aqa;        /* Admin Q attributes in 32 bits size             */
+    u32 tmp_aqa;        /* Temp var to hold admin q attributes            */
 
-   LOG_NRM("Creating Admin Submission Queue...");
+    LOG_NRM("Creating Admin Submission Queue...");
 
-   /* Check if the q structure is initialized else init here */
-   if (!nvme_q) {
-	/* Call the initialization function */
-	if (nvme_queue_init(nvme_dev) < 0) {
-		LOG_ERR("NVME Q Init Failed");
-		return -ENOMEM;
-	}
-   }
+    /* Check if the q structure is initialized else init here */
+    if (!nvme_q) {
+        /* Call the initialization function */
+        if (nvme_queue_init(nvme_dev) < 0) {
+            LOG_ERR("NVME Q Init Failed");
+            return -ENOMEM;
+        }
+    }
 
-   /* As the Admin Q ID is always 0*/
-   asq_id = 0;
+    /* As the Admin Q ID is always 0*/
+    asq_id = 0;
 
-   /*
-   * As the qsize send is in number of entries this computes the no. of bytes
-   * computed.
-   */
-   nvme_q->asq_depth = qsize * sizeof(struct nvme_command);
+    /*
+    * As the qsize send is in number of entries this computes the no. of bytes
+    * computed.
+    */
+    nvme_q->asq_depth = qsize * sizeof(struct nvme_command);
 
-   LOG_DBG("ASQ Depth: 0x%x", nvme_q->asq_depth);
+    LOG_DBG("ASQ Depth: 0x%x", nvme_q->asq_depth);
 
-   /*
-   * The function dma_alloc_coherent  maps the dma address for ASQ which gets
-   * the DMA mapped address from the kernel virtual address.
-   */
-   nvme_q->virt_asq_addr = dma_alloc_coherent(nvme_q->dmadev, nvme_q->asq_depth,
-					&nvme_q->asq_dma_addr, GFP_KERNEL);
-   if (!nvme_q->virt_asq_addr) {
-	LOG_ERR("Unable to allocate DMA Address for ASQ!!");
-	return -ENOMEM;
-   }
+    /*
+     * The function dma_alloc_coherent  maps the dma address for ASQ which gets
+     * the DMA mapped address from the kernel virtual address.
+     */
+    nvme_q->virt_asq_addr = dma_alloc_coherent(nvme_q->dmadev,
+        nvme_q->asq_depth, &nvme_q->asq_dma_addr, GFP_KERNEL);
+    if (!nvme_q->virt_asq_addr) {
+        LOG_ERR("Unable to allocate DMA Address for ASQ!!");
+    return -ENOMEM;
+    }
 
-   LOG_NRM("Virtual ASQ DMA Address: 0x%llx", (u64)nvme_q->virt_asq_addr);
+    LOG_NRM("Virtual ASQ DMA Address: 0x%llx", (u64)nvme_q->virt_asq_addr);
 
-   LOG_NRM("ASQ DMA Address: 0x%llx", (u64)nvme_q->asq_dma_addr);
+    LOG_NRM("ASQ DMA Address: 0x%llx", (u64)nvme_q->asq_dma_addr);
 
-   /* Set the door bell or ASQ to 0x1000 as per spec 1.0b */
-   nvme_dev->dbs = ((void __iomem *)nvme_dev->nvme_ctrl_space) + NVME_SQ0TBDL;
+    /* Set the door bell or ASQ to 0x1000 as per spec 1.0b */
+    nvme_dev->dbs = ((void __iomem *)nvme_dev->nvme_ctrl_space) + NVME_SQ0TBDL;
 
-   /* Read, Modify, Write  the aqa as per the q size requested */
-   aqa = qsize & ASQS_MASK;
-   tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->aqa);
-   tmp_aqa &= ~ASQS_MASK;
-   aqa |= tmp_aqa;
+    /* Read, Modify, Write  the aqa as per the q size requested */
+    aqa = qsize & ASQS_MASK;
+    tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->aqa);
+    tmp_aqa &= ~ASQS_MASK;
+    aqa |= tmp_aqa;
 
-   LOG_DBG("Mod Attributes from AQA Reg = 0x%x", tmp_aqa);
-   LOG_NRM("AQA Attributes in ASQ:0x%x", aqa);
+    LOG_DBG("Mod Attributes from AQA Reg = 0x%x", tmp_aqa);
+    LOG_NRM("AQA Attributes in ASQ:0x%x", aqa);
 
-   /* Write new ASQ size using AQA */
-   writel(aqa, &nvme_dev->nvme_ctrl_space->aqa);
+    /* Write new ASQ size using AQA */
+    writel(aqa, &nvme_dev->nvme_ctrl_space->aqa);
 
-   /* Write the DMA address into ASQ base address */
-   WRITEQ(nvme_q->asq_dma_addr, &nvme_dev->nvme_ctrl_space->asq);
+    /* Write the DMA address into ASQ base address */
+    WRITEQ(nvme_q->asq_dma_addr, &nvme_dev->nvme_ctrl_space->asq);
 
 #ifdef DEBUG
-   /* Debug statements */
-   LOG_DBG("Admin CQ Base Address = 0x%x",
-	(u32)readl(&nvme_dev->nvme_ctrl_space->acq));
-   /* Read the AQA attributes after writing and check */
-   tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->aqa);
+    /* Debug statements */
+    LOG_DBG("Admin CQ Base Address = 0x%x",
+        (u32)readl(&nvme_dev->nvme_ctrl_space->acq));
+    /* Read the AQA attributes after writing and check */
+    tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->aqa);
 
-   LOG_NRM("Reading AQA after writing = 0x%x", tmp_aqa);
+    LOG_NRM("Reading AQA after writing = 0x%x", tmp_aqa);
 
-   /* Read the status register and printout to log */
-   tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->csts);
+    /* Read the status register and printout to log */
+    tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->csts);
 
-   LOG_NRM("Reading status reg = 0x%x", tmp_aqa);
+    LOG_NRM("Reading status reg = 0x%x", tmp_aqa);
 #endif
 
-   /* returns success or failure*/
-   return SUCCESS;
+    /* returns success or failure*/
+    return SUCCESS;
 }
 
 /*
@@ -286,74 +287,73 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 {
 
-   int ret_code = SUCCESS; /* Ret code set to SUCCESS check for otherwise */
-   u16 acq_id;          /* Admin Submission Q Id                         */
-   u32 aqa;		/* Admin Q attributes in 32 bits size             */
-   u32 tmp_aqa;		/* Temp var to hold admin q attributes            */
+    int ret_code = SUCCESS; /* Ret code set to SUCCESS check for otherwise */
+    u16 acq_id;          /* Admin Submission Q Id                         */
+    u32 aqa;        /* Admin Q attributes in 32 bits size             */
+    u32 tmp_aqa;        /* Temp var to hold admin q attributes            */
 
-   LOG_NRM("Creating Admin Completion Queue...");
+    LOG_NRM("Creating Admin Completion Queue...");
 
-   /* Check if the q structure is initialized else init here */
-   if (!nvme_q) {
-	/* Call the initialization function */
-	if (nvme_queue_init(nvme_dev) < 0) {
-		LOG_ERR("NVME Q Init Failed");
-		return -ENOMEM;
-	}
-   }
+    /* Check if the q structure is initialized else init here */
+    if (!nvme_q) {
+        /* Call the initialization function */
+        if (nvme_queue_init(nvme_dev) < 0) {
+            LOG_ERR("NVME Q Init Failed");
+            return -ENOMEM;
+        }
+    }
 
-   /* As the Admin Q ID is always 0*/
-   acq_id = 0;
+    /* As the Admin Q ID is always 0*/
+    acq_id = 0;
 
-   /*
-   * As the qsize send is in number of entries this computes the no. of bytes
-   * computed.
-   */
-   nvme_q->acq_depth = qsize * sizeof(struct nvme_command);
+    /*
+    * As the qsize send is in number of entries this computes the no. of bytes
+    * computed.
+    */
+    nvme_q->acq_depth = qsize * sizeof(struct nvme_command);
 
-   LOG_DBG("ACQ Depth: 0x%x", nvme_q->acq_depth);
-   /*
-   * The function dma_alloc_coherent  maps the dma address for ACQ which gets
-   * the DMA mapped address from the kernel virtual address.
-   */
-   nvme_q->virt_acq_addr = dma_alloc_coherent(nvme_q->dmadev, nvme_q->acq_depth,
-					&nvme_q->acq_dma_addr, GFP_KERNEL);
-   if (!nvme_q->virt_acq_addr) {
-	LOG_ERR("Unable to allocate DMA Address for ACQ!!");
-	return -ENOMEM;
-   }
+    LOG_DBG("ACQ Depth: 0x%x", nvme_q->acq_depth);
+    /*
+     * The function dma_alloc_coherent  maps the dma address for ACQ which gets
+     * the DMA mapped address from the kernel virtual address.
+     */
+    nvme_q->virt_acq_addr = dma_alloc_coherent(nvme_q->dmadev,
+        nvme_q->acq_depth, &nvme_q->acq_dma_addr, GFP_KERNEL);
+    if (!nvme_q->virt_acq_addr) {
+        LOG_ERR("Unable to allocate DMA Address for ACQ!!");
+        return -ENOMEM;
+    }
 
-   LOG_NRM("Virtual ACQ DMA Address: 0x%llx", (u64)nvme_q->virt_acq_addr);
+    LOG_NRM("Virtual ACQ DMA Address: 0x%llx", (u64)nvme_q->virt_acq_addr);
 
-   LOG_NRM("ACQ DMA Address: 0x%llx", (u64)nvme_q->acq_dma_addr);
+    LOG_NRM("ACQ DMA Address: 0x%llx", (u64)nvme_q->acq_dma_addr);
 
-   /* Read, Modify and write the Admin Q attributes */
-   aqa = qsize << 16;
-   aqa &= ACQS_MASK;
-   tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->aqa);
-   tmp_aqa &= ~ACQS_MASK;
+    /* Read, Modify and write the Admin Q attributes */
+    aqa = qsize << 16;
+    aqa &= ACQS_MASK;
+    tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->aqa);
+    tmp_aqa &= ~ACQS_MASK;
 
-   /* Final value to write to AQA Register */
-   aqa |= tmp_aqa;
+    /* Final value to write to AQA Register */
+    aqa |= tmp_aqa;
 
-   LOG_DBG("Modified Attributes (AQA) = 0x%x", tmp_aqa);
-   LOG_NRM("AQA Attributes in ACQ:0x%x", aqa);
+    LOG_DBG("Modified Attributes (AQA) = 0x%x", tmp_aqa);
+    LOG_NRM("AQA Attributes in ACQ:0x%x", aqa);
 
-   /* Write new ASQ size using AQA */
-   writel(aqa, &nvme_dev->nvme_ctrl_space->aqa);
+    /* Write new ASQ size using AQA */
+    writel(aqa, &nvme_dev->nvme_ctrl_space->aqa);
 
-   /* Write the DMA address into ACQ base address */
-   WRITEQ(nvme_q->acq_dma_addr, &nvme_dev->nvme_ctrl_space->acq);
+    /* Write the DMA address into ACQ base address */
+    WRITEQ(nvme_q->acq_dma_addr, &nvme_dev->nvme_ctrl_space->acq);
 
 #ifdef DEBUG
-   /* Read the AQA attributes after writing and check */
-   tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->aqa);
+    /* Read the AQA attributes after writing and check */
+    tmp_aqa = readl(&nvme_dev->nvme_ctrl_space->aqa);
 
-   LOG_NRM("Reading AQA after writing in ACQ = 0x%x\n", tmp_aqa);
+    LOG_NRM("Reading AQA after writing in ACQ = 0x%x\n", tmp_aqa);
 
 #endif
 
-   /* returns success or failure*/
-   return ret_code;
+    /* returns success or failure*/
+    return ret_code;
 }
-

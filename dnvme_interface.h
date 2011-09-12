@@ -7,9 +7,9 @@
 * read_generic type parameter.
 */
 enum nvme_io_space {
-   NVMEIO_PCI_HDR,
-   NVMEIO_BAR01,
-   NVMEIO_FENCE	/* always must be the last element */
+    NVMEIO_PCI_HDR,
+    NVMEIO_BAR01,
+    NVMEIO_FENCE    /* always must be the last element */
 };
 
 /**
@@ -17,11 +17,11 @@ enum nvme_io_space {
 * required access width of registers or memory space.
 */
 enum nvme_acc_type {
-	BYTE_LEN,
-	WORD_LEN,
-	DWORD_LEN,
-	QUAD_LEN,
-	ACC_FENCE
+    BYTE_LEN,
+    WORD_LEN,
+    DWORD_LEN,
+    QUAD_LEN,
+    ACC_FENCE
 };
 
 /**
@@ -30,11 +30,11 @@ enum nvme_acc_type {
 * offset and length while reading or writing to nvme card.
 */
 struct rw_generic {
-   enum nvme_io_space type;
-   unsigned int  offset;
-   unsigned int  nBytes;
-   enum nvme_acc_type acc_type;
-   unsigned char *buffer;
+    enum nvme_io_space type;
+    unsigned int  offset;
+    unsigned int  nBytes;
+    enum nvme_acc_type acc_type;
+    unsigned char *buffer;
 };
 
 /**
@@ -42,15 +42,15 @@ struct rw_generic {
 * user type.
 */
 enum nvme_qop_type {
-   NVME_Q_POLLING, /* Polling based Q */
-   NVME_Q_IRQ,   /* Interrupt Based Q */
+    NVME_Q_POLLING, /* Polling based Q */
+    NVME_Q_IRQ,   /* Interrupt Based Q */
 };
 /**
 * This struct is the basic structure which has important parameter for
 * creating admin submission queue and gets the size from user.
 */
 struct nvme_asq_gen {
-   unsigned int asq_size;
+    unsigned int asq_size;
 };
 
 /**
@@ -59,23 +59,23 @@ struct nvme_asq_gen {
 * priority for Q creation.
 */
 struct nvme_acq_gen {
-   enum nvme_qop_type cq_type;
-   unsigned int acq_size;
+    enum nvme_qop_type cq_type;
+    unsigned int acq_size;
 };
 
 /**
 * This enums are used while enabling or disabling the controller.
 */
 enum nvme_en_dis {
-   NVME_CTLR_ENABLE, /* It does controller reset functionality */
-   NVME_CTLR_DISABLE, /* It shuts down the controller*/
+    NVME_CTLR_ENABLE, /* It does controller reset functionality */
+    NVME_CTLR_DISABLE, /* It shuts down the controller*/
 };
 
 /**
 * This Struct is used for setting the controller either
 */
 struct nvme_ctrl_enum {
-   enum nvme_en_dis nvme_status;
+    enum nvme_en_dis nvme_status;
 };
 
 #endif
