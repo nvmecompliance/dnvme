@@ -88,16 +88,17 @@ void ioctl_write_data(int file_desc)
 }
 
 void ioctl_create_acq(int file_desc)
-    {
+{
     int ret_val = -1;
-    struct nvme_acq_gen acq_data;
+    struct nvme_create_admn_q aq_data;
 
-    acq_data.acq_size = 0x10;
+    aq_data.elements = 10;
+    aq_data.type = ADMIN_CQ;
 
-    printf("User Call to Create Admin Completion Q:\n");
-    printf("User Admin CQ Size = 0x%x\n", acq_data.acq_size);
+    printf("User Call to Create Admin Q:\n");
+    printf("User Admin Q No. of Elements= 0x%d\n", aq_data.elements);
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMN_CQ, &acq_data);
+    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMN_Q, &aq_data);
     if(ret_val < 0)
         printf("Creation of ACQ Failed!\n");
     else
@@ -107,14 +108,15 @@ void ioctl_create_acq(int file_desc)
 void ioctl_create_asq(int file_desc)
 {
     int ret_val = -1;
-    struct nvme_asq_gen asq_data;
+    struct nvme_create_admn_q aq_data;
 
-    asq_data.asq_size = 0x50;
+    aq_data.elements = 10;
+    aq_data.type = ADMIN_SQ;
 
-    printf("User Call to Create Admin Submission Q:\n");
-    printf("User Admin SQ Size = 0x%x\n", asq_data.asq_size);
+    printf("User Call to Create Admin SQ:\n");
+    printf("User Admin Q No. of Elements= 0x%d\n", aq_data.elements);
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMN_SQ, &asq_data);
+    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMN_Q, &aq_data);
     if(ret_val < 0)
         printf("Creation of ASQ Failed!\n");
     else
@@ -189,10 +191,17 @@ int main(void)
     //ioctl_read_data(file_desc);
     //ioctl_check_device(file_desc);
     //ioctl_disable_ctrl(file_desc);
-    //ioctl_create_acq(file_desc);
-    //ioctl_create_asq(file_desc);
+    ioctl_create_acq(file_desc);
+    ioctl_create_asq(file_desc);
     //ioctl_enable_ctrl(file_desc);
-    ioctl_get_q_metrics(file_desc);
+
+    /* ACQ Metrics */
+    ioctl_get_q_metrics(file_desc, 0, 0);
+    /* ASQ Metrics */
+    ioctl_get_q_metrics(file_desc, 0, 1);
+
+    ioctl_get_q_metrics(file_desc, 1, 1);
+    ioctl_get_q_metrics(file_desc, 2, 0);
 
     close(file_desc);
     return 0;

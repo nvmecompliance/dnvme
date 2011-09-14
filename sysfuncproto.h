@@ -65,17 +65,6 @@ int dnvme_blk_gendisk(struct pci_dev *pdev, int which);
 */
 int dnvme_ioctl_device(struct inode *inode, struct file *file,
     unsigned int ioctl_num, unsigned long ioctl_param);
-/**
-* This is default Ioctl that gets called when the user
-* ioctl_num does not
-* match any valid ioctl number in the driver.
-* @param file
-* @param buffer
-* @param length
-* @return whether successful or not.
-*/
-int driver_default_ioctl(struct file *file, unsigned long buffer,
-    size_t length);
 
 /**
 * driver_generic_read is a function that is called from
@@ -122,6 +111,9 @@ int device_status_chk(struct pci_dev *pdev, int *status);
 int driver_create_asq(struct nvme_asq_gen *nvme_asq_cr,
     struct nvme_dev_entry *nvme_dev);
 
+int driver_create_asq1(struct nvme_create_admn_q *create_admn_q,
+        struct nvme_dev_entry *nvme_dev);
+
 /*
 * driver_iotcl_init - Driver Initialization routine before starting to
 * issue  ioctls.
@@ -140,5 +132,10 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev,
 */
 int driver_create_acq(struct nvme_acq_gen *nvme_acq_cr,
     struct nvme_dev_entry *nvme_dev);
+
+int driver_create_acq1(struct nvme_create_admn_q *create_admn_q,
+        struct nvme_dev_entry *nvme_dev);
+
+void free_allqs(void);
 
 #endif

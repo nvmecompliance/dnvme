@@ -39,6 +39,13 @@ enum nvme_irq_type {
 };
 
 /**
+ * enums to define the q types.
+ */
+enum nvme_q_type {
+    ADMIN_SQ,
+    ADMIN_CQ,
+};
+/**
 * This struct is the basic structure which has important
 * parameter for the generic read  and write function to seek the correct
 * offset and length while reading or writing to nvme card.
@@ -126,7 +133,7 @@ struct nvme_gen_sq {
     uint16_t    cq_id;    /* The CQ ID to which this SQ is associated        */
     uint16_t    tail_ptr;    /* Acutal value in SQxTDBL for this SQ id       */
     uint16_t    tail_ptr_virt; /* future SQxTDBL write value based on no.
-    of new cmds copied to SQ */
+        of new cmds copied to SQ */
     uint16_t    head_ptr;    /* Calculate this value based on cmds reaped    */
     uint16_t    elements;    /* total number of elements in this Q           */
 };
@@ -142,15 +149,22 @@ enum metrics_type {
 };
 
 /**
- * Interface structure for returning the Q metrics. The buffer is where the
- * data is stored for the user to copy from. This assumes that the user will
- * provide correct buffer space to store the required metrics.
- * TODO: Add the buffer in the design doc.
- */
+  * Interface structure for returning the Q metrics. The buffer is where the
+  * data is stored for the user to copy from. This assumes that the user will
+  * provide correct buffer space to store the required metrics.
+  * TODO: Add the buffer in the design doc.
+  */
 struct nvme_get_q_metrics {
     uint16_t    q_id;       /* Pass the Q id for which metrics is desired   */
     enum        metrics_type    type;   /* SQ or CQ metrics desired         */
     uint8_t     *buffer;    /* to store the required data.                  */
 };
 
+/**
+ * Interface structure for creating Admin Q's. The elements is a 1 based value.
+ */
+struct nvme_create_admn_q {
+    enum        nvme_q_type     type;   /* Admin q type, ASQ or ACQ.    */
+    uint16_t    elements;               /* No. of elements of size 64 B */
+};
 #endif

@@ -9,9 +9,13 @@
 #include "sysdnvme.h"
 #include "dnvme_reg.h"
 #include "dnvme_queue.h"
+#include "dnvme_ds.h"
 
 /* structure for nvme queue */
 struct nvme_queue *nvme_q;
+
+/* device metrics linked list */
+struct metrics_device_list *pmetrics_device_list;
 
 /* Conditional compilation for QEMU related modifications. */
 #ifdef QEMU
@@ -198,9 +202,9 @@ int nvme_ctrl_disable(struct nvme_dev_entry *nvme_dev)
 */
 int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 {
-    u16 asq_id;        /* Admin Submission Q Id                         */
+    u16 asq_id;     /* Admin Submission Q Id                          */
     u32 aqa;        /* Admin Q attributes in 32 bits size             */
-    u32 tmp_aqa;        /* Temp var to hold admin q attributes            */
+    u32 tmp_aqa;    /* Temp var to hold admin q attributes            */
 
     LOG_NRM("Creating Admin Submission Queue...");
 
@@ -220,7 +224,11 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
     * As the qsize send is in number of entries this computes the no. of bytes
     * computed.
     */
-    nvme_q->asq_depth = qsize * sizeof(struct nvme_command);
+    nvme_q->asq_depth = qsize * sizeof(u64);
+    if (nvme_q->asq_depth > MAX_ASQ_BYTES || nvme_q->asq_depth == 0) {
+        LOG_ERR("ASQ size is more than MAX Q size or specified NULL");
+        return -EINVAL;
+    }
 
     LOG_DBG("ASQ Depth: 0x%x", nvme_q->asq_depth);
 
