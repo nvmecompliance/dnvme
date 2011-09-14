@@ -13,8 +13,7 @@ SOURCES := \
 	sysdnvme.c \
 	dnvme_ioctls.c \
 	dnvme_sts_chk.c \
-	dnvme_queue.c \
-	dnvme_ds.c
+	dnvme_queue.c
 
 #
 # RPM build parameters
@@ -30,7 +29,7 @@ RPMSPECFILE=$(RPMBASE).spec
 SRCDIR?=./src
 
 obj-m := dnvme.o
-dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o dnvme_sts_chk.o dnvme_queue.o dnvme_ds.o
+dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o dnvme_sts_chk.o dnvme_queue.o
 
 all:
 	make -C $(KDIR) M=$(PWD) modules
