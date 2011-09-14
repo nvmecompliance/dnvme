@@ -21,7 +21,7 @@
 #define NVME_MSEC_2_JIFFIES (500 * HZ / 1000)
 
 /*
- * Maximum ASQ size alllowed in Bytes.
+ * Maximum AQ entries allowed.
  */
 #define MAX_AQ_ENTRIES   4096
 
