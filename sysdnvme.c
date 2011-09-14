@@ -424,14 +424,12 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
 {
     int ret_val = -EINVAL; /* set ret val to invalid, chk for success */
     struct rw_generic *nvme_data; /* Local struct var for nvme rw dat */
-    struct nvme_device_entry *pnvme_dev_entry; /* entry for nvme dev   */
+    struct nvme_device_entry *pnvme_dev_entry; /* entry for nvme dev  */
     int *nvme_dev_err_sts; /* nvme device error status                */
     struct pci_dev *pdev = NULL; /* pointer to pci device             */
-    struct nvme_asq_gen *nvme_asq_cr; /* nvme ASQ creation parameters */
-    struct nvme_acq_gen *nvme_acq_cr; /* nvme ACQ creation parameters */
     struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr     */
     struct nvme_get_q_metrics *get_q_metrics; /* metrics q params     */
-    struct nvme_create_admn_q *create_admn_q;
+    struct nvme_create_admn_q *create_admn_q; /* create admn q params */
 
     /* Get the device from the linked list */
     list_for_each_entry(pnvme_dev_entry, &nvme_devices_llist, list) {
@@ -473,69 +471,20 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
 
         LOG_DBG("IOCTL for Create Admin Q's...");
         create_admn_q = (struct nvme_create_admn_q *)ioctl_param;
-
         /* Check the type of Admin Q and call corresponding functions */
         if (create_admn_q->type == ADMIN_SQ) {
-
             LOG_DBG("Create Admin SQ");
-
             /* call driver routine to create admin sq from ll */
-            ret_val = driver_create_asq1(create_admn_q, nvme_dev);
-
+            ret_val = driver_create_asq(create_admn_q, nvme_dev);
         } else if (create_admn_q->type == ADMIN_CQ) {
             LOG_DBG("Create Admin CQ");
-
             /* call driver routine to create admin cq from ll */
-            ret_val = driver_create_acq1(create_admn_q, nvme_dev);
-
+            ret_val = driver_create_acq(create_admn_q, nvme_dev);
         } else {
             LOG_ERR("Unknown Q type specified..");
             return -EINVAL;
         }
-
         break;
-    case NVME_IOCTL_CREATE_ADMN_SQ:
-
-        LOG_DBG("IOCTL for Create Admin SQ");
-        LOG_NRM("Invoke IOCTL call to Create Admin Submission Queue");
-
-        /* Assign user passed parameters to local struct */
-        nvme_asq_cr = (struct nvme_asq_gen *)ioctl_param;
-
-        LOG_NRM("Admin SQ Size req by user:0x%x", nvme_asq_cr->asq_size);
-
-        /* Call driver routine to create ASQ */
-        ret_val = driver_create_asq(nvme_asq_cr, nvme_dev);
-
-        /* Display if ASQ creation was success or fail */
-        if (ret_val >= 0) {
-            LOG_NRM("Admin SQ Creation Success");
-        } else {
-            LOG_NRM("Admin SQ Creation Failed");
-        }
-        break;
-
-    case NVME_IOCTL_CREATE_ADMN_CQ:
-
-        LOG_DBG("IOCTL for Create Admin CQ");
-        LOG_NRM("Invoke IOCTL call to Create Admin Completion Queue");
-
-        /* Assign user passed parameters to local struct */
-        nvme_acq_cr = (struct nvme_acq_gen *)ioctl_param;
-
-        LOG_NRM("Admin CQ Size req by user:0x%x", nvme_acq_cr->acq_size);
-
-        /* Call driver routine to create ACQ */
-        ret_val = driver_create_acq(nvme_acq_cr, nvme_dev);
-
-        /* Display if ACQ creation was success or fail */
-        if (ret_val >= 0) {
-            LOG_NRM("Admin CQ Creation Success");
-        } else {
-            LOG_NRM("Admin CQ Creation Failed");
-        }
-        break;
-
     case NVME_IOCTL_CTLR_STATE:
 
         LOG_DBG("IOCTL for nvme controller set/reset Command");
@@ -554,13 +503,10 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
 
     case NVME_IOCTL_GET_Q_METRICS:
         LOG_DBG("User App Requested Q Metrics...");
-
         /* Assign user passed parameters to q metrics structure. */
         get_q_metrics = (struct nvme_get_q_metrics *)ioctl_param;
-
         /* Call the Q metrics function and return the data to user. */
         ret_val = nvme_get_q_metrics(get_q_metrics);
-
         break;
 
     case NVME_IOCTL_DEL_ADMN_Q:

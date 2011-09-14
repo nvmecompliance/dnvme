@@ -21,11 +21,11 @@
 #undef TEST_DEBUG
 
 #ifdef TEST_DEBUG
-    int test_create_cq_nodes(void);
-    int test_create_sq_nodes(void);
+static int test_create_cq_nodes(void);
+static int test_create_sq_nodes(void);
 #endif
 
-/* initialize the linked list header */
+/* initialize the linked list headers */
 LIST_HEAD(metrics_sq_ll);
 LIST_HEAD(metrics_cq_ll);
 
@@ -443,47 +443,23 @@ int driver_generic_write(struct file *file, struct rw_generic *nvme_data,
 
 /*
 *   driver_create_asq - Driver Admin Submission Queue creation routine
-*   from ASQ create ioctl.
-*/
-int driver_create_asq(struct nvme_asq_gen *nvme_asq_cr,
-     struct nvme_dev_entry *nvme_dev)
-{
-    int ret_code = -EINVAL; /* ret code to verify if ASQ creation succeeded */
-
-#ifdef DEBUG
-    /* Check if the nvme_dev init flag is set */
-    if (!nvme_dev->init_flag) {
-        LOG_ERR("The device send for ASQ creation is not initialized");
-        return ret_code;
-    }
-#endif
-
-    /* Call routine to create admin Submission queue */
-    ret_code = create_admn_sq(nvme_dev, nvme_asq_cr->asq_size);
-
-    return ret_code;
-}
-/*
-*   driver_create_asq - Driver Admin Submission Queue creation routine
 *   from Q create ioctl.
 */
-int driver_create_asq1(struct nvme_create_admn_q *create_admn_q,
+int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
         struct nvme_dev_entry *nvme_dev)
 {
-    int ret_code = -EINVAL;
-    u8 admn_id = 0;
-    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list              */
+    int ret_code = -EINVAL; /* Set return value to error        */
+    u8 admn_id = 0;         /* Always admin ID is 0             */
+    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list   */
 
 #ifdef TEST_DEBUG
     test_create_cq_nodes();
     test_create_sq_nodes();
 #endif
-
     /*
      * Search if admin sq already exists.
      */
     LOG_NRM("Searching for Node in the sq_list_hd");
-
     /* Get the device from the linked list */
     list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
         if (admn_id == pmetrics_sq_list->public_sq.sq_id) {
@@ -491,68 +467,39 @@ int driver_create_asq1(struct nvme_create_admn_q *create_admn_q,
             return -EINVAL;
         }
     }
-
     LOG_NRM("Alloc mem for a node.");
-    /* TODO: Make this as linked list of linux kernel. */
     pmetrics_sq_list = kmalloc(sizeof(struct metrics_sq), GFP_KERNEL);
     if (pmetrics_sq_list == NULL) {
         LOG_ERR("failed mem alloc in ASQ creation.");
         return -ENOMEM;
     }
-
     /* Set Admin Q Id. */
     pmetrics_sq_list->public_sq.sq_id = admn_id;
     pmetrics_sq_list->public_sq.elements = create_admn_q->elements;
-
     LOG_NRM("Adding node for Admin SQ to the list.");
+    /* Add an element to the end of the list */
     list_add_tail(&pmetrics_sq_list->sq_list_hd, &metrics_sq_ll);
-
     /*
-     * TODO: Set the pointer in metrics device to point to this element
+     * Set the pointer in metrics device to point to this element
      * for this_device.
      */
     if (!pmetrics_device_list->metrics_sq_list) {
         pmetrics_device_list->metrics_sq_list = pmetrics_sq_list;
     }
-
     /* Call dma allocation, creation of contiguous memory for ACQ */
     ret_code = create_admn_sq(nvme_dev, pmetrics_sq_list->public_sq.elements);
-
     if (ret_code == SUCCESS) {
         pmetrics_sq_list->private_sq.size = nvme_q->acq_depth;
         pmetrics_sq_list->private_sq.vir_kern_addr = nvme_q->virt_acq_addr;
     }
-
     return ret_code;
 }
-/*
-*  driver_create_acq - Driver Admin Completion Queue creation routine
-*  from ACQ create ioctl.
-*/
-int driver_create_acq(struct nvme_acq_gen *nvme_acq_cr,
-    struct nvme_dev_entry *nvme_dev)
-{
-    int ret_code = -EINVAL; /* ret code to verify if ACQ creation succeeded */
 
-#ifdef DEBUG
-    /* Check if the nvme_dev init flag is set */
-    if (!nvme_dev->init_flag) {
-        LOG_ERR("The device send for ACQ creation is not initialized");
-        return ret_code;
-    }
-#endif
-
-    /* As we are doing polling based so irq field is not used for now */
-    /* Call routine to create admin Submission queue */
-    ret_code = create_admn_cq(nvme_dev, nvme_acq_cr->acq_size);
-
-    return ret_code;
-}
 /*
 *  driver_create_acq - Driver Admin Completion Queue creation routine
 *  from Q create ioctl.
 */
-int driver_create_acq1(struct nvme_create_admn_q *create_admn_q,
+int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
         struct nvme_dev_entry *nvme_dev)
 {
     int ret_code = -EINVAL;
@@ -567,7 +514,6 @@ int driver_create_acq1(struct nvme_create_admn_q *create_admn_q,
      * Search if admin sq already exists.
      */
     LOG_NRM("Searching for Node in the cq_list_hd");
-
     /* Get the device from the linked list */
     list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
         if (admn_id == pmetrics_cq_list->public_cq.q_id) {
@@ -575,33 +521,27 @@ int driver_create_acq1(struct nvme_create_admn_q *create_admn_q,
             return -EINVAL;
         }
     }
-
     LOG_NRM("Alloc mem for a Admin CQ node.");
-    /* TODO: Make this as linked list of linux kernel. */
     pmetrics_cq_list = kmalloc(sizeof(struct metrics_cq), GFP_KERNEL);
     if (pmetrics_cq_list == NULL) {
         LOG_ERR("failed mem alloc in ACQ creation.");
         return -ENOMEM;
     }
-
     /* Set Admin CQ Id. */
     pmetrics_cq_list->public_cq.q_id = admn_id;
     pmetrics_cq_list->public_cq.elements = create_admn_q->elements;
-
     LOG_NRM("Adding node for Admin CQ to the list.");
+    /* Add an element to the end of the list */
     list_add_tail(&pmetrics_cq_list->cq_list_hd, &metrics_cq_ll);
-
     /*
-     * TODO: Set the pointer in metrics device to point to this element
+     * Set the pointer in metrics device to point to this element
      * for this_device.
      */
     if (!pmetrics_device_list->metrics_cq_list) {
         pmetrics_device_list->metrics_cq_list = pmetrics_cq_list;
     }
-
     /* Call dma allocation, creation of contiguous memory for ACQ */
     ret_code = create_admn_cq(nvme_dev, pmetrics_cq_list->public_cq.elements);
-
     return ret_code;
 }
 /*
@@ -662,10 +602,8 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
 
     /* Determine the type of Q for which the metrics was needed */
     if (get_q_metrics->type == METRICS_SQ) {
-
         /* Determine the SQ Metrics */
         LOG_DBG("SQ Metrics requested.");
-
         /* Check if Q was admin Q? */
         if (get_q_metrics->q_id == 0) {
             LOG_DBG("Admin SQ Metrics...");
@@ -674,28 +612,24 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
         }
         /* Get the device from the linked list */
         list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
+            /* Check if the Q Id matches */
             if (q_id == pmetrics_sq_list->public_sq.sq_id) {
                 LOG_NRM("SQ_ID = %d is found in the list...",
                     pmetrics_sq_list->public_sq.sq_id);
 
                 LOG_DBG("If seg fault occurs, then problem with user app");
                 LOG_NRM("Allocate user buffer with sufficient memory...");
-
                 /* Copy to user space linked pointer buffer */
                 memcpy((u8 *)&datap[0], (u8 *)&pmetrics_sq_list->public_sq,
                         sizeof(struct nvme_gen_sq));
-
                 /* Copy data to user space */
                 ret_code = copy_to_user(&get_q_metrics->buffer[0], datap,
                         sizeof(struct nvme_gen_sq));
-
                 return ret_code;
             }
         }
         LOG_DBG("SQ_ID = %d not found in the list", q_id);
-
     } else if (get_q_metrics->type == METRICS_CQ) {
-
         /* Determine the CQ Metrics */
         LOG_DBG("CQ Metrics requested.");
         /* Check if Q was admin Q? */
@@ -706,22 +640,18 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
         }
         /* Get the device from the linked list */
         list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
+            /* check if a q id matches in the list */
             if (q_id == pmetrics_cq_list->public_cq.q_id) {
-
                 LOG_DBG("CQ_ID = %d is found in the list...",
                     pmetrics_cq_list->public_cq.q_id);
-
                 LOG_DBG("If seg fault occurs, then problem with user app");
                 LOG_DBG("Allocate user buffer with sufficient memory...");
-
                 /* Copy to user space linked pointer buffer */
                 memcpy((u8 *)&datap[0], (u8 *)&pmetrics_cq_list->public_cq,
                         sizeof(struct nvme_gen_cq));
-
                 /* Copy data to user space */
                 ret_code = copy_to_user(&get_q_metrics->buffer[0], datap,
                         sizeof(struct nvme_gen_cq));
-
                 return ret_code;
             }
         }
@@ -732,7 +662,6 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
         LOG_ERR("Metrics Type: METRICS_SQ/METRICS_CQ only");
         return -EINVAL;
     }
-
     return SUCCESS;
 }
 /*
@@ -743,7 +672,6 @@ void free_allqs(void)
 {
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
-
 #if DEBUG
     /* Get the device from the linked list and release */
     list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
@@ -754,14 +682,13 @@ void free_allqs(void)
         LOG_DBG("CQ_ID = %d", pmetrics_cq_list->public_cq.q_id);
     }
 #endif
-
     LOG_DBG("Deleting SQ and CQ linked lists");
     list_del(&metrics_sq_ll);
     list_del(&metrics_cq_ll);
 }
 
 #ifdef TEST_DEBUG
-int test_create_cq_nodes(void)
+static int test_create_cq_nodes(void)
 {
     static u8 q_id = 1;
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list              */
@@ -769,7 +696,6 @@ int test_create_cq_nodes(void)
      * Search if node already exists.
      */
     LOG_NRM("Searching for Node in the cq_list_hd");
-
     /* Get the device from the linked list */
     list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
         if (q_id == pmetrics_cq_list->public_cq.q_id) {
@@ -778,9 +704,7 @@ int test_create_cq_nodes(void)
             return -EINVAL;
         }
     }
-
     LOG_NRM("Alloc mem for a CQ node.");
-    /* TODO: Make this as linked list of linux kernel. */
     pmetrics_cq_list = kmalloc(sizeof(struct metrics_cq), GFP_KERNEL);
     if (pmetrics_cq_list == NULL) {
         LOG_ERR("failed mem alloc in CQ creation.");
@@ -792,12 +716,11 @@ int test_create_cq_nodes(void)
 
     LOG_NRM("Adding node for CQ = %d to the list.", q_id);
     list_add_tail(&pmetrics_cq_list->cq_list_hd, &metrics_cq_ll);
-
     q_id++;
     return SUCCESS;
 }
 
-int test_create_sq_nodes(void)
+static int test_create_sq_nodes(void)
 {
     static u8 q_id = 1;
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list              */

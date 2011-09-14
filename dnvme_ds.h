@@ -108,7 +108,9 @@ struct metrics_device_list {
 extern struct metrics_device_list *pmetrics_device_list;
 
 /**
- *
+ * This function gives the device metrics when the user requests. This
+ * routine works with Add Q's including Admin and IO.
+ * Assumes user allocated buffer memory to copy accordingly.
  * @param get_q_metrics
  * @return metrics data if success else failure.
  */

@@ -108,10 +108,7 @@ int device_status_chk(struct pci_dev *pdev, int *status);
 * @param nvme_dev
 * @return ASQ creation SUCCESS or FAIL
 */
-int driver_create_asq(struct nvme_asq_gen *nvme_asq_cr,
-    struct nvme_dev_entry *nvme_dev);
-
-int driver_create_asq1(struct nvme_create_admn_q *create_admn_q,
+int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
         struct nvme_dev_entry *nvme_dev);
 
 /*
@@ -130,12 +127,13 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev,
 * @param nvme_dev
 * @return ACQ creation SUCCESS or FAIL
 */
-int driver_create_acq(struct nvme_acq_gen *nvme_acq_cr,
-    struct nvme_dev_entry *nvme_dev);
-
-int driver_create_acq1(struct nvme_create_admn_q *create_admn_q,
+int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
         struct nvme_dev_entry *nvme_dev);
 
+/**
+ * free_allqs - Q deallocation routine for freeing up the kernel
+ * memory.
+ */
 void free_allqs(void);
 
 #endif
