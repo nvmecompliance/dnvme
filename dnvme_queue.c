@@ -319,7 +319,7 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
     * computed.
     */
     nvme_q->acq_depth = qsize * sizeof(u64);
-    if (nvme_q->asq_depth > MAX_AQ_BYTES || nvme_q->acq_depth == 0) {
+    if (nvme_q->acq_depth > MAX_AQ_BYTES || nvme_q->acq_depth == 0) {
         LOG_ERR("ASQ size is more than MAX Q size or specified NULL");
         return -EINVAL;
     }
