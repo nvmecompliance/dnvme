@@ -21,7 +21,7 @@
 #define DEVICE_FILE_NAME "/dev/qnvme0"
 
 /*
- * Functions for the ioctl calls 
+ * Functions for the ioctl calls
 */
 void ioctl_read_data(int file_desc)
 {
@@ -56,7 +56,7 @@ void ioctl_read_data(int file_desc)
 }
 
 /*
- * Functions for the ioctl calls 
+ * Functions for the ioctl calls
 */
 void ioctl_write_data(int file_desc)
 {
