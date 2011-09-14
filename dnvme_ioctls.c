@@ -18,7 +18,7 @@
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
 
-#define TEST_DEBUG
+#undef TEST_DEBUG
 
 #ifdef TEST_DEBUG
 static int test_create_cq_nodes(void);

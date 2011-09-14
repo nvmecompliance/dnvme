@@ -315,7 +315,7 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
     /* As the Admin Q ID is always 0*/
     acq_id = 0;
 
-    if (qsize > MAX_AQ || qsize == 0) {
+    if (qsize > MAX_AQ_ENTRIES || qsize == 0) {
         LOG_ERR("ASQ size is more than MAX Q size or specified NULL");
         return -EINVAL;
     }
