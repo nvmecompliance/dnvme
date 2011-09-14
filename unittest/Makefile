@@ -1,10 +1,10 @@
 CC=gcc
-CFLAGS=-g -W -Wall 
+CFLAGS=-g -W -Wall
 APP_NAME := test
 
 SOURCES := test.c test_metrics.c
 
-INCLUDE := 
+INCLUDE :=
 
 all: $(APP_NAME)
 
