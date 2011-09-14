@@ -225,7 +225,7 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
     * computed.
     */
     nvme_q->asq_depth = qsize * sizeof(u64);
-    if (nvme_q->asq_depth > MAX_ASQ_BYTES || nvme_q->asq_depth == 0) {
+    if (nvme_q->asq_depth > MAX_AQ_BYTES || nvme_q->asq_depth == 0) {
         LOG_ERR("ASQ size is more than MAX Q size or specified NULL");
         return -EINVAL;
     }
@@ -318,8 +318,11 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
     * As the qsize send is in number of entries this computes the no. of bytes
     * computed.
     */
-    nvme_q->acq_depth = qsize * sizeof(struct nvme_command);
-
+    nvme_q->acq_depth = qsize * sizeof(u64);
+    if (nvme_q->asq_depth > MAX_AQ_BYTES || nvme_q->acq_depth == 0) {
+        LOG_ERR("ASQ size is more than MAX Q size or specified NULL");
+        return -EINVAL;
+    }
     LOG_DBG("ACQ Depth: 0x%x", nvme_q->acq_depth);
     /*
      * The function dma_alloc_coherent  maps the dma address for ACQ which gets

@@ -23,7 +23,7 @@
 /*
  * Maximum ASQ size alllowed in Bytes.
  */
-#define MAX_ASQ_BYTES   4096
+#define MAX_AQ_BYTES   4096
 
 /*
 * This lines are commented to use inline functions.

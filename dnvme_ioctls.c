@@ -18,7 +18,7 @@
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
 
-#undef TEST_DEBUG
+#define TEST_DEBUG
 
 #ifdef TEST_DEBUG
 static int test_create_cq_nodes(void);
@@ -489,8 +489,8 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     /* Call dma allocation, creation of contiguous memory for ACQ */
     ret_code = create_admn_sq(nvme_dev, pmetrics_sq_list->public_sq.elements);
     if (ret_code == SUCCESS) {
-        pmetrics_sq_list->private_sq.size = nvme_q->acq_depth;
-        pmetrics_sq_list->private_sq.vir_kern_addr = nvme_q->virt_acq_addr;
+        pmetrics_sq_list->private_sq.size = nvme_q->asq_depth;
+        pmetrics_sq_list->private_sq.vir_kern_addr = nvme_q->virt_asq_addr;
     }
     return ret_code;
 }
@@ -542,6 +542,11 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     }
     /* Call dma allocation, creation of contiguous memory for ACQ */
     ret_code = create_admn_cq(nvme_dev, pmetrics_cq_list->public_cq.elements);
+
+    if (ret_code == SUCCESS) {
+        pmetrics_cq_list->private_cq.size = nvme_q->acq_depth;
+        pmetrics_cq_list->private_cq.vir_kern_addr = nvme_q->virt_acq_addr;
+    }
     return ret_code;
 }
 /*
