@@ -104,7 +104,7 @@ int device_status_chk(struct pci_dev *pdev, int *status);
 
 /**
 * driver_create_asq - Driver Admin Submission Queue creation routine
-* @param nvme_asq_cr
+* @param create_admn_q
 * @param nvme_dev
 * @return ASQ creation SUCCESS or FAIL
 */
@@ -123,7 +123,7 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev,
 
 /**
 * driver_create_acq - Driver Admin completion  Queue creation routine
-* @param nvme_acq_cr
+* @param create_admn_q
 * @param nvme_dev
 * @return ACQ creation SUCCESS or FAIL
 */

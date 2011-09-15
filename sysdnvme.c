@@ -545,7 +545,7 @@ static void __exit dnvme_exit(void)
     unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
     pci_unregister_driver(&dnvme_pci_driver);
 
-    /* Free up all the allocated kernel memory before */
+    /* Free up all the allocated kernel memory before exiting */
     free_allqs();
 
     /* free up the device linked list */

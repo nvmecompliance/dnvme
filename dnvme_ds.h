@@ -97,7 +97,7 @@ struct metrics_sq {
  * that are defined.
  */
 struct metrics_device_list {
-    struct  list_head   metrics_device_hd;/* metrics linked list head    */
+    struct  list_head   metrics_device_hd;/* metrics linked list head     */
     struct  isr_track   *isr_track_list;   /* ISR with CQ tracking list   */
     struct  prp_element *prp_persist_list; /* PRP link-list for tracking  */
     struct  metrics_cq  *metrics_cq_list;  /* CQ linked list              */

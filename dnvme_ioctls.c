@@ -18,6 +18,7 @@
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
 
+/* TODO: Always undef this before checking in. */
 #undef TEST_DEBUG
 
 #ifdef TEST_DEBUG
@@ -207,7 +208,7 @@ int driver_generic_read(struct file *file, struct rw_generic *nvme_data,
                 ((nvme_data->offset % 4) != 0))
            ) {
             LOG_ERR("Offset or nBytes is not DWORD Aligned");
-            LOG_ERR("Provide them on 4 bytes Boundaray");
+            LOG_ERR("Provide them on 4 bytes Boundary");
             return -EINVAL;
         } else if ((nvme_data->acc_type == QUAD_LEN) &&
                 (((nvme_data->nBytes % 8) != 0) ||
@@ -219,7 +220,7 @@ int driver_generic_read(struct file *file, struct rw_generic *nvme_data,
              */
             LOG_ERR("Offset is not DWORD Aligned");
             LOG_ERR("nbytes is not QUAD Aligned");
-            LOG_ERR("Provide them on 8 bytes Boundaray");
+            LOG_ERR("Provide them on 8 bytes Boundary");
             return -EINVAL;
         } else if ((nvme_data->acc_type == WORD_LEN) &&
                   ((nvme_data->nBytes % 2) != 0)) {
@@ -366,8 +367,8 @@ int driver_generic_write(struct file *file, struct rw_generic *nvme_data,
                 /* increment by byte size */
                 index++;
             } else {
-                LOG_ERR("PCI space acccessed by DWORD, WORD or BYTE");
-                LOG_ERR("Wrong PCI acccess width specified or ");
+                LOG_ERR("PCI space accessed by DWORD, WORD or BYTE");
+                LOG_ERR("Wrong PCI access width specified or ");
                 LOG_ERR("Wrong no of bytes specified");
                 return -EINVAL;
             }
