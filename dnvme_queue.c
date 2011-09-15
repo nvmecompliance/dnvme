@@ -233,7 +233,7 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
     * As the qsize send is in number of entries this computes the no. of bytes
     * computed.
     */
-    nvme_q->asq_depth = qsize * sizeof(u8) * 64;
+    nvme_q->asq_depth = qsize*sizeof(u8)*64;
 
     LOG_DBG("ASQ Depth: 0x%x", nvme_q->asq_depth);
 
@@ -331,7 +331,7 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
     * As the qsize send is in number of entries this computes the no. of bytes
     * computed.
     */
-    nvme_q->acq_depth = qsize * sizeof(u8) * 16;
+    nvme_q->acq_depth = qsize*sizeof(u8)*16;
     LOG_DBG("ACQ Depth: 0x%x", nvme_q->acq_depth);
     /*
      * The function dma_alloc_coherent  maps the dma address for ACQ which gets

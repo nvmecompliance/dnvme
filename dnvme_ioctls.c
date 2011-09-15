@@ -477,6 +477,8 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     /* Set Admin Q Id. */
     pmetrics_sq_list->public_sq.sq_id = admn_id;
     pmetrics_sq_list->public_sq.elements = create_admn_q->elements;
+    /* Admin SQ is always associated with Admin CQ. */
+    pmetrics_sq_list->public_sq.cq_id = admn_id;
     LOG_NRM("Adding node for Admin SQ to the list.");
     /* Add an element to the end of the list */
     list_add_tail(&pmetrics_sq_list->sq_list_hd, &metrics_sq_ll);
@@ -487,7 +489,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     if (!pmetrics_device_list->metrics_sq_list) {
         pmetrics_device_list->metrics_sq_list = pmetrics_sq_list;
     }
-    /* Call dma allocation, creation of contiguous memory for ACQ */
+    /* Call dma allocation, creation of contiguous memory for ASQ */
     ret_code = create_admn_sq(nvme_dev, pmetrics_sq_list->public_sq.elements);
     if (ret_code == SUCCESS) {
         pmetrics_sq_list->private_sq.size = nvme_q->asq_depth;
