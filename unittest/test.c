@@ -92,7 +92,7 @@ void ioctl_create_acq(int file_desc)
     int ret_val = -1;
     struct nvme_create_admn_q aq_data;
 
-    aq_data.elements = 10;
+    aq_data.elements = 0x10;
     aq_data.type = ADMIN_CQ;
 
     printf("User Call to Create Admin Q:\n");
@@ -201,7 +201,7 @@ int main(void)
     ioctl_get_q_metrics(file_desc, 0, 1);
 
     ioctl_get_q_metrics(file_desc, 1, 1);
-    ioctl_get_q_metrics(file_desc, 2, 0);
+    //ioctl_get_q_metrics(file_desc, 20, 0);
 
     close(file_desc);
     return 0;

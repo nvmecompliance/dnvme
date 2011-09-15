@@ -27,11 +27,28 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type)
 
     get_q_metrics.q_id = q_id;
     get_q_metrics.type = q_type;
-    get_q_metrics.buffer = malloc(sizeof(uint8_t) * sizeof(struct nvme_gen_sq));
+    get_q_metrics.buffer = malloc(sizeof(uint8_t) *
+            sizeof(struct nvme_gen_sq));
 
     ret_val = ioctl(file_desc, NVME_IOCTL_GET_Q_METRICS, &get_q_metrics);
+
     if(ret_val < 0)
         printf("Q metrics could not be checked!\n");
-    else
-        printf("Q metrics checked see the log msgs\n");
+    else {
+        if (q_type == 1) {
+            printf("\nMetrics for SQ Id = %d\n", (uint16_t)get_q_metrics.buffer[0]);
+            printf("\tCQ Id = %d\n", (uint16_t)get_q_metrics.buffer[2]);
+            printf("\tTail Ptr = %d\n", (uint16_t)get_q_metrics.buffer[4]);
+            printf("\tTail_Ptr_Virt = %d\n", (uint16_t)get_q_metrics.buffer[6]);
+            printf("\tHead Ptr = %d\n", (uint16_t)get_q_metrics.buffer[8]);
+            printf("\tElements = %d\n", (uint16_t)get_q_metrics.buffer[10]);
+        } else {
+            printf("\nMetrics for CQ Id = %d\n", (uint16_t)get_q_metrics.buffer[0]);
+            printf("\tTail_Ptr = %d\n", (uint16_t)get_q_metrics.buffer[2]);
+            printf("\tHead Ptr = %d\n", (uint16_t)get_q_metrics.buffer[4]);
+            printf("\tElements = %d\n", (uint16_t)get_q_metrics.buffer[6]);
+            printf("\tIrq Enabled = %d\n", (uint8_t)get_q_metrics.buffer[8]);
+        }
+    }
+
 }

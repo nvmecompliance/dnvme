@@ -624,7 +624,8 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
             if (q_id == pmetrics_sq_list->public_sq.sq_id) {
                 LOG_NRM("SQ_ID = %d is found in the list...",
                     pmetrics_sq_list->public_sq.sq_id);
-
+                LOG_DBG("SQ Elements = %d",
+                              pmetrics_sq_list->public_sq.elements);
                 LOG_DBG("If seg fault occurs, then problem with user app");
                 LOG_NRM("Allocate user buffer with sufficient memory...");
                 /* Copy to user space linked pointer buffer */
@@ -637,6 +638,7 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
             }
         }
         LOG_DBG("SQ_ID = %d not found in the list", q_id);
+        return -EINVAL;
     } else if (get_q_metrics->type == METRICS_CQ) {
         /* Determine the CQ Metrics */
         LOG_DBG("CQ Metrics requested.");
@@ -652,6 +654,8 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
             if (q_id == pmetrics_cq_list->public_cq.q_id) {
                 LOG_DBG("CQ_ID = %d is found in the list...",
                     pmetrics_cq_list->public_cq.q_id);
+                LOG_DBG("CQ Elements = %d",
+                              pmetrics_cq_list->public_cq.elements);
                 LOG_DBG("If seg fault occurs, then problem with user app");
                 LOG_DBG("Allocate user buffer with sufficient memory...");
                 /* Copy to user space linked pointer buffer */
@@ -664,6 +668,7 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
             }
         }
         LOG_DBG("CQ_ID = %d not found in the list", q_id);
+        return -EINVAL;
     } else {
         /* The Q type is not SQ or CQ, so error out */
         LOG_ERR("Error in metrics Type...");
