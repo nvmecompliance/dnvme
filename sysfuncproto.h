@@ -131,6 +131,15 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
         struct nvme_dev_entry *nvme_dev);
 
 /**
+* driver_nvme_alloc_sq - Driver allocate sq memory routine.
+* @param alloc_contig_sq
+* @param pnvme_dev
+* @return allocation of contig mem SUCCESS or FAIL.
+*/
+int driver_nvme_alloc_sq(struct nvme_alloc_contig_sq *alloc_contig_sq,
+        struct nvme_dev_entry *pnvme_dev);
+
+/**
  * free_allqs - Q deallocation routine for freeing up the kernel
  * memory.
  */

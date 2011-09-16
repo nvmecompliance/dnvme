@@ -2,6 +2,7 @@
 #define _DNVME_QUEUE_H_
 
 #include "dnvme_reg.h"
+#include "dnvme_ds.h"
 
 /* Admin SQ tail Door bell offset */
 #define NVME_SQ0TBDL    0x1000
@@ -99,9 +100,11 @@ extern struct nvme_queue *nvme_q;
 * for Admin Completion Q creation
 * @param nvme_dev
 * @param qsize
+* @param pmetrics_cq_list
 * @return whether ACQ creation successful or not.
 */
-int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize);
+int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize,
+        struct  metrics_cq  *pmetrics_cq_list);
 
 /**
 * The user selection of IOCTL for creating admin sq eventually calls
@@ -109,9 +112,11 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize);
 * for Admin Submission Q creation
 * @param nvme_dev
 * @param qsize
+* @param pmetrics_sq_list
 * @return whether ASQ creation successful or not.
 */
-int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize);
+int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize,
+        struct  metrics_sq  *pmetrics_sq_list);
 
 /**
 * this function initialized Q parameters. This will create infrastructure
@@ -146,5 +151,24 @@ int nvme_ctrl_enable(struct nvme_dev_entry *nvme_dev);
 * @return SUCCESS or FAIL
 */
 int nvme_ctrl_disable(struct nvme_dev_entry *nvme_dev);
+
+/**
+* identify_unique - verify if the q_id specified is unique. If not unique then
+* return fail.
+* @param q_id
+* @param type
+* @return SUCCESS or FAIL
+*/
+int identify_unique(u16 q_id, enum metrics_type type);
+
+/**
+* nvme_alloc_sq - NVME controller allocate sq function.This will check
+* if q is allocated and then create a memory for the IO SQ.
+* @param pmetrics_sq_list
+* @param pnvme_dev
+* @return SUCCESS or FAIL
+*/
+int nvme_alloc_sq(struct  metrics_sq  *pmetrics_sq_list,
+            struct nvme_dev_entry *pnvme_dev);
 
 #endif

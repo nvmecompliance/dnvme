@@ -17,6 +17,8 @@ struct nvme_queue *nvme_q;
 /* device metrics linked list */
 struct metrics_device_list *pmetrics_device_list;
 
+u64 unique_cmd_id = 0;
+
 /* Conditional compilation for QEMU related modifications. */
 #ifdef QEMU
 /*
@@ -200,7 +202,8 @@ int nvme_ctrl_disable(struct nvme_dev_entry *nvme_dev)
 * could not be set. It returns success if the submission q creation is success
 * after dma_coherent_alloc else returns failure at any step which fails.
 */
-int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
+int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize,
+        struct  metrics_sq  *pmetrics_sq_list)
 {
     u16 asq_id;     /* Admin Submission Q Id                          */
     u32 aqa;        /* Admin Q attributes in 32 bits size             */
@@ -285,6 +288,9 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
     LOG_NRM("Reading status reg = 0x%x", tmp_aqa);
 #endif
 
+    pmetrics_sq_list->private_sq.vir_kern_addr = nvme_q->virt_asq_addr;
+    pmetrics_sq_list->private_sq.size = nvme_q->asq_depth;
+    pmetrics_sq_list->private_sq.unique_cmd_id = unique_cmd_id++;
     /* returns success or failure*/
     return SUCCESS;
 }
@@ -297,7 +303,8 @@ int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 * could not be set. It returns success if the completion q creation is success
 * after dma_coherent_alloc else returns failure at any step which fails.
 */
-int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
+int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize,
+        struct  metrics_cq  *pmetrics_cq_list)
 {
 
     int ret_code = SUCCESS; /* Ret code set to SUCCESS check for otherwise */
@@ -374,6 +381,49 @@ int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize)
 
 #endif
 
+    pmetrics_cq_list->private_cq.vir_kern_addr = nvme_q->virt_acq_addr;
+    pmetrics_cq_list->private_cq.size = nvme_q->acq_depth;
+
     /* returns success or failure*/
+    return ret_code;
+}
+
+int nvme_alloc_sq(struct  metrics_sq  *pmetrics_sq_list,
+            struct nvme_dev_entry *pnvme_dev)
+{
+    int ret_code = SUCCESS;
+    u32 ctrl_config = 0;
+
+    /* Check if the q structure is initialized else init here */
+    if (!nvme_q) {
+        /* Call the initialization function */
+        if (nvme_queue_init(pnvme_dev) < 0) {
+            LOG_ERR("NVME Q Init Failed");
+            return -ENOMEM;
+        }
+    }
+    /*Read Controller Configuration CC register at offset 0x14h. */
+    ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
+    /* Extract the IOSQES from CC */
+    ctrl_config = (ctrl_config >> 16) & 0xF;
+    LOG_NRM("CC.IOSQES = 0x%x, 2^x = %d", ctrl_config, (1 << ctrl_config));
+
+    pmetrics_sq_list->private_sq.size = pmetrics_sq_list->public_sq.elements *
+            (1 << ctrl_config);
+
+    /*
+     * call dma_alloc_coherent or SQ which gets DMA mapped address from
+     * the kernel virtual address.
+     */
+    nvme_q->virt_asq_addr = dma_alloc_coherent(nvme_q->dmadev,
+            pmetrics_sq_list->private_sq.size,
+            &nvme_q->asq_dma_addr, GFP_KERNEL);
+    if (!nvme_q->virt_asq_addr) {
+        LOG_ERR("Unable to allocate DMA Address for IO SQ!!");
+        return -ENOMEM;
+    }
+    pmetrics_sq_list->private_sq.vir_kern_addr = nvme_q->virt_asq_addr;
+    pmetrics_sq_list->private_sq.unique_cmd_id = unique_cmd_id++;
+
     return ret_code;
 }

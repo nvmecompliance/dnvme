@@ -167,4 +167,15 @@ struct nvme_create_admn_q {
     enum        nvme_q_type     type;   /* Admin q type, ASQ or ACQ.    */
     uint16_t    elements;               /* No. of elements of size 64 B */
 };
+
+/*
+ * Interface structure for allocating SQ memory which is contiguous. The
+ * elements are 1 based values and the CC.IOSQES is 2^n based.
+ */
+struct nvme_alloc_contig_sq {
+    uint16_t    elements;   /* Total number of entries that need kernal mem */
+    uint16_t    sq_id;      /* The user specified unique SQ ID              */
+    uint16_t    cq_id;      /* Existing or non-existing CQ ID.              */
+};
+
 #endif

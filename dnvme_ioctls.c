@@ -474,11 +474,23 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
         LOG_ERR("failed mem alloc in ASQ creation.");
         return -ENOMEM;
     }
+    /* Reset the data for this node */
+    memset(pmetrics_sq_list, 0, sizeof(struct metrics_sq));
+
     /* Set Admin Q Id. */
     pmetrics_sq_list->public_sq.sq_id = admn_id;
     pmetrics_sq_list->public_sq.elements = create_admn_q->elements;
     /* Admin SQ is always associated with Admin CQ. */
     pmetrics_sq_list->public_sq.cq_id = admn_id;
+
+    /* Call dma allocation, creation of contiguous memory for ASQ */
+    ret_code = create_admn_sq(nvme_dev, pmetrics_sq_list->public_sq.elements,
+            pmetrics_sq_list);
+    if (ret_code == SUCCESS) {
+        pmetrics_sq_list->private_sq.size = nvme_q->asq_depth;
+        pmetrics_sq_list->private_sq.vir_kern_addr = nvme_q->virt_asq_addr;
+    }
+
     LOG_NRM("Adding node for Admin SQ to the list.");
     /* Add an element to the end of the list */
     list_add_tail(&pmetrics_sq_list->sq_list_hd, &metrics_sq_ll);
@@ -488,12 +500,6 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
      */
     if (!pmetrics_device_list->metrics_sq_list) {
         pmetrics_device_list->metrics_sq_list = pmetrics_sq_list;
-    }
-    /* Call dma allocation, creation of contiguous memory for ASQ */
-    ret_code = create_admn_sq(nvme_dev, pmetrics_sq_list->public_sq.elements);
-    if (ret_code == SUCCESS) {
-        pmetrics_sq_list->private_sq.size = nvme_q->asq_depth;
-        pmetrics_sq_list->private_sq.vir_kern_addr = nvme_q->virt_asq_addr;
     }
     return ret_code;
 }
@@ -530,10 +536,22 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
         LOG_ERR("failed mem alloc in ACQ creation.");
         return -ENOMEM;
     }
+    /* Reset the data for this node */
+    memset(pmetrics_cq_list, 0, sizeof(struct metrics_cq));
+
     /* Set Admin CQ Id. */
     pmetrics_cq_list->public_cq.q_id = admn_id;
     pmetrics_cq_list->public_cq.elements = create_admn_q->elements;
     LOG_NRM("Adding node for Admin CQ to the list.");
+
+    /* Call dma allocation, creation of contiguous memory for ACQ */
+    ret_code = create_admn_cq(nvme_dev, pmetrics_cq_list->public_cq.elements,
+            pmetrics_cq_list);
+
+    if (ret_code == SUCCESS) {
+        pmetrics_cq_list->private_cq.size = nvme_q->acq_depth;
+        pmetrics_cq_list->private_cq.vir_kern_addr = nvme_q->virt_acq_addr;
+    }
     /* Add an element to the end of the list */
     list_add_tail(&pmetrics_cq_list->cq_list_hd, &metrics_cq_ll);
     /*
@@ -543,13 +561,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     if (!pmetrics_device_list->metrics_cq_list) {
         pmetrics_device_list->metrics_cq_list = pmetrics_cq_list;
     }
-    /* Call dma allocation, creation of contiguous memory for ACQ */
-    ret_code = create_admn_cq(nvme_dev, pmetrics_cq_list->public_cq.elements);
 
-    if (ret_code == SUCCESS) {
-        pmetrics_cq_list->private_cq.size = nvme_q->acq_depth;
-        pmetrics_cq_list->private_cq.vir_kern_addr = nvme_q->virt_acq_addr;
-    }
     return ret_code;
 }
 /*
@@ -677,6 +689,84 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
     }
     return SUCCESS;
 }
+
+int identify_unique(u16 q_id, enum metrics_type type)
+{
+    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
+    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
+
+    /* Determine the type of Q for which the metrics was needed */
+    if (type == METRICS_SQ) {
+        /* Get the device from the linked list */
+        list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
+            /* Check if the Q Id matches */
+            if (q_id == pmetrics_sq_list->public_sq.sq_id) {
+                LOG_ERR("SQ ID is not unique. SQ_ID = %d already created.",
+                    pmetrics_sq_list->public_sq.sq_id);
+                return -EINVAL;
+            }
+        }
+    } else if (type == METRICS_CQ) {
+        list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
+            /* check if a q id matches in the list */
+            if (q_id == pmetrics_cq_list->public_cq.q_id) {
+                LOG_DBG("CQ ID is not unique. CQ_ID = %d already created.",
+                    pmetrics_cq_list->public_cq.q_id);
+                return -EINVAL;
+            }
+        }
+    }
+    return SUCCESS;
+}
+/*
+ * nvme_alloc_sq - This function will try to allocate a contig kernel
+ * space for the correspoinding unique SQ. If the sq_id is duplicated
+ * this will return error to the caller. If the kernel memory is not
+ * available then fail and return NOMEM error code.
+ */
+int driver_nvme_alloc_sq(struct nvme_alloc_contig_sq *alloc_contig_sq,
+        struct nvme_dev_entry *pnvme_dev)
+{
+    int ret_code = SUCCESS;
+    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
+
+    ret_code = identify_unique(alloc_contig_sq->sq_id, METRICS_SQ);
+    if (ret_code != SUCCESS) {
+        LOG_ERR("SQ ID is not unique.");
+        return ret_code;
+    }
+
+    LOG_DBG("Allocating SQ node in linked list.");
+    pmetrics_sq_list = kmalloc(sizeof(struct metrics_sq), GFP_KERNEL);
+    if (pmetrics_sq_list == NULL) {
+        LOG_ERR("failed allocating kernel memory in SQ allocation.");
+        return -ENOMEM;
+    }
+    /* Set the pointer in metrics device to point to this element */
+    if (!pmetrics_device_list->metrics_sq_list) {
+        pmetrics_device_list->metrics_sq_list = pmetrics_sq_list;
+    }
+
+    /* Reset the data for this node */
+    memset(pmetrics_sq_list, 0, sizeof(struct metrics_sq));
+
+    /* Filling the data elements of public sq. */
+    pmetrics_sq_list->public_sq.sq_id = alloc_contig_sq->sq_id;
+    pmetrics_sq_list->public_sq.cq_id = alloc_contig_sq->cq_id;
+    pmetrics_sq_list->public_sq.elements = alloc_contig_sq->elements;
+
+    ret_code = nvme_alloc_sq(pmetrics_sq_list, pnvme_dev);
+
+    if (ret_code < 0) {
+        LOG_ERR("Failed nvme_alloc_sq call!!");
+        return ret_code;
+    }
+
+    /* Add this element to the end of the list */
+    list_add_tail(&pmetrics_sq_list->sq_list_hd, &metrics_sq_ll);
+    return ret_code;
+}
+
 /*
  * free_allqs - This will clear the allocated linked list for the SQs
  * and CQs including the admin Q's

@@ -5,3 +5,5 @@
  * g_id = 0 => Admin
  */
 void ioctl_get_q_metrics(int file_desc, int q_id, int q_type);
+
+void ioctl_alloc_sq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint16_t elem);

@@ -191,17 +191,35 @@ int main(void)
     //ioctl_read_data(file_desc);
     //ioctl_check_device(file_desc);
     //ioctl_disable_ctrl(file_desc);
+    //ioctl_create_acq(file_desc);
+    //ioctl_create_asq(file_desc);
+    //ioctl_enable_ctrl(file_desc);
+
+    /* ACQ Metrics */
+    //ioctl_get_q_metrics(file_desc, 0, 0);
+    /* ASQ Metrics */
+    //ioctl_get_q_metrics(file_desc, 0, 1);
+
+    //ioctl_get_q_metrics(file_desc, 1, 1);
+    //ioctl_get_q_metrics(file_desc, 20, 0);
+
+    ioctl_alloc_sq(file_desc, 1, 1, 20);
+    ioctl_alloc_sq(file_desc, 2, 1, 200);
+    ioctl_alloc_sq(file_desc, 3, 1, 120);
+    ioctl_alloc_sq(file_desc, 4, 1, 2320);
+    ioctl_alloc_sq(file_desc, 5, 1, 5620);
+    ioctl_alloc_sq(file_desc, 6, 1, 4220);
+
     ioctl_create_acq(file_desc);
     ioctl_create_asq(file_desc);
-    //ioctl_enable_ctrl(file_desc);
 
     /* ACQ Metrics */
     ioctl_get_q_metrics(file_desc, 0, 0);
     /* ASQ Metrics */
     ioctl_get_q_metrics(file_desc, 0, 1);
 
-    ioctl_get_q_metrics(file_desc, 1, 1);
-    //ioctl_get_q_metrics(file_desc, 20, 0);
+    ioctl_get_q_metrics(file_desc, 4, 1);
+    ioctl_get_q_metrics(file_desc, 6, 1);
 
     close(file_desc);
     return 0;

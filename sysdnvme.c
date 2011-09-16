@@ -430,6 +430,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr     */
     struct nvme_get_q_metrics *get_q_metrics; /* metrics q params     */
     struct nvme_create_admn_q *create_admn_q; /* create admn q params */
+    struct nvme_alloc_contig_sq *alloc_contig_sq; /* contig sq parans */
 
     /* Get the device from the linked list */
     list_for_each_entry(pnvme_dev_entry, &nvme_devices_llist, list) {
@@ -509,6 +510,13 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         ret_val = nvme_get_q_metrics(get_q_metrics);
         break;
 
+    case NVME_IOCTL_ALLOCATE_CONTIG_SQ:
+        LOG_DBG("Driver Allocating Contiguous memory for IO SQ");
+        /* Assign user passed parameters to q metrics structure. */
+        alloc_contig_sq = (struct nvme_alloc_contig_sq *)ioctl_param;
+        /* Call alloc_sq function to add a node in liked list */
+        ret_val = driver_nvme_alloc_sq(alloc_contig_sq, nvme_dev);
+        break;
     case NVME_IOCTL_DEL_ADMN_Q:
         LOG_DBG("IOCTL NVME_IOCTL_DEL_ADMN_Q Command");
         break;

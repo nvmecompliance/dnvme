@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-g -W -Wall
 APP_NAME := test
 
-SOURCES := test.c test_metrics.c
+SOURCES := test.c test_metrics.c test_alloc.c
 
 INCLUDE :=
 
