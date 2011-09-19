@@ -4,21 +4,26 @@
 #include "dnvme_reg.h"
 
 /* Admin SQ tail Door bell offset */
-#define NVME_SQ0TBDL        0x1000
+#define NVME_SQ0TBDL    0x1000
 
 /* Admin SQ size Mask bits 0-11 in AQA */
-#define ASQS_MASK        0xFFF
+#define ASQS_MASK       0xFFF
 
 /* Admin Completion Q Mask Bits 16-21 in ADA */
-#define ACQS_MASK        0x0FFF0000
+#define ACQS_MASK       0x0FFF0000
 
 /* As Time Out is in lower 32 bits of 64 bit CAP */
-#define NVME_TO_MASK        0xFF000000
+#define NVME_TO_MASK    0xFF000000
 
 /*
 * Each unit in TO is 500 ms, converting ms to jiffies
 */
 #define NVME_MSEC_2_JIFFIES (500 * HZ / 1000)
+
+/*
+ * Maximum AQ entries allowed.
+ */
+#define MAX_AQ_ENTRIES   4096
 
 /*
 * This lines are commented to use inline functions.
@@ -85,6 +90,8 @@ struct nvme_queue {
     u8                 q_init;
 };
 
+/* structure for nvme queue */
+extern struct nvme_queue *nvme_q;
 
 /**
 * The user selection of IOCTL for creating admin cq eventually calls

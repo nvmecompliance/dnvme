@@ -21,6 +21,7 @@
 #include "sysdnvme.h"
 #include "dnvme_ioctls.h"
 #include "dnvme_queue.h"
+#include "dnvme_ds.h"
 #include "version.h"
 
 #define    DRV_NAME            "dnvme"
@@ -82,6 +83,7 @@ struct nvme_dev_entry *nvme_dev;
 struct nvme_dev_char *dev;
 struct device *device;
 LIST_HEAD(nvme_devices_llist);
+LIST_HEAD(metrics_dev_ll);
 module_param(NVME_MAJOR, int, 0);
 
 /*
@@ -191,7 +193,7 @@ static int dnvme_init(void)
         NVME_DEVICE_NAME"%d", nvme_minor);
     if (IS_ERR(device)) {
         err = PTR_ERR(device);
-        LOG_ERR("Device Createion failed");
+        LOG_ERR("Device Creation failed");
         return err;
     }
 
@@ -224,6 +226,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     struct nvme_device_entry *nvme_dev_list = NULL;
     u32  BaseAddress0 = 0;
     u32  *bar;
+
     /*
      *    Following the Iniitalization steps from LDD 3 and pci.txt.
      *    Before touching any device registers, the driver needs to enable
@@ -268,10 +271,10 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
        LOG_DBG("Mask for PCI BARS = 0x%x", bars);
        LOG_DBG("PCI Probe Success!. Return Code = 0x%x", retCode);
 
-    /**
-    *  Try Allocating the device memory in the host and check
-    *  for success.
-    */
+    /*
+     *  Try Allocating the device memory in the host and check
+     *  for success.
+     */
 
     nvme_dev_list = kzalloc((int)sizeof(struct nvme_device_entry), GFP_KERNEL);
 
@@ -314,11 +317,20 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     /* Allocate mem fo nvme device with kernel memory */
     nvme_dev = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
     if (nvme_dev == NULL) {
-        LOG_ERR("Unable to allocate kernel mem in ioctl initilization");
-        LOG_ERR("Exiting from here...");
+        LOG_ERR("Unable to allocate kernel mem in ioctl initialization");
         return -ENOMEM;
     }
     driver_ioctl_init(nvme_dev, pdev);
+
+    /* Allocate mem fo nvme device with kernel memory */
+    pmetrics_device_list = kmalloc(sizeof(struct metrics_device_list),
+            GFP_KERNEL);
+    if (pmetrics_device_list == NULL) {
+        LOG_ERR("failed mem allocation for device in device list.");
+        return -ENOMEM;
+    }
+
+    list_add_tail(&pmetrics_device_list->metrics_device_hd, &metrics_dev_ll);
 
     return retCode;
 }
@@ -412,19 +424,19 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
 {
     int ret_val = -EINVAL; /* set ret val to invalid, chk for success */
     struct rw_generic *nvme_data; /* Local struct var for nvme rw dat */
-    struct nvme_device_entry *nvme_dev_entry; /* entry for nvme dev   */
+    struct nvme_device_entry *pnvme_dev_entry; /* entry for nvme dev  */
     int *nvme_dev_err_sts; /* nvme device error status                */
     struct pci_dev *pdev = NULL; /* pointer to pci device             */
-    struct nvme_asq_gen *nvme_asq_cr; /* nvme ASQ creation parameters */
-    struct nvme_acq_gen *nvme_acq_cr; /* nvme ACQ creation parameters */
     struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr     */
     struct nvme_64b_send *nvme_64b_send; /* 64 bytes send  parameters */
+    struct nvme_get_q_metrics *get_q_metrics; /* metrics q params     */
+    struct nvme_create_admn_q *create_admn_q; /* create admn q params */
 
     /* Get the device from the linked list */
-    list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
-        pdev = nvme_dev_entry->pdev;
-        LOG_DBG("device [%02x:%02x.%02x]", nvme_dev_entry->bus,
-            nvme_dev_entry->slot, nvme_dev_entry->func);
+    list_for_each_entry(pnvme_dev_entry, &nvme_devices_llist, list) {
+        pdev = pnvme_dev_entry->pdev;
+        LOG_DBG("device [%02x:%02x.%02x]", pnvme_dev_entry->bus,
+            pnvme_dev_entry->slot, pnvme_dev_entry->func);
     }
 
     /*
@@ -451,54 +463,29 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
 
     case NVME_IOCTL_WRITE_GENERIC:
 
-        LOG_DBG("Invoke IOCTL Generic Write Funtion");
+        LOG_DBG("Invoke IOCTL Generic Write Function");
         nvme_data = (struct rw_generic *)ioctl_param;
 
         ret_val = driver_generic_write(file, nvme_data, pdev);
         break;
+    case NVME_IOCTL_CREATE_ADMN_Q:
 
-    case NVME_IOCTL_CREATE_ADMN_SQ:
-
-        LOG_DBG("IOCTL for Create Admin SQ");
-        LOG_NRM("Invoke IOCTL call to Create Admin Submission Queue");
-
-        /* Assign user passed parameters to local struct */
-        nvme_asq_cr = (struct nvme_asq_gen *)ioctl_param;
-
-        LOG_NRM("Admin SQ Size req by user:0x%x", nvme_asq_cr->asq_size);
-
-        /* Call driver routine to create ASQ */
-        ret_val = driver_create_asq(nvme_asq_cr, nvme_dev);
-
-        /* Display if ASQ creation was success or fail */
-        if (ret_val >= 0) {
-            LOG_NRM("Admin SQ Creation Success");
+        LOG_DBG("IOCTL for Create Admin Q's...");
+        create_admn_q = (struct nvme_create_admn_q *)ioctl_param;
+        /* Check the type of Admin Q and call corresponding functions */
+        if (create_admn_q->type == ADMIN_SQ) {
+            LOG_DBG("Create Admin SQ");
+            /* call driver routine to create admin sq from ll */
+            ret_val = driver_create_asq(create_admn_q, nvme_dev);
+        } else if (create_admn_q->type == ADMIN_CQ) {
+            LOG_DBG("Create Admin CQ");
+            /* call driver routine to create admin cq from ll */
+            ret_val = driver_create_acq(create_admn_q, nvme_dev);
         } else {
-            LOG_NRM("Admin SQ Creation Failed");
+            LOG_ERR("Unknown Q type specified..");
+            return -EINVAL;
         }
         break;
-
-    case NVME_IOCTL_CREATE_ADMN_CQ:
-
-        LOG_DBG("IOCTL for Create Admin CQ");
-        LOG_NRM("Invoke IOCTL call to Create Admin Completion Queue");
-
-        /* Assign user passed parameters to local struct */
-        nvme_acq_cr = (struct nvme_acq_gen *)ioctl_param;
-
-        LOG_NRM("Admin CQ Size req by user:0x%x", nvme_acq_cr->acq_size);
-
-        /* Call driver routine to create ACQ */
-        ret_val = driver_create_acq(nvme_acq_cr, nvme_dev);
-
-        /* Display if ACQ creation was success or fail */
-        if (ret_val >= 0) {
-            LOG_NRM("Admin CQ Creation Success");
-        } else {
-            LOG_NRM("Admin CQ Creation Failed");
-        }
-        break;
-
     case NVME_IOCTL_CTLR_STATE:
 
         LOG_DBG("IOCTL for nvme controller set/reset Command");
@@ -513,6 +500,14 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
             LOG_NRM("Ctrlr is going to DISABLE/RESET...");
             ret_val = nvme_ctrl_disable(nvme_dev);
         }
+        break;
+
+    case NVME_IOCTL_GET_Q_METRICS:
+        LOG_DBG("User App Requested Q Metrics...");
+        /* Assign user passed parameters to q metrics structure. */
+        get_q_metrics = (struct nvme_get_q_metrics *)ioctl_param;
+        /* Call the Q metrics function and return the data to user. */
+        ret_val = nvme_get_q_metrics(get_q_metrics);
         break;
 
     case NVME_IOCTL_DEL_ADMN_Q:
@@ -538,7 +533,6 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
 
     default:
         LOG_DBG("Cannot find IOCTL going to default case");
-        ret_val = driver_default_ioctl(file, ioctl_param, 80);
         break;
     }
 
@@ -551,12 +545,12 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
 */
 static void __exit dnvme_exit(void)
 {
-    struct nvme_device_entry *nvme_dev_entry;
+    struct nvme_device_entry *pnvme_dev_entry;
     struct pci_dev *pdev;
 
     /* Get the device from the linked list */
-    list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
-        pdev = nvme_dev_entry->pdev;
+    list_for_each_entry(pnvme_dev_entry, &nvme_devices_llist, list) {
+        pdev = pnvme_dev_entry->pdev;
         pci_release_regions(pdev);
     }
     device_del(device);
@@ -564,6 +558,12 @@ static void __exit dnvme_exit(void)
     cdev_del(&dev->cdev);
     unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
     pci_unregister_driver(&dnvme_pci_driver);
+
+    /* Free up all the allocated kernel memory before exiting */
+    free_allqs();
+
+    /* free up the device linked list */
+    list_del(&metrics_dev_ll);
 
     LOG_DBG("dnvme driver Exited...Bye!!");
 }

@@ -13,6 +13,9 @@ enum {
     NVME_CREATE_ADMN_CQ,   /** < enum to invoke admin cq creation       */
     NVME_CTLR_STATE,       /** < enum to enable and disable ctlr        */
     NVME_SEND_64B_CMD,     /** < enum Send 64B command. */
+    NVME_GET_Q_METRICS,    /** < enum to get the q metrics              */
+    NVME_CREATE_ADMN_Q,    /** < enum to invoke creation of admin q's   */
+
 };
 
 /**
@@ -24,7 +27,7 @@ enum {
 * to this ioctl from user level to kernel level.
 */
 #define NVME_IOCTL_READ_GENERIC _IOWR('A', NVME_READ_GENERIC,\
-    struct rw_generic)
+        struct rw_generic)
 
 
 /**
@@ -36,7 +39,7 @@ enum {
 * level to kernel level.
 */
 #define NVME_IOCTL_WRITE_GENERIC _IOWR('A', NVME_WRITE_GENERIC,\
-    struct rw_generic)
+        struct rw_generic)
 
 /**
 * @def NVME_IOCTL_ERR_CHK
@@ -57,7 +60,7 @@ enum {
 * this ioctl from user level to kernel level.
 */
 #define NVME_IOCTL_CREATE_ADMN_SQ _IOWR('A', NVME_CREATE_ADMN_SQ,\
-    struct nvme_asq_gen)
+        struct nvme_asq_gen)
 
 /**
 * @def NVME_IOCTL_CREATE_ADMN_CQ
@@ -68,7 +71,7 @@ enum {
 * this ioctl from user level to kernel level.
 */
 #define NVME_IOCTL_CREATE_ADMN_CQ _IOWR('A', NVME_CREATE_ADMN_CQ,\
-    struct nvme_acq_gen)
+        struct nvme_acq_gen)
 
 /**
 * @def NVME_IOCTL_CTLR_STATE
@@ -79,7 +82,26 @@ enum {
 * this ioctl from user level to kernel level.
 */
 #define NVME_IOCTL_CTLR_STATE _IOWR('A', NVME_CTLR_STATE,\
-    struct nvme_ctrl_enum)
+        struct nvme_ctrl_enum)
+
+/**
+* @def NVME_IOCTL_GET_Q_METRICS
+* define a unique value for getting the q metrics. The metrics is either for
+* Submission queue including Admin SQ or Completion Queue including Admin CQ.
+*/
+#define NVME_IOCTL_GET_Q_METRICS _IOWR('A', NVME_GET_Q_METRICS,\
+        struct nvme_get_q_metrics)
+
+/**
+* @def NVME_IOCTL_CREATE_ADMN_Q
+* define a unique value for creating admin queues. The 'A' value
+* is the group to which this IOCTL type belongs to, generally from (0-255)
+* the second parameter is type within the group defined in the enum. The
+* third parameter give the size of data and type of data that is passed to
+* this ioctl from user level to kernel level.
+*/
+#define NVME_IOCTL_CREATE_ADMN_Q _IOWR('A', NVME_CREATE_ADMN_Q,\
+        struct nvme_create_admn_q)
 
 /**
 * @def NVME_IOCTL_SEND_64B_CMD
