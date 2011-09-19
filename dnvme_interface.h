@@ -78,4 +78,29 @@ struct nvme_ctrl_enum {
     enum nvme_en_dis nvme_status;
 };
 
+/**
+* Enumeration for the Command Sets which are supported
+*/
+enum nvme_cmd_set {
+    CMD_ADMIN, /* Admin Command Set */
+    CMD_NVME, /* NVME Command Set */
+    CMD_AON, /* AON  Command Set */
+};
+
+/**
+* This struct is the basic structure which has important parameter for
+* sending 64 Bytes command to both admin  and IO SQ's and CQ's
+*/
+struct nvme_64b_send {
+    u_int16_t queue_id; /* Queue ID where the cmd_buf command should go */
+    u_int16_t bit_mask; /* BIT MASK for PRP1,PRP2 and Metadata pointer */
+    u_int32_t data_buf_size; /* Size of Data Buffer */
+    /* Data Buffer or Discontiguous CQ/SQ's user space address */
+    __u8 *data_buf_ptr;
+    __u8 *meta_buf_ptr; /* User space addr of Metabuffer else NULL */
+    __u8 *cmd_buf_ptr; /* Virtual Address pointer to 64B command */
+    enum nvme_cmd_set cmd_set; /* Command set for the cmd_buf command */
+    u_int16_t meta_buf_size; /* Size of Meta Buffer */
+};
+
 #endif

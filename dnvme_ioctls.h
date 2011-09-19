@@ -12,6 +12,7 @@ enum {
     NVME_CREATE_ADMN_SQ,   /** < enum to invoke admin sq creation       */
     NVME_CREATE_ADMN_CQ,   /** < enum to invoke admin cq creation       */
     NVME_CTLR_STATE,       /** < enum to enable and disable ctlr        */
+    NVME_SEND_64B_CMD,     /** < enum Send 64B command. */
 };
 
 /**
@@ -79,5 +80,17 @@ enum {
 */
 #define NVME_IOCTL_CTLR_STATE _IOWR('A', NVME_CTLR_STATE,\
     struct nvme_ctrl_enum)
+
+/**
+* @def NVME_IOCTL_SEND_64B_CMD
+* define a unique value for sending 64 Bytes command. The 'A' value
+* is the group to which this IOCTL type belongs to, generally from (0-255)
+* the second parameter is type within the group defined in the enum. The
+* third parameter give the size of data and type of data that is passed to
+* this ioctl from user level to kernel level.
+*/
+
+#define NVME_IOCTL_SEND_64B_CMD _IOWR('A', NVME_SEND_64B_CMD, struct nvme_64b_send)
+
 
 #endif

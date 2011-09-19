@@ -418,6 +418,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     struct nvme_asq_gen *nvme_asq_cr; /* nvme ASQ creation parameters */
     struct nvme_acq_gen *nvme_acq_cr; /* nvme ACQ creation parameters */
     struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr     */
+    struct nvme_64b_send *nvme_64b_send; /* 64 bytes send  parameters */
 
     /* Get the device from the linked list */
     list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
@@ -522,6 +523,19 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         LOG_DBG("IOCTL NVME_IOCTL_SEND_ADMN_CMD Command");
         break;
 
+    case NVME_IOCTL_SEND_64B_CMD:
+        LOG_DBG("IOCTL NVME_IOCTL_SEND_64B_CMD Command");
+        /* Assign user passed parameters to local struct pointrs */
+        nvme_64b_send = (struct nvme_64b_send *)ioctl_param;
+        ret_val =  driver_send_64b(nvme_dev, nvme_64b_send);
+        /* Display success or fail */
+        if (ret_val >= 0) {
+            LOG_NRM("PRP Creation Success");
+        } else {
+            LOG_NRM("PRP Creation Failed");
+        }
+        break;
+
     default:
         LOG_DBG("Cannot find IOCTL going to default case");
         ret_val = driver_default_ioctl(file, ioctl_param, 80);
@@ -539,6 +553,7 @@ static void __exit dnvme_exit(void)
 {
     struct nvme_device_entry *nvme_dev_entry;
     struct pci_dev *pdev;
+
     /* Get the device from the linked list */
     list_for_each_entry(nvme_dev_entry, &nvme_devices_llist, list) {
         pdev = nvme_dev_entry->pdev;

@@ -1,6 +1,7 @@
 #ifndef _DNVME_H_
 #define _DNVME_H_
 
+#define DEBUG
 #define APPNAME         "dnvme"
 #define LEVEL           APPNAME
 #define LOG_NRM(fmt, ...)    \
