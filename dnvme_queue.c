@@ -393,6 +393,7 @@ int nvme_alloc_sq(struct  metrics_sq  *pmetrics_sq_list,
 {
     int ret_code = SUCCESS;
     u32 ctrl_config = 0;
+    u16 u16cap_mqes = 0;
 
     /* Check if the q structure is initialized else init here */
     if (!nvme_q) {
@@ -407,10 +408,18 @@ int nvme_alloc_sq(struct  metrics_sq  *pmetrics_sq_list,
     /* Extract the IOSQES from CC */
     ctrl_config = (ctrl_config >> 16) & 0xF;
     LOG_NRM("CC.IOSQES = 0x%x, 2^x = %d", ctrl_config, (1 << ctrl_config));
-
     pmetrics_sq_list->private_sq.size = pmetrics_sq_list->public_sq.elements *
             (1 << ctrl_config);
-
+    /* Check to see if the entries exceed the Max Q entries supported */
+    u16cap_mqes = readl(&pnvme_dev->nvme_ctrl_space->cap) & 0xFFFF;
+    LOG_NRM("Max Q:Actual Q elements = 0x%x:0x%x", u16cap_mqes,
+            pmetrics_sq_list->public_sq.elements);
+    /* TODO: Clarify if I need to return from here if exceeds and update doc */
+    if (pmetrics_sq_list->public_sq.elements > u16cap_mqes) {
+        LOG_ERR("The IO SQ id = %d exceeds maximum elements allowed!",
+                pmetrics_sq_list->public_sq.sq_id);
+        return -EINVAL;
+    }
     /*
      * call dma_alloc_coherent or SQ which gets DMA mapped address from
      * the kernel virtual address.

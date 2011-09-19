@@ -690,6 +690,11 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
     return SUCCESS;
 }
 
+/*
+ * identify_unique - This routine checkes if the q_id requested is already
+ * in the linked list. If present then it will return error. If its not in
+ * the list this returns success.
+ */
 int identify_unique(u16 q_id, enum metrics_type type)
 {
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */

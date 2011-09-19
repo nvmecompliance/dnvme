@@ -517,6 +517,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         /* Call alloc_sq function to add a node in liked list */
         ret_val = driver_nvme_alloc_sq(alloc_contig_sq, nvme_dev);
         break;
+
     case NVME_IOCTL_DEL_ADMN_Q:
         LOG_DBG("IOCTL NVME_IOCTL_DEL_ADMN_Q Command");
         break;
