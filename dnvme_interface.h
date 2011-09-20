@@ -100,13 +100,16 @@ struct nvme_ctrl_enum {
     enum nvme_en_dis nvme_status;
 };
 
+
+
 /**
-* Enumeration for the Command Sets which are supported
-*/
-enum nvme_cmd_set {
+ * enum providing the definitions of the NVME commands.
+ */
+enum nvme_cmds {
     CMD_ADMIN, /* Admin Command Set */
     CMD_NVME, /* NVME Command Set */
     CMD_AON, /* AON  Command Set */
+    CMD_FENCE, /* last element for loop over-run */
 };
 
 /**
@@ -121,7 +124,7 @@ struct nvme_64b_send {
     __u8 *data_buf_ptr;
     __u8 *meta_buf_ptr; /* User space addr of Metabuffer else NULL */
     __u8 *cmd_buf_ptr; /* Virtual Address pointer to 64B command */
-    enum nvme_cmd_set cmd_set; /* Command set for the cmd_buf command */
+    enum nvme_cmds cmd_set; /* Command set for the cmd_buf command */
     u_int16_t meta_buf_size; /* Size of Meta Buffer */
 };
 

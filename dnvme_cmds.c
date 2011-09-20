@@ -2,13 +2,10 @@
 #include <linux/pci.h>
 #include <linux/types.h>
 
-
-#include "definitions.h"
 #include "sysdnvme.h"
+#include "definitions.h"
 #include "dnvme_reg.h"
 #include "dnvme_cmds.h"
-
-#define TEST_PRP_DEBUG
 
 /* Declaration of static functions belonging to Submitting 64Bytes Command */
 static int pages_to_sg(struct page **,
@@ -35,10 +32,6 @@ int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
     struct scatterlist *sg; /* Pointer to SG List */
     struct nvme_prps prps; /* Pointer to PRP List */
     unsigned long addr; /* Buf Addr typecasted to unsigned long */
-    /* Done once through out the lifetime of driver */
-    /* TODO: will be removed while implementing the complete ioctl */
-    static __u8 one_time = 1;
-    struct device *dmadev;
 
 #ifdef TEST_PRP_DEBUG
     int last_prp, i, j;
@@ -53,22 +46,6 @@ int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
     if ((addr & 3) || (!buf_len) || (NULL == nvme_dev) || (!addr)) {
         LOG_ERR("Invalid Arguments");
         return -EINVAL;
-    }
-
-    /* Used to create Coherent DMA mapping for PRP List */
-    /* TODO :
-     * Should be called only once.
-     * Move to initialization routine of driver
-     */
-    if (one_time) {
-        dmadev = &nvme_dev->pdev->dev;
-        nvme_dev->prp_page_pool = dma_pool_create("prp page", dmadev,
-            PAGE_SIZE, PAGE_SIZE, 0);
-        if (NULL == nvme_dev->prp_page_pool) {
-            LOG_ERR("Creation of DMA Pool failed");
-            return -ENOMEM;
-        }
-        one_time = 0;
     }
 
     /* Mapping user pages to dma memory */
@@ -125,11 +102,18 @@ int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
     unmap_user_pg_to_dma(nvme_dev, WRITE_DEV, addr, buf_len, sg);
     /* TODO remove the last function arg */
     free_prp_pool(nvme_dev, &prps, prps.npages);
-
-    /* xxx :Destroy the DMA pool */
-    //dma_pool_destroy(nvme_dev->prp_page_pool);
-
     return 0;
+}
+
+/*
+ * destroy_dma_pool:
+ * Destroy's the dma pool
+ * Returns void
+ */
+void destroy_dma_pool(struct nvme_dev_entry *nvme_dev)
+{
+    /* Destroy the DMA pool */
+    dma_pool_destroy(nvme_dev->prp_page_pool);
 }
 
 /*

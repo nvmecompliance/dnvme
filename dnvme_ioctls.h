@@ -112,7 +112,8 @@ enum {
 * this ioctl from user level to kernel level.
 */
 
-#define NVME_IOCTL_SEND_64B_CMD _IOWR('A', NVME_SEND_64B_CMD, struct nvme_64b_send)
+#define NVME_IOCTL_SEND_64B_CMD _IOWR('A', NVME_SEND_64B_CMD,\
+        struct nvme_64b_send)
 
 
 #endif

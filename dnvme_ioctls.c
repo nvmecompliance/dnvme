@@ -561,6 +561,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
 int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev)
 {
     int ret_code = -EINVAL; /* ret code to verify if ASQ creation succeeded */
+    struct device *dmadev; /* DMA device structure */
 
     LOG_DBG("Inside driver IOCTL init function");
     LOG_NRM("Initializing the BAR01 and NVME Controller Space");
@@ -583,6 +584,14 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev)
     /* Set the pci device of the nvme_dev to point to pdev from ioctl */
     nvme_dev->pdev = pdev;
 
+    /* Used to create Coherent DMA mapping for PRP List */
+    dmadev = &nvme_dev->pdev->dev;
+    nvme_dev->prp_page_pool = dma_pool_create("prp page", dmadev,
+        PAGE_SIZE, PAGE_SIZE, 0);
+    if (NULL == nvme_dev->prp_page_pool) {
+        LOG_ERR("Creation of DMA Pool failed");
+        return -ENOMEM;
+    }
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)nvme_dev->nvme_ctrl_space);
 
@@ -613,7 +622,9 @@ int driver_send_64b(struct nvme_dev_entry *nvme_dev,
 */
 int driver_default_ioctl(struct file *file, unsigned long buffer,
     size_t length)
-
+{
+    return 0;
+}
 /*
  * nvme_get_q_metrics will return the q metrics from the global data
  * structures if the q_id send down matches any q_id for this device.
@@ -710,7 +721,7 @@ void free_allqs(void)
 {
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
-#if DEBUG
+#ifdef DEBUG
     /* Get the device from the linked list and release */
     list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
         LOG_DBG("SQ_ID = %d", pmetrics_sq_list->public_sq.sq_id);

@@ -23,6 +23,7 @@
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
 #include "version.h"
+#include "dnvme_cmds.h"
 
 #define    DRV_NAME            "dnvme"
 #define    NVME_DEVICE_NAME    "qnvme"
@@ -558,6 +559,11 @@ static void __exit dnvme_exit(void)
     cdev_del(&dev->cdev);
     unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
     pci_unregister_driver(&dnvme_pci_driver);
+
+    /* Free up the DMA pool */
+    /* TODO: Add freeing for all the devices
+     * once the new structures are in place */
+    destroy_dma_pool(nvme_dev);
 
     /* Free up all the allocated kernel memory before exiting */
     free_allqs();

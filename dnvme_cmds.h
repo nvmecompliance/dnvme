@@ -51,4 +51,13 @@ struct nvme_prps {
 */
 int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
     __u8 *buf_addr, __u32 buf_len);
+
+/**
+ * destroy_dma_pool:
+ * Destroy's the dma pool
+ * @param nvme_dev
+ * @return void
+ */
+void destroy_dma_pool(struct nvme_dev_entry *nvme_dev);
+
 #endif

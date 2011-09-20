@@ -1,5 +1,5 @@
-#ifndef _DFUNCPROTO_H_
-#define _DFUNCPROTO_H_
+#ifndef _SYSFUNCPROTO_H_
+#define _SYSFUNCPROTO_H_
 
 #include <linux/kernel.h>
 #include <linux/module.h>
