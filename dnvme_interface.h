@@ -121,9 +121,9 @@ struct nvme_64b_send {
     u_int16_t bit_mask; /* BIT MASK for PRP1,PRP2 and Metadata pointer */
     u_int32_t data_buf_size; /* Size of Data Buffer */
     /* Data Buffer or Discontiguous CQ/SQ's user space address */
-    __u8 *data_buf_ptr;
-    __u8 *meta_buf_ptr; /* User space addr of Metabuffer else NULL */
-    __u8 *cmd_buf_ptr; /* Virtual Address pointer to 64B command */
+    u_int8_t *data_buf_ptr;
+    u_int8_t *meta_buf_ptr; /* User space addr of Metabuffer else NULL */
+    u_int8_t *cmd_buf_ptr; /* Virtual Address pointer to 64B command */
     enum nvme_cmds cmd_set; /* Command set for the cmd_buf command */
     u_int16_t meta_buf_size; /* Size of Meta Buffer */
 };
