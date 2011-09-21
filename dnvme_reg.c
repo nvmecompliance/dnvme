@@ -52,8 +52,6 @@ static inline __u64 READQ(const volatile void __iomem *addr)
 * read_nvme_reg_generic  - Function to read the controller registers
 * located in the MLBAR/MUBAR (PCI BAR 0 and 1) that are mapped to
 * memory area which supports in-order access.
-* The limitation of this reading of nvme space in QEMU dictates
-* accessing individual register rather than looping with index.
 */
 int read_nvme_reg_generic(struct nvme_space nvme_ctrl_reg_space,
     u8 *udata, int nbytes, int offset, enum nvme_acc_type acc_type)

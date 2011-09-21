@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 
+#include "dnvme_ds.h"
 #include "dnvme_reg.h"
 #include "sysdnvme.h"
 
@@ -109,26 +110,27 @@ int device_status_chk(struct pci_dev *pdev, int *status);
 * @return ASQ creation SUCCESS or FAIL
 */
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
-        struct nvme_dev_entry *nvme_dev);
+        struct nvme_device *nvme_dev);
 
 /*
 * driver_iotcl_init - Driver Initialization routine before starting to
 * issue  ioctls.
 * @param nvme_dev
 * @param pdev
+* @param pmetrics_device_list
 * @return init SUCCESS or FAIL
 */
 int driver_ioctl_init(struct nvme_dev_entry *nvme_dev,
-    struct pci_dev *pdev);
+    struct pci_dev *pdev, struct metrics_device_list *pmetrics_device_list);
 
 /**
 * driver_create_acq - Driver Admin completion  Queue creation routine
 * @param create_admn_q
-* @param nvme_dev
+* @param pnvme_dev
 * @return ACQ creation SUCCESS or FAIL
 */
 int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
-        struct nvme_dev_entry *nvme_dev);
+        struct nvme_device *pnvme_dev);
 
 /**
 * driver_nvme_alloc_sq - Driver allocate sq memory routine.
@@ -137,7 +139,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
 * @return allocation of contig mem SUCCESS or FAIL.
 */
 int driver_nvme_alloc_sq(struct nvme_alloc_contig_sq *alloc_contig_sq,
-        struct nvme_dev_entry *pnvme_dev);
+        struct nvme_device *pnvme_dev);
 
 /**
  * free_allqs - Q deallocation routine for freeing up the kernel

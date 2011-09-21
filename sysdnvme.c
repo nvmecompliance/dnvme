@@ -320,7 +320,6 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
         LOG_ERR("Unable to allocate kernel mem in ioctl initialization");
         return -ENOMEM;
     }
-    driver_ioctl_init(nvme_dev, pdev);
 
     /* Allocate mem fo nvme device with kernel memory */
     pmetrics_device_list = kmalloc(sizeof(struct metrics_device_list),
@@ -328,6 +327,12 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     if (pmetrics_device_list == NULL) {
         LOG_ERR("failed mem allocation for device in device list.");
         return -ENOMEM;
+    }
+
+    retCode = driver_ioctl_init(nvme_dev, pdev, pmetrics_device_list);
+    if(retCode != SUCCESS) {
+        LOG_ERR("Failed driver ioctl initializations!!");
+        return -EINVAL;
     }
 
     list_add_tail(&pmetrics_device_list->metrics_device_hd, &metrics_dev_ll);
@@ -422,22 +427,19 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         unsigned int ioctl_num,    /* nmbr and param for ioctl */
             unsigned long ioctl_param)
 {
-    int ret_val = -EINVAL; /* set ret val to invalid, chk for success */
-    struct rw_generic *nvme_data; /* Local struct var for nvme rw dat */
-    struct nvme_device_entry *pnvme_dev_entry; /* entry for nvme dev  */
-    int *nvme_dev_err_sts; /* nvme device error status                */
-    struct pci_dev *pdev = NULL; /* pointer to pci device             */
-    struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr     */
-    struct nvme_get_q_metrics *get_q_metrics; /* metrics q params     */
-    struct nvme_create_admn_q *create_admn_q; /* create admn q params */
-    struct nvme_alloc_contig_sq *alloc_contig_sq; /* contig sq parans */
+    struct nvme_device *pnvme_device;   /* ptr to metrics device             */
+    int ret_val = -EINVAL;        /* set ret val to invalid, chk for success */
+    struct rw_generic *nvme_data; /* Local struct var for nvme rw dat        */
+    int *nvme_dev_err_sts;        /* nvme device error status                */
+    struct pci_dev *pdev = NULL;  /* pointer to pci device                   */
+    struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr            */
+    struct nvme_get_q_metrics *get_q_metrics; /* metrics q params            */
+    struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
+    struct nvme_alloc_contig_sq *alloc_contig_sq; /* contig sq params        */
 
     /* Get the device from the linked list */
-    list_for_each_entry(pnvme_dev_entry, &nvme_devices_llist, list) {
-        pdev = pnvme_dev_entry->pdev;
-        LOG_DBG("device [%02x:%02x.%02x]", pnvme_dev_entry->bus,
-            pnvme_dev_entry->slot, pnvme_dev_entry->func);
-    }
+    pdev = pmetrics_device_list->pnvme_device->pdev;
+    pnvme_device = pmetrics_device_list->pnvme_device;
 
     /*
      * Given a ioctl_num invoke corresponding function
@@ -476,11 +478,11 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         if (create_admn_q->type == ADMIN_SQ) {
             LOG_DBG("Create Admin SQ");
             /* call driver routine to create admin sq from ll */
-            ret_val = driver_create_asq(create_admn_q, nvme_dev);
+            ret_val = driver_create_asq(create_admn_q, pnvme_device);
         } else if (create_admn_q->type == ADMIN_CQ) {
             LOG_DBG("Create Admin CQ");
             /* call driver routine to create admin cq from ll */
-            ret_val = driver_create_acq(create_admn_q, nvme_dev);
+            ret_val = driver_create_acq(create_admn_q, pnvme_device);
         } else {
             LOG_ERR("Unknown Q type specified..");
             return -EINVAL;
@@ -495,10 +497,10 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
 
         if (nvme_ctrl_sts->nvme_status == NVME_CTLR_ENABLE) {
             LOG_NRM("Ctrlr is getting ENABLED...");
-            ret_val = nvme_ctrl_enable(nvme_dev);
+            ret_val = nvme_ctrl_enable(pnvme_device);
         } else {
             LOG_NRM("Ctrlr is going to DISABLE/RESET...");
-            ret_val = nvme_ctrl_disable(nvme_dev);
+            ret_val = nvme_ctrl_disable(pnvme_device);
         }
         break;
 
@@ -515,7 +517,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         /* Assign user passed parameters to q metrics structure. */
         alloc_contig_sq = (struct nvme_alloc_contig_sq *)ioctl_param;
         /* Call alloc_sq function to add a node in liked list */
-        ret_val = driver_nvme_alloc_sq(alloc_contig_sq, nvme_dev);
+        ret_val = driver_nvme_alloc_sq(alloc_contig_sq, pnvme_device);
         break;
 
     case NVME_IOCTL_DEL_ADMN_Q:

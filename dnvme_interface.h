@@ -157,6 +157,7 @@ enum metrics_type {
 struct nvme_get_q_metrics {
     uint16_t    q_id;       /* Pass the Q id for which metrics is desired   */
     enum        metrics_type    type;   /* SQ or CQ metrics desired         */
+    uint32_t    nBytes;     /* Number of bytes to copy into buffer          */
     uint8_t     *buffer;    /* to store the required data.                  */
 };
 

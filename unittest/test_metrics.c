@@ -31,9 +31,11 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type)
     if (q_type == 1) {
         get_q_metrics.buffer = malloc(sizeof(uint8_t) *
             sizeof(struct nvme_gen_sq));
+        get_q_metrics.nBytes = sizeof(struct nvme_gen_sq);
     } else {
         get_q_metrics.buffer = malloc(sizeof(uint8_t) *
                     sizeof(struct nvme_gen_cq));
+        get_q_metrics.nBytes = sizeof(struct nvme_gen_cq);
     }
 
     ret_val = ioctl(file_desc, NVME_IOCTL_GET_Q_METRICS, &get_q_metrics);
