@@ -68,17 +68,16 @@ int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
 
     num_prps = DIV_ROUND_UP(buf_len, PAGE_SIZE);
 
-    if (!(prps.v_list)) {
-        LOG_ERR("Creation of PRP failed");
-        return -ENOMEM;
-    }
-
     if (prps.type == (PRP1 | PRP_List) || prps.type == (PRP2 | PRP_List)) {
+        if (!(prps.v_list)) {
+            LOG_ERR("Creation of PRP failed");
+            return -ENOMEM;
+        }
         prp_vlist = prps.v_list[0];
         if (prps.type == (PRP2 | PRP_List)) {
             LOG_DBG("P1 Entry: %llx", (unsigned long long) prps.prp1);
         }
-        for (i = 0, j = 0; i < num_prps; i++) {
+        for (i = 0, j = 0; i < num_prps - 1; i++) {
 
             if (i < (prps.npages - 1) && i == last_prp) {
                 j++;
@@ -239,6 +238,7 @@ static void unmap_user_pg_to_dma(struct nvme_dev_entry *dev, __u8 write,
     for (i = 0; i < count; i++) {
         put_page(sg_page(&sg[i]));
     }
+    kfree(sg);
 }
 
 /*

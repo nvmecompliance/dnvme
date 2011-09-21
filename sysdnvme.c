@@ -437,6 +437,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     struct nvme_get_q_metrics *get_q_metrics; /* metrics q params            */
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
     struct nvme_alloc_contig_sq *alloc_contig_sq; /* contig sq params        */
+    struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params */
 
     /* Get the device from the linked list */
     pdev = pmetrics_device_list->pnvme_device->pdev;

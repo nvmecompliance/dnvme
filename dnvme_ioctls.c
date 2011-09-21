@@ -556,7 +556,6 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
 int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
         struct metrics_device_list *pmetrics_device_list)
 {
-    int ret_code = -EINVAL; /* ret code to verify if ASQ creation succeeded */
     struct device *dmadev; /* DMA device structure */
 
     LOG_DBG("Inside driver IOCTL init function");
