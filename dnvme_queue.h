@@ -2,9 +2,13 @@
 #define _DNVME_QUEUE_H_
 
 #include "dnvme_reg.h"
+#include "dnvme_ds.h"
 
 /* Admin SQ tail Door bell offset */
 #define NVME_SQ0TBDL    0x1000
+
+/* Admin SQ tail Door bell offset */
+#define NVME_CQ0TBDL    0x1004
 
 /* Admin SQ size Mask bits 0-11 in AQA */
 #define ASQS_MASK       0xFFF
@@ -90,36 +94,29 @@ struct nvme_queue {
     u8                 q_init;
 };
 
-/* structure for nvme queue */
-extern struct nvme_queue *nvme_q;
-
 /**
 * The user selection of IOCTL for creating admin cq eventually calls
 * this function if init is successful. This will create infrastructure
 * for Admin Completion Q creation
-* @param nvme_dev
+* @param pnvme_dev
 * @param qsize
+* @param pmetrics_cq_list
 * @return whether ACQ creation successful or not.
 */
-int create_admn_cq(struct nvme_dev_entry *nvme_dev, u16 qsize);
+int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
+        struct  metrics_cq  *pmetrics_cq_list);
 
 /**
 * The user selection of IOCTL for creating admin sq eventually calls
 * this function if init is successful. This will create infrastructure
 * for Admin Submission Q creation
-* @param nvme_dev
+* @param pnvme_dev
 * @param qsize
+* @param pmetrics_sq_list
 * @return whether ASQ creation successful or not.
 */
-int create_admn_sq(struct nvme_dev_entry *nvme_dev, u16 qsize);
-
-/**
-* this function initialized Q parameters. This will create infrastructure
-* for Admin Submission Q creation and Admin Completion Q creation
-* @param nvme_dev
-* @return whether initialization was success or not.
-*/
-int nvme_queue_init(struct nvme_dev_entry *nvme_dev);
+int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
+        struct  metrics_sq  *pmetrics_sq_list);
 
 /**
 * This is the timer handler which will be invoked by the kernel when the timer
@@ -133,18 +130,37 @@ void jit_timer_fn(unsigned long arg);
 * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
 * flag and this function which call the timer handler and check for the timer
 * expiration. It returns success if the ctrl in rdy before timeout.
-* @param nvme_dev
+* @param pnvme_dev
 * @return SUCCESS or FAIL
 */
-int nvme_ctrl_enable(struct nvme_dev_entry *nvme_dev);
+int nvme_ctrl_enable(struct nvme_device *pnvme_dev);
 
 /**
 * nvme_ctrl_disable - NVME controller disable function.This will reset the
 * CAP.EN flag and this function which call the timer handler and check for
 * the timer expiration. It returns success if the ctrl in rdy before timeout.
-* @param nvme_dev
+* @param pnvme_dev
 * @return SUCCESS or FAIL
 */
-int nvme_ctrl_disable(struct nvme_dev_entry *nvme_dev);
+int nvme_ctrl_disable(struct nvme_device *pnvme_dev);
+
+/**
+* identify_unique - verify if the q_id specified is unique. If not unique then
+* return fail.
+* @param q_id
+* @param type
+* @return SUCCESS or FAIL
+*/
+int identify_unique(u16 q_id, enum metrics_type type);
+
+/**
+* nvme_alloc_sq - NVME controller allocate sq function.This will check
+* if q is allocated and then create a memory for the IO SQ.
+* @param pmetrics_sq_list
+* @param pnvme_dev
+* @return SUCCESS or FAIL
+*/
+int nvme_alloc_sq(struct  metrics_sq  *pmetrics_sq_list,
+            struct nvme_device *pnvme_dev);
 
 #endif
