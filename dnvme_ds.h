@@ -37,7 +37,7 @@ struct nvme_trk_cq {
     u8    *vir_kern_addr;  /* phy addr ptr to the q's allocated to kern mem */
     dma_addr_t  acq_dma_addr;   /* dma mapped address using dma_alloc       */
     u32   size;            /* length in bytes of the allocated Q in kernel  */
-    u32 __iomem *cqdb;     /* Door Bell stride                              */
+    u32 __iomem *dbs;     /* Door Bell stride                              */
 };
 
 /*

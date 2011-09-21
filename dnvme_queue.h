@@ -94,9 +94,6 @@ struct nvme_queue {
     u8                 q_init;
 };
 
-/* structure for nvme queue */
-extern struct nvme_queue *nvme_q;
-
 /**
 * The user selection of IOCTL for creating admin cq eventually calls
 * this function if init is successful. This will create infrastructure
@@ -145,7 +142,7 @@ int nvme_ctrl_enable(struct nvme_device *pnvme_dev);
 * @param pnvme_dev
 * @return SUCCESS or FAIL
 */
-int nvme_ctrl_disable(struct nvme_device *nvme_dev);
+int nvme_ctrl_disable(struct nvme_device *pnvme_dev);
 
 /**
 * identify_unique - verify if the q_id specified is unique. If not unique then

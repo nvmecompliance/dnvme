@@ -330,7 +330,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     }
 
     retCode = driver_ioctl_init(nvme_dev, pdev, pmetrics_device_list);
-    if(retCode != SUCCESS) {
+    if (retCode != SUCCESS) {
         LOG_ERR("Failed driver ioctl initializations!!");
         return -EINVAL;
     }

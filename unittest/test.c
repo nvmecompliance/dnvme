@@ -214,12 +214,13 @@ int main(void)
     //ioctl_create_asq(file_desc);
 
     /* ACQ Metrics */
-    ioctl_get_q_metrics(file_desc, 0, 0);
+    ioctl_get_q_metrics(file_desc, 0, 0, sizeof(struct nvme_gen_cq));
     /* ASQ Metrics */
-    ioctl_get_q_metrics(file_desc, 0, 1);
+    ioctl_get_q_metrics(file_desc, 0, 1, sizeof(struct nvme_gen_sq));
 
-    ioctl_get_q_metrics(file_desc, 4, 1);
-    ioctl_get_q_metrics(file_desc, 6, 1);
+    ioctl_get_q_metrics(file_desc, 2, 1, sizeof(struct nvme_gen_sq) + 10);
+    ioctl_get_q_metrics(file_desc, 4, 1, sizeof(struct nvme_gen_sq));
+    ioctl_get_q_metrics(file_desc, 6, 1, sizeof(struct nvme_gen_sq) - 5);
 
     close(file_desc);
     return 0;

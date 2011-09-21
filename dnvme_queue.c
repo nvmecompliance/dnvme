@@ -196,7 +196,8 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
         LOG_ERR("Unable to allocate DMA Address for ASQ!!");
         return -ENOMEM;
     }
-    LOG_NRM("Virtual ASQ DMA Address: 0x%llx", (u64)pmetrics_sq_list->private_sq.vir_kern_addr);
+    LOG_NRM("Virtual ASQ DMA Address: 0x%llx",
+            (u64)pmetrics_sq_list->private_sq.vir_kern_addr);
 
     /* Read, Modify, Write  the aqa as per the q size requested */
     aqa = (qsize - 1) & ASQS_MASK; /* asqs is zero based value */
@@ -211,7 +212,8 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     writel(aqa, &pnvme_dev->nvme_ctrl_space->aqa);
 
     /* Write the DMA address into ASQ base address */
-    WRITEQ(pmetrics_sq_list->private_sq.asq_dma_addr, &pnvme_dev->nvme_ctrl_space->asq);
+    WRITEQ(pmetrics_sq_list->private_sq.asq_dma_addr,
+            &pnvme_dev->nvme_ctrl_space->asq);
 #ifdef DEBUG
     /* Debug statements */
     LOG_DBG("Admin CQ Base Address = 0x%x",
@@ -312,7 +314,7 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
 
     pmetrics_cq_list->private_cq.size = acq_depth;
     /* Set the door bell of ACQ to 0x1000 as per spec 1.0b */
-    pmetrics_cq_list->private_cq.cqdb =
+    pmetrics_cq_list->private_cq.dbs =
             ((void __iomem *)pnvme_dev->nvme_ctrl_space) + NVME_CQ0TBDL;
     /* returns success or failure*/
     return ret_code;
