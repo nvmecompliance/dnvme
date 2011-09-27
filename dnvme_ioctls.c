@@ -592,6 +592,13 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
             &nvme_dev->pdev->dev;
     pmetrics_device_list->pnvme_device->device_no = 1;
 
+    /*
+     * IRQ initialization is with no interrupts. To determine if device uses
+     * interrupt then, this gets updated in device status function where it
+     * checks for device capabilities.
+     */
+    g_metrics_drv.irq = INT_NONE;
+
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)nvme_dev->nvme_ctrl_space);
 
@@ -724,19 +731,20 @@ int identify_unique(u16 q_id, enum metrics_type type)
     }
     return SUCCESS;
 }
+
 /*
- * nvme_alloc_sq - This function will try to allocate a contig kernel
- * space for the correspoinding unique SQ. If the sq_id is duplicated
+ * driver_nvme_prep_sq - This function will try to allocate kernel
+ * space for the corresponding unique SQ. If the sq_id is duplicated
  * this will return error to the caller. If the kernel memory is not
  * available then fail and return NOMEM error code.
  */
-int driver_nvme_alloc_sq(struct nvme_alloc_contig_sq *alloc_contig_sq,
+int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
         struct nvme_device *pnvme_dev)
 {
     int ret_code = SUCCESS;
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
 
-    ret_code = identify_unique(alloc_contig_sq->sq_id, METRICS_SQ);
+    ret_code = identify_unique(prep_sq->sq_id, METRICS_SQ);
     if (ret_code != SUCCESS) {
         LOG_ERR("SQ ID is not unique.");
         return ret_code;
@@ -756,20 +764,97 @@ int driver_nvme_alloc_sq(struct nvme_alloc_contig_sq *alloc_contig_sq,
     /* Reset the data for this node */
     memset(pmetrics_sq_list, 0, sizeof(struct metrics_sq));
 
-    /* Filling the data elements of public sq. */
-    pmetrics_sq_list->public_sq.sq_id = alloc_contig_sq->sq_id;
-    pmetrics_sq_list->public_sq.cq_id = alloc_contig_sq->cq_id;
-    pmetrics_sq_list->public_sq.elements = alloc_contig_sq->elements;
+    /* Filling the data elements of sq metrics. */
+    pmetrics_sq_list->public_sq.sq_id = prep_sq->sq_id;
+    pmetrics_sq_list->public_sq.cq_id = prep_sq->cq_id;
+    pmetrics_sq_list->public_sq.elements = prep_sq->elements;
+    pmetrics_sq_list->private_sq.contig = prep_sq->contig;
 
-    ret_code = nvme_alloc_sq(pmetrics_sq_list, pnvme_dev);
+    ret_code = nvme_prepare_sq(pmetrics_sq_list, pnvme_dev);
 
     if (ret_code < 0) {
-        LOG_ERR("Failed nvme_alloc_sq call!!");
+        LOG_ERR("Failed nvme_prep_sq call!!");
         return ret_code;
     }
 
+#ifdef DEBUG
+    LOG_NRM("Printing IO SQ Details After Success:");
+    LOG_NRM("Public Elements:");
+    LOG_NRM("\tIO SQ ID = %d", pmetrics_sq_list->public_sq.sq_id);
+    LOG_NRM("\tAssociated CQ ID = %d", pmetrics_sq_list->public_sq.cq_id);
+    LOG_NRM("\telements = %d", pmetrics_sq_list->public_sq.elements);
+    LOG_NRM("Private Elements:");
+    LOG_NRM("\tvir_kern_addr = 0x%llx",
+            (u64)pmetrics_sq_list->private_sq.vir_kern_addr);
+    LOG_NRM("\tContiguous = %d", pmetrics_sq_list->private_sq.contig);
+    LOG_NRM("\tSize Allocated = %d", pmetrics_sq_list->private_sq.size);
+    LOG_NRM("\tDBS= 0x%llx", (u64)pmetrics_sq_list->private_sq.dbs);
+#endif
+
     /* Add this element to the end of the list */
     list_add_tail(&pmetrics_sq_list->sq_list_hd, &metrics_sq_ll);
+    return ret_code;
+}
+
+/*
+ * driver_nvme_prep_cq - This function will try to allocate kernel
+ * space for the corresponding unique CQ. If the cq_id is duplicated
+ * this will return error to the caller. If the kernel memory is not
+ * available then fail and return NOMEM error code.
+ */
+int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
+        struct nvme_device *pnvme_dev)
+{
+    int ret_code = SUCCESS;
+    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
+
+    ret_code = identify_unique(prep_cq->cq_id, METRICS_CQ);
+    if (ret_code != SUCCESS) {
+        LOG_ERR("CQ ID is not unique.");
+        return ret_code;
+    }
+
+    LOG_DBG("Allocating CQ node in linked list.");
+    pmetrics_cq_list = kmalloc(sizeof(struct metrics_cq), GFP_KERNEL);
+    if (pmetrics_cq_list == NULL) {
+        LOG_ERR("failed allocating kernel memory in CQ allocation.");
+        return -ENOMEM;
+    }
+    /* Set the pointer in metrics device to point to this element */
+    if (!pmetrics_device_list->metrics_cq_list) {
+        pmetrics_device_list->metrics_cq_list = pmetrics_cq_list;
+    }
+
+    /* Reset the data for this node */
+    memset(pmetrics_cq_list, 0, sizeof(struct metrics_cq));
+
+    /* Filling the data elements of sq metrics. */
+    pmetrics_cq_list->public_cq.q_id = prep_cq->cq_id;
+    pmetrics_cq_list->public_cq.elements = prep_cq->elements;
+    pmetrics_cq_list->private_cq.contig = prep_cq->contig;
+
+    ret_code = nvme_prepare_cq(pmetrics_cq_list, pnvme_dev);
+
+    if (ret_code < 0) {
+        LOG_ERR("Failed nvme_prep_cq call!!");
+        return ret_code;
+    }
+
+#ifdef DEBUG
+    LOG_NRM("Printing IO CQ Details After Success:");
+    LOG_NRM("Public Elements:");
+    LOG_NRM("\tIO CQ ID = %d", pmetrics_cq_list->public_cq.q_id);
+    LOG_NRM("\telements = %d", pmetrics_cq_list->public_cq.elements);
+    LOG_NRM("Private Elements:");
+    LOG_NRM("\tvir_kern_addr = 0x%llx",
+            (u64)pmetrics_cq_list->private_cq.vir_kern_addr);
+    LOG_NRM("\tContiguous = %d", pmetrics_cq_list->private_cq.contig);
+    LOG_NRM("\tSize Allocated = %d", pmetrics_cq_list->private_cq.size);
+    LOG_NRM("\tDBS= 0x%llx", (u64)pmetrics_cq_list->private_cq.dbs);
+#endif
+
+    /* Add this element to the end of the list */
+    list_add_tail(&pmetrics_cq_list->cq_list_hd, &metrics_cq_ll);
     return ret_code;
 }
 

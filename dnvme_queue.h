@@ -94,6 +94,9 @@ struct nvme_queue {
     u8                 q_init;
 };
 
+/* To use the linked list */
+extern struct list_head metrics_sq_ll;
+
 /**
 * The user selection of IOCTL for creating admin cq eventually calls
 * this function if init is successful. This will create infrastructure
@@ -154,13 +157,33 @@ int nvme_ctrl_disable(struct nvme_device *pnvme_dev);
 int identify_unique(u16 q_id, enum metrics_type type);
 
 /**
-* nvme_alloc_sq - NVME controller allocate sq function.This will check
+* nvme_prepare_sq - NVME controller prepare sq function. This will check
 * if q is allocated and then create a memory for the IO SQ.
 * @param pmetrics_sq_list
 * @param pnvme_dev
 * @return SUCCESS or FAIL
 */
-int nvme_alloc_sq(struct  metrics_sq  *pmetrics_sq_list,
+int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
             struct nvme_device *pnvme_dev);
+
+/**
+* nvme_prepare_cq - NVME controller prepare cq function. This will check
+* if q is allocated and then create a memory for the IO SQ.
+* @param pmetrics_cq_list
+* @param pnvme_dev
+* @return SUCCESS or FAIL
+*/
+int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
+            struct nvme_device *pnvme_dev);
+
+/**
+* nvme_ring_sqx_dbl - NVME controller function to ring the appropriate
+* SQ doorbell.
+* @param ring_sqx
+* @param pnvme_dev
+* @return SUCCESS or FAIL
+*/
+int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
+        struct nvme_device *pnvme_dev);
 
 #endif

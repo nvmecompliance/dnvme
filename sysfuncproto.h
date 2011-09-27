@@ -133,12 +133,23 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
         struct nvme_device *pnvme_dev);
 
 /**
-* driver_nvme_alloc_sq - Driver allocate sq memory routine.
-* @param alloc_contig_sq
+* driver_nvme_prep_sq - Driver routine to set up user parameters into metrics
+* for prepating the IO SQ.
+* @param prep_sq
 * @param pnvme_dev
 * @return allocation of contig mem SUCCESS or FAIL.
 */
-int driver_nvme_alloc_sq(struct nvme_alloc_contig_sq *alloc_contig_sq,
+int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
+        struct nvme_device *pnvme_dev);
+
+/**
+* driver_nvme_prep_cq - Driver routine to set up user parameters into metrics
+* for prepating the IO CQ.
+* @param prep_cq
+* @param pnvme_dev
+* @return allocation of contig mem SUCCESS or FAIL.
+*/
+int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
         struct nvme_device *pnvme_dev);
 
 /**

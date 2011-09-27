@@ -14,7 +14,9 @@ enum {
     NVME_CTLR_STATE,       /** < enum to enable and disable ctlr        */
     NVME_GET_Q_METRICS,    /** < enum to get the q metrics              */
     NVME_CREATE_ADMN_Q,    /** < enum to invoke creation of admin q's   */
-    NVME_ALLOCATE_CONTIG_SQ, /** <enum to allocate SQ contig memory     */
+    NVME_PREPARE_SQ_CREATION, /** <enum Allocate SQ contig memory       */
+    NVME_PREPARE_CQ_CREATION, /** <enum Allocate SQ contig memory       */
+    NVME_RING_SQ_DOORBELL, /** <enum Ring SQ Tail doorbell              */
 };
 
 /**
@@ -103,15 +105,38 @@ enum {
         struct nvme_create_admn_q)
 
 /**
-* @def NVME_IOCTL_ALLOCATE_CONTIG_SQ
+* @def NVME_IOCTL_PREPARE_SQ_CREATION
 * define a unique value for allocating contiguous memory for SQ. The 'A' value
 * is the group to which this IOCTL type belongs to,generally from (0-255)the
 * second parameter is type within the group defined in the enum. The third
 * parameter give the size of data and type of data that is passed to this ioctl
 * from user level to kernel level.
 */
-#define NVME_IOCTL_ALLOCATE_CONTIG_SQ _IOWR('A', NVME_ALLOCATE_CONTIG_SQ,\
-        struct nvme_alloc_contig_sq)
+#define NVME_IOCTL_PREPARE_SQ_CREATION _IOWR('A', NVME_PREPARE_SQ_CREATION,\
+        struct nvme_prep_sq)
+
+/**
+* @def NVME_IOCTL_PREPARE_CQ_CREATION
+* define a unique value for allocating contiguous memory for CQ. The 'A' value
+* is the group to which this IOCTL type belongs to,generally from (0-255)the
+* second parameter is type within the group defined in the enum. The third
+* parameter give the size of data and type of data that is passed to this ioctl
+* from user level to kernel level.
+*/
+#define NVME_IOCTL_PREPARE_CQ_CREATION _IOWR('A', NVME_PREPARE_CQ_CREATION,\
+        struct nvme_prep_sq)
+
+
+/**
+* @def NVME_IOCTL_RING_SQ_DOORBELL
+* define a unique value for allocating contiguous memory for CQ. The 'A' value
+* is the group to which this IOCTL type belongs to,generally from (0-255)the
+* second parameter is type within the group defined in the enum. The third
+* parameter give the size of data and type of data that is passed to this ioctl
+* from user level to kernel level.
+*/
+#define NVME_IOCTL_RING_SQ_DOORBELL _IOWR('A', NVME_RING_SQ_DOORBELL,\
+        struct nvme_ring_sqxtdbl)
 
 
 
