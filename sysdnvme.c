@@ -436,7 +436,9 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr            */
     struct nvme_get_q_metrics *get_q_metrics; /* metrics q params            */
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
-    struct nvme_alloc_contig_sq *alloc_contig_sq; /* contig sq params        */
+    struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
+    struct nvme_prep_cq *prep_cq;   /* CQ params for preparing IO CQ         */
+    struct nvme_ring_sqxtdbl *ring_sqx; /* Ring SQx door-bell params         */
     struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params */
 
     /* Get the device from the linked list */
@@ -514,14 +516,31 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         ret_val = nvme_get_q_metrics(get_q_metrics);
         break;
 
-    case NVME_IOCTL_ALLOCATE_CONTIG_SQ:
-        LOG_DBG("Driver Allocating Contiguous memory for IO SQ");
+    case NVME_IOCTL_PREPARE_SQ_CREATION:
+        LOG_DBG("Driver Preparation for IO SQ");
         /* Assign user passed parameters to q metrics structure. */
-        alloc_contig_sq = (struct nvme_alloc_contig_sq *)ioctl_param;
+        prep_sq = (struct nvme_prep_sq *)ioctl_param;
         /* Call alloc_sq function to add a node in liked list */
-        ret_val = driver_nvme_alloc_sq(alloc_contig_sq, pnvme_device);
+        ret_val = driver_nvme_prep_sq(prep_sq, pnvme_device);
         break;
 
+    case NVME_IOCTL_PREPARE_CQ_CREATION:
+        LOG_DBG("Driver Preparation for IO CQ");
+        /* Assign user passed parameters to q metrics structure. */
+        prep_cq = (struct nvme_prep_cq *)ioctl_param;
+        /* Call alloc_sq function to add a node in liked list */
+        ret_val = driver_nvme_prep_cq(prep_cq, pnvme_device);
+        break;
+
+    case NVME_IOCTL_RING_SQ_DOORBELL:
+        LOG_DBG("Driver Call to Ring SQx Doorbell");
+        /* Assign user passed parameters to q metrics structure. */
+        ring_sqx = (struct nvme_ring_sqxtdbl *)ioctl_param;
+
+        /* Call the ring doorbell driver function */
+        ret_val = nvme_ring_sqx_dbl(ring_sqx, pnvme_device);
+
+        break;
     case NVME_IOCTL_DEL_ADMN_Q:
         LOG_DBG("IOCTL NVME_IOCTL_DEL_ADMN_Q Command");
         break;

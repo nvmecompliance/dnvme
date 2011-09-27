@@ -198,13 +198,32 @@ struct nvme_create_admn_q {
 };
 
 /*
- * Interface structure for allocating SQ memory which is contiguous. The
- * elements are 1 based values and the CC.IOSQES is 2^n based.
+ * Interface structure for allocating SQ memory. The elements are 1 based
+ * values and the CC.IOSQES is 2^n based.
  */
-struct nvme_alloc_contig_sq {
+struct nvme_prep_sq {
     uint16_t    elements;   /* Total number of entries that need kernal mem */
     uint16_t    sq_id;      /* The user specified unique SQ ID              */
     uint16_t    cq_id;      /* Existing or non-existing CQ ID.              */
+    uint8_t     contig;     /* Indicates if SQ is contig or not, 1 = contig */
+};
+
+/*
+ * Interface structure for allocating CQ memory. The elements are 1 based
+ * values and the CC.IOSQES is 2^n based.
+ */
+struct nvme_prep_cq {
+    uint16_t    elements;   /* Total number of entries that need kernal mem */
+    uint16_t    cq_id;      /* Existing or non-existing CQ ID.              */
+    uint8_t     contig;     /* Indicates if SQ is contig or not, 1 = contig */
+};
+
+/*
+ * Interface structure for Ring Submission Q doorbell. The id passed is for SQ
+ * to ring its doorbell.
+ */
+struct nvme_ring_sqxtdbl {
+    uint16_t    sq_id;  /* The SQ ID of the SQ to ring doorbell */
 };
 
 #endif

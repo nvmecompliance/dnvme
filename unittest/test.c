@@ -92,17 +92,17 @@ void ioctl_create_acq(int file_desc)
     int ret_val = -1;
     struct nvme_create_admn_q aq_data;
 
-    aq_data.elements = 0x10;
+    aq_data.elements = 30;
     aq_data.type = ADMIN_CQ;
 
-    printf("User Call to Create Admin Q:\n");
-    printf("User Admin Q No. of Elements= 0x%d\n", aq_data.elements);
+    //printf("\tUser Call to Create Admin Q:\n");
+    printf("\tACQ No. of Elements = %d\n", aq_data.elements);
 
     ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMN_Q, &aq_data);
     if(ret_val < 0)
-        printf("Creation of ACQ Failed!\n");
+        printf("\tCreation of ACQ Failed!\n");
     else
-        printf("ACQ Creation SUCCESS\n");
+        printf("\tACQ Creation SUCCESS\n");
 }
 
 void ioctl_create_asq(int file_desc)
@@ -110,17 +110,17 @@ void ioctl_create_asq(int file_desc)
     int ret_val = -1;
     struct nvme_create_admn_q aq_data;
 
-    aq_data.elements = 10;
+    aq_data.elements = 15;
     aq_data.type = ADMIN_SQ;
 
-    printf("User Call to Create Admin SQ:\n");
-    printf("User Admin Q No. of Elements= 0x%d\n", aq_data.elements);
+    //printf("User Call to Create Admin SQ:\n");
+    printf("\tAdmin SQ No. of Elements = %d\n", aq_data.elements);
 
     ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMN_Q, &aq_data);
     if(ret_val < 0)
-        printf("Creation of ASQ Failed!\n");
+        printf("\tCreation of ASQ Failed!\n");
     else
-        printf("ASQ Creation SUCCESS\n");
+        printf("\tASQ Creation SUCCESS\n");
 }
 
 void ioctl_check_device(int file_desc)
@@ -164,17 +164,129 @@ void ioctl_disable_ctrl(int file_desc)
 
     ret_val = ioctl(file_desc, NVME_IOCTL_CTLR_STATE, &ctrl_data);
        if(ret_val < 0)
-        printf("Diable Failed!\n");
+        printf("Disable Failed!\n");
     else
         printf("Disable SUCCESS\n");
 }
 
+void test_admin(int file_desc)
+{
+    /* Test Case 1 */
+    printf("\nTEST 1: Create Admin CQ...\n");
+    ioctl_create_acq(file_desc);
+    printf("\nTEST 2: Create Admin SQ...\n");
+    ioctl_create_asq(file_desc);
+}
+
+void test_prep_sq(int file_desc)
+{
+    printf("\nTEST 3: Allocating SQ 1 to 3 with different sizes...\n");
+    printf("\nTEST 3: Contiguous SQ Case...\n");
+    printf("\n\tSD_ID : CQ ID = 1 : 1\n");
+    ioctl_prep_sq(file_desc, 1, 1, 20, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+    printf("\n\tSD_ID : CQ ID = 2 : 3\n");
+    ioctl_prep_sq(file_desc, 2, 3, 200, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+    printf("\n\tSD_ID : CQ ID = 3 : 6\n");
+    ioctl_prep_sq(file_desc, 3, 6, 120, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+    printf("\nTEST 4: Allocating SQ 1 to 3 with different sizes...\n");
+    printf("\nTEST 4: Non Contiguous SQ Case...\n");
+    printf("\n\tSD_ID : CQ ID = 4 : 6\n");
+    ioctl_prep_sq(file_desc, 4, 6, 10, 0);
+    printf("\nPress any key to continue..");
+    getchar();
+    printf("\n\tSD_ID : CQ ID = 5 : 1\n");
+    ioctl_prep_sq(file_desc, 5, 1, 15, 0);
+    printf("\nPress any key to continue..");
+    getchar();
+    printf("\n\tSD_ID : CQ ID = 6 : 3\n");
+    ioctl_prep_sq(file_desc, 6, 3, 32, 0);
+    printf("\nPress any key to continue..");
+    getchar();
+
+}
+
+void test_prep_cq(int file_desc)
+{
+    printf("\nTEST 5: Preparing CQ's with different sizes...\n");
+    printf("\nTEST 5: Contiguous CQ Case...\n");
+    printf("\n\tCQ ID = 1\n");
+    ioctl_prep_cq(file_desc, 1, 20, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+    printf("\n\tCQ ID = 3\n");
+    ioctl_prep_cq(file_desc, 3, 200, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    printf("\nTEST 6: Preparing CQ 1 to 3 with different sizes...\n");
+    printf("\nTEST 6: Non Contiguous SQ Case...\n");
+    printf("\n\tCQ ID = 6\n");
+    ioctl_prep_cq(file_desc, 6, 10, 0);
+    printf("\nPress any key to continue..");
+    getchar();
+    printf("\n\tCQ ID = 5\n");
+    ioctl_prep_cq(file_desc, 5, 15, 0);
+    printf("\nPress any key to continue..");
+    getchar();
+}
+
+void test_metrics(int file_desc)
+{
+    printf("\nTEST 4: Get metrics\n");
+    /* ACQ Metrics */
+    printf("Get ACQ Metrics: \n\n");
+    ioctl_get_q_metrics(file_desc, 0, 0, sizeof(struct nvme_gen_cq));
+    printf("\nPress any key to continue..");
+    getchar();
+
+    /* ASQ Metrics */
+    //printf("Get ASQ Metrics: \n\n");
+    //ioctl_get_q_metrics(file_desc, 0, 1, sizeof(struct nvme_gen_sq));
+    //printf("\nPress any key to continue..");
+    //getchar();
+
+    printf("Get IO_SQ = 2 (exists) Metrics: \n\n");
+    ioctl_get_q_metrics(file_desc, 2, 1, sizeof(struct nvme_gen_sq) + 10);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    printf("Get IO_SQ = 1 (exists) Metrics: \n\n");
+    ioctl_get_q_metrics(file_desc, 1, 1, sizeof(struct nvme_gen_sq));
+    printf("\nPress any key to continue..");
+    getchar();
+
+    printf("Get IO_SQ = 6 (does not exist. No metrics): \n\n");
+    ioctl_get_q_metrics(file_desc, 6, 1, sizeof(struct nvme_gen_sq));
+    printf("\nPress any key to continue..");
+    getchar();
+
+    printf("Get IO_SQ = 3 (exists but no space to copy. No metrics): \n\n");
+    ioctl_get_q_metrics(file_desc, 3, 1, sizeof(struct nvme_gen_sq) - 5);
+    printf("\nPress any key to continue..");
+    getchar();
+}
+
+void tst_ring_dbl(int file_desc)
+{
+    ioctl_tst_ring_dbl(file_desc, 1);
+    ioctl_tst_ring_dbl(file_desc, 10);
+    ioctl_tst_ring_dbl(file_desc, 5);
+    ioctl_tst_ring_dbl(file_desc, 0);
+}
 int main(void)
 {
     int file_desc;
 
-    printf("Ensure you have permissions to device..\n\
-    else \n do \"chmod 777 /dev/qnvme0\" \n");
+    printf("\n*****\t Demo \t*****\n");
+
+    /*printf("Ensure you have permissions to device..\n\
+    else \n do \"chmod 777 /dev/qnvme0\" \n");*/
     printf("Starting Test Application...\n");
 
     file_desc = open(DEVICE_FILE_NAME, 0);
@@ -185,15 +297,40 @@ int main(void)
 
     printf("Device File Succesfully Opened = %d\n", file_desc);
 
+    test_admin(file_desc);
+//    printf("\n...Test PASS if creation is success.");
+//    printf("\nPress any key to continue..");
+//    getchar();
+
+    test_prep_sq(file_desc);
+    printf("\n...Test PASS if all Preparation success...");
+    printf("\nPress any key to continue..");
+    getchar();
+
+//    test_prep_cq(file_desc);
+//    printf("\n...Test PASS if all Preparation success...");
+//    printf("\nPress any key to continue..");
+//    getchar();
+
+    tst_ring_dbl(file_desc);
+
+//    test_admin(file_desc);
+//    printf("\n...Test PASS if creation is not successful.");
+//    printf("\nPress any key to continue..");
+//    getchar();
+
+//    test_metrics(file_desc);
+
+
     //ioctl_check_device(file_desc);
     //ioctl_read_data(file_desc);
     //ioctl_write_data(file_desc);
     //ioctl_read_data(file_desc);
     //ioctl_check_device(file_desc);
-    ioctl_disable_ctrl(file_desc);
-    ioctl_create_acq(file_desc);
-    ioctl_create_asq(file_desc);
-    ioctl_enable_ctrl(file_desc);
+    //ioctl_disable_ctrl(file_desc);
+    //ioctl_create_acq(file_desc);
+    //ioctl_create_asq(file_desc);
+    //ioctl_enable_ctrl(file_desc);
 
     /* ACQ Metrics */
     //ioctl_get_q_metrics(file_desc, 0, 0);
@@ -203,25 +340,19 @@ int main(void)
     //ioctl_get_q_metrics(file_desc, 1, 1);
     //ioctl_get_q_metrics(file_desc, 20, 0);
 
-    ioctl_alloc_sq(file_desc, 1, 1, 20);
-    ioctl_alloc_sq(file_desc, 2, 3, 200);
-    ioctl_alloc_sq(file_desc, 3, 6, 120);
-    ioctl_alloc_sq(file_desc, 4, 2, 2320);
-    ioctl_alloc_sq(file_desc, 5, 6, 5620);
-    ioctl_alloc_sq(file_desc, 6, 5, 4220);
+    //ioctl_alloc_sq(file_desc, 1, 1, 20);
+    //ioctl_alloc_sq(file_desc, 2, 3, 200);
+    //ioctl_alloc_sq(file_desc, 3, 6, 120);
+    //ioctl_alloc_sq(file_desc, 4, 2, 2320);
+    //ioctl_alloc_sq(file_desc, 5, 6, 5620);
+    //ioctl_alloc_sq(file_desc, 6, 5, 4220);
 
     //ioctl_create_acq(file_desc);
     //ioctl_create_asq(file_desc);
 
-    /* ACQ Metrics */
-    ioctl_get_q_metrics(file_desc, 0, 0, sizeof(struct nvme_gen_cq));
-    /* ASQ Metrics */
-    ioctl_get_q_metrics(file_desc, 0, 1, sizeof(struct nvme_gen_sq));
-
-    ioctl_get_q_metrics(file_desc, 2, 1, sizeof(struct nvme_gen_sq) + 10);
-    ioctl_get_q_metrics(file_desc, 4, 1, sizeof(struct nvme_gen_sq));
-    ioctl_get_q_metrics(file_desc, 6, 1, sizeof(struct nvme_gen_sq) - 5);
-
     close(file_desc);
+    printf("\nEnd of Testing...");
+    getchar();
+    printf("\n\n****** END OF DEMO ****** \n\n");
     return 0;
 }

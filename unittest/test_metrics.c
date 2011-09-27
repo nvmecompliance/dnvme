@@ -41,7 +41,7 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
     ret_val = ioctl(file_desc, NVME_IOCTL_GET_Q_METRICS, &get_q_metrics);
 
     if(ret_val < 0)
-        printf("Q metrics could not be checked!\n");
+        printf("\tQ metrics could not be checked!\n");
     else {
         if (q_type == 1) {
             memcpy(&tmp, &get_q_metrics.buffer[0], sizeof(uint16_t));
