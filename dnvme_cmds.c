@@ -79,11 +79,13 @@ int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
         }
         for (i = 0, j = 0; i < num_prps - 1; i++) {
 
-            if (i < (prps.npages - 1) && i == last_prp) {
+            if (j < (prps.npages - 1) && i == last_prp) {
                 j++;
                 num_prps -= i;
                 i = 0 ;
                 prp_vlist = prps.v_list[j];
+                LOG_NRM("Physical address of next PRP Page: %llx",
+                    (__le64) prp_vlist);
             }
 
             LOG_DBG("PRP List: %llx", (unsigned long long) prp_vlist[i]);
@@ -308,7 +310,8 @@ static int setup_prps(struct nvme_dev_entry *nvme_dev, struct scatterlist *sg,
 prp_list:
     /* Generate PRP List */
     num_prps = DIV_ROUND_UP(buf_len, PAGE_SIZE);
-    num_pg = DIV_ROUND_UP(PRP_Size * num_prps, PAGE_SIZE);
+    /* Taking into account the last entry of PRP Page */
+    num_pg = DIV_ROUND_UP(PRP_Size * num_prps, PAGE_SIZE - PRP_Size);
 
     prps->v_list = kmalloc(sizeof(__le64 *) *num_pg, GFP_ATOMIC);
     if (NULL == prps) {
@@ -316,10 +319,10 @@ prp_list:
         return -ENOMEM;
     }
 
+    LOG_NRM("No. of PRP Entries inside PRPList: %u", num_prps);
+
     prp_page = 0;
     prp_page_pool = nvme_dev->prp_page_pool;
-    prps->npages = num_pg;
-
 
     prp_list = dma_pool_alloc(prp_page_pool, GFP_ATOMIC, &prp_dma);
     if (NULL == prp_list) {
@@ -343,7 +346,7 @@ prp_list:
 
     index = 0;
     for (;;) {
-        if (index == PAGE_SIZE / PRP_Size - 1) {
+        if ((index == PAGE_SIZE / PRP_Size - 1) && (buf_len > PAGE_SIZE)) {
             __le64 *old_prp_list = prp_list;
             prp_list = dma_pool_alloc(prp_page_pool, GFP_ATOMIC, &prp_dma);
             if (NULL == prp_list) {
@@ -366,7 +369,9 @@ prp_list:
             (unsigned long long) (dma_addr - PAGE_SIZE));
 
         if (buf_len <= 0) {
-                break;
+            LOG_DBG("No. of PRP Pages: %u", prp_page);
+            prps->npages = prp_page;
+            break;
         }
         if (dma_len > 0) {
             continue;

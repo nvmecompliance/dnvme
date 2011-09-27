@@ -18,7 +18,7 @@
 
 #define DEVICE_FILE_NAME "/dev/qnvme0"
 
-void ioctl_create_prp_more_than_one_page(int file_desc)
+void ioctl_create_prp_more_than_two_page(int file_desc)
 {
     int ret_val = -1;
     struct nvme_64b_send user_cmd;
@@ -104,6 +104,65 @@ void ioctl_create_prp_one_page(int file_desc)
     free(addr);
 }
 
+void ioctl_create_list_of_prp(int file_desc)
+{
+    int ret_val = -1;
+    struct nvme_64b_send user_cmd;
+    /* 1 page of PRP List filled completley and 1 more page
+     * of PRP List containg only one entry */
+    void *addr = (void *) malloc((512 * 4096) + 4096);
+    if (addr == NULL) {
+        printf("Malloc Failed");
+        return;
+    }
+    user_cmd.queue_id = 0;
+    user_cmd.cmd_set = 0;
+    user_cmd.bit_mask = 0;
+    user_cmd.cmd_buf_ptr = NULL;
+    user_cmd.data_buf_size = (512 * 4096) + 4096;
+    user_cmd.data_buf_ptr = addr;
+    user_cmd.meta_buf_size = 0;
+    user_cmd.meta_buf_ptr = NULL;
+    printf("User Call to Create Lists of PRP's\n");
+
+    ret_val = ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
+    if (ret_val < 0) {
+        printf("Creation of PRP Failed!\n");
+    } else {
+        printf("PRP Creation SUCCESS\n");
+    }
+    free(addr);
+}
+
+void ioctl_create_fill_list_of_prp(int file_desc)
+{
+    int ret_val = -1;
+    struct nvme_64b_send user_cmd;
+    /* 2 pages of PRP Lists filled completley */
+    void *addr = (void *) malloc(1023 * 4096);
+    if (addr == NULL) {
+        printf("Malloc Failed");
+        return;
+    }
+    user_cmd.queue_id = 0;
+    user_cmd.cmd_set = 0;
+    user_cmd.bit_mask = 0;
+    user_cmd.cmd_buf_ptr = NULL;
+    user_cmd.data_buf_size = 1023 * 4096;
+    user_cmd.data_buf_ptr = addr;
+    user_cmd.meta_buf_size = 0;
+    user_cmd.meta_buf_ptr = NULL;
+    printf("User Call to Create Lists of PRP's\n");
+
+    ret_val = ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
+    if (ret_val < 0) {
+        printf("Creation of PRP Failed!\n");
+    } else {
+        printf("PRP Creation SUCCESS\n");
+    }
+    free(addr);
+}
+
 int main(void)
 {
     int file_desc;
@@ -121,7 +180,9 @@ int main(void)
 
     ioctl_create_prp_one_page(file_desc);
     ioctl_create_prp_less_than_one_page(file_desc);
-    ioctl_create_prp_more_than_one_page(file_desc);
+    ioctl_create_prp_more_than_two_page(file_desc);
+    ioctl_create_list_of_prp(file_desc);
+    ioctl_create_fill_list_of_prp(file_desc);
     close(file_desc);
     return 0;
 }
