@@ -373,7 +373,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
      * the kernel virtual address.
      * != 0 is contiguous SQ as per design.
      */
-    if (pmetrics_sq_list->private_sq.contig == 1) {
+    if (pmetrics_sq_list->private_sq.contig != 0) {
         /* Assume that CMD.DW11.PC bit will be set to one. */
         pmetrics_sq_list->private_sq.vir_kern_addr = dma_alloc_coherent(
                 &pnvme_dev->pdev->dev, pmetrics_sq_list->private_sq.size,
@@ -434,7 +434,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
      * the kernel virtual address only for contiguous CQ case.
      * != 0 is contiguous CQ as per design.
      */
-    if (pmetrics_cq_list->private_cq.contig == 1) {
+    if (pmetrics_cq_list->private_cq.contig != 0) {
         /* Assume that CMD.DW11.PC bit will be set to one. */
         pmetrics_cq_list->private_cq.vir_kern_addr = dma_alloc_coherent(
                 &pnvme_dev->pdev->dev, pmetrics_cq_list->private_cq.size,

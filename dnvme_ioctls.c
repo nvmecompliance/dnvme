@@ -783,6 +783,9 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     LOG_NRM("\tIO SQ ID = %d", pmetrics_sq_list->public_sq.sq_id);
     LOG_NRM("\tAssociated CQ ID = %d", pmetrics_sq_list->public_sq.cq_id);
     LOG_NRM("\telements = %d", pmetrics_sq_list->public_sq.elements);
+    LOG_NRM("\tHead Ptr = %d", pmetrics_sq_list->public_sq.head_ptr);
+    LOG_NRM("\tTail Ptr = %d", pmetrics_sq_list->public_sq.tail_ptr);
+    LOG_NRM("\tVirt Tail Ptr = %d", pmetrics_sq_list->public_sq.tail_ptr_virt);
     LOG_NRM("Private Elements:");
     LOG_NRM("\tvir_kern_addr = 0x%llx",
             (u64)pmetrics_sq_list->private_sq.vir_kern_addr);
@@ -845,11 +848,14 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     LOG_NRM("Public Elements:");
     LOG_NRM("\tIO CQ ID = %d", pmetrics_cq_list->public_cq.q_id);
     LOG_NRM("\telements = %d", pmetrics_cq_list->public_cq.elements);
+    LOG_NRM("\tHead Ptr = %d", pmetrics_cq_list->public_cq.head_ptr);
+    LOG_NRM("\tTail Ptr = %d", pmetrics_cq_list->public_cq.tail_ptr);
     LOG_NRM("Private Elements:");
     LOG_NRM("\tvir_kern_addr = 0x%llx",
             (u64)pmetrics_cq_list->private_cq.vir_kern_addr);
     LOG_NRM("\tContiguous = %d", pmetrics_cq_list->private_cq.contig);
     LOG_NRM("\tSize Allocated = %d", pmetrics_cq_list->private_cq.size);
+    LOG_NRM("\t",);
     LOG_NRM("\tDBS= 0x%llx", (u64)pmetrics_cq_list->private_cq.dbs);
 #endif
 
