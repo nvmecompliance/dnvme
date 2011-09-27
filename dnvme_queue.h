@@ -94,7 +94,7 @@ struct nvme_queue {
     u8                 q_init;
 };
 
-/* To use the linked list */
+/* To use the linked list in queues. */
 extern struct list_head metrics_sq_ll;
 
 /**

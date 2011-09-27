@@ -535,7 +535,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         /* Assign user passed parameters to q metrics structure. */
         ring_sqx = (struct nvme_ring_sqxtdbl *)ioctl_param;
 
-        /* Call ring doorbell function */
+        /* Call the ring doorbell driver function */
         ret_val = nvme_ring_sqx_dbl(ring_sqx, pnvme_device);
 
         break;

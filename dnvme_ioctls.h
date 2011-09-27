@@ -129,7 +129,7 @@ enum {
 
 /**
 * @def NVME_IOCTL_RING_SQ_DOORBELL
-* define a unique value for allocating contiguous memory for CQ. The 'A' value
+* define a unique value to ring SQ doorbell. The 'A' value
 * is the group to which this IOCTL type belongs to,generally from (0-255)the
 * second parameter is type within the group defined in the enum. The third
 * parameter give the size of data and type of data that is passed to this ioctl
@@ -137,7 +137,6 @@ enum {
 */
 #define NVME_IOCTL_RING_SQ_DOORBELL _IOWR('A', NVME_RING_SQ_DOORBELL,\
         struct nvme_ring_sqxtdbl)
-
 
 
 #endif

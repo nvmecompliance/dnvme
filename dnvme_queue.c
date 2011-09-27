@@ -508,9 +508,7 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
              return SUCCESS;
         }
     }
-
     LOG_DBG("SQ ID = %d not found to ring its doorbell", ring_sqx->sq_id);
-
     /* If it falls here no SQ ID is found */
     return -EINVAL;
 }
