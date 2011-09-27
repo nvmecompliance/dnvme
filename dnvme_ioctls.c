@@ -855,7 +855,6 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
             (u64)pmetrics_cq_list->private_cq.vir_kern_addr);
     LOG_NRM("\tContiguous = %d", pmetrics_cq_list->private_cq.contig);
     LOG_NRM("\tSize Allocated = %d", pmetrics_cq_list->private_cq.size);
-    LOG_NRM("\t",);
     LOG_NRM("\tDBS= 0x%llx", (u64)pmetrics_cq_list->private_cq.dbs);
 #endif
 
