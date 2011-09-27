@@ -16,11 +16,13 @@
 #include "sysdnvme.h"
 #include "dnvme_sts_chk.h"
 #include "dnvme_queue.h"
+#include "dnvme_cmds.h"
 #include "dnvme_ds.h"
 
 /* initialize the linked list headers */
 LIST_HEAD(metrics_sq_ll);
 LIST_HEAD(metrics_cq_ll);
+
 
 /*
 *  device_status_chk  - Generic error checking function
@@ -554,6 +556,8 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
 int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
         struct metrics_device_list *pmetrics_device_list)
 {
+    struct device *dmadev; /* DMA device structure */
+
     LOG_DBG("Inside driver IOCTL init function");
     LOG_NRM("Initializing the BAR01 and NVME Controller Space");
 
@@ -574,6 +578,15 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
 
     /* Set the pci device of the nvme_dev to point to pdev from ioctl */
     nvme_dev->pdev = pdev;
+
+    /* Used to create Coherent DMA mapping for PRP List */
+    dmadev = &nvme_dev->pdev->dev;
+    nvme_dev->prp_page_pool = dma_pool_create("prp page", dmadev,
+        PAGE_SIZE, PAGE_SIZE, 0);
+    if (NULL == nvme_dev->prp_page_pool) {
+        LOG_ERR("Creation of DMA Pool failed");
+        return -ENOMEM;
+    }
 
     /* Allocate mem fo nvme device with kernel memory */
     pmetrics_device_list->pnvme_device = kmalloc(sizeof(struct nvme_device),
@@ -605,6 +618,31 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
     return SUCCESS;
 }
 
+/*
+*  driver_send_64b - Routine for sending 64 bytes command into
+*  admin/IO SQ/CQ's
+*/
+int driver_send_64b(struct nvme_dev_entry *nvme_dev,
+    struct nvme_64b_send *nvme_64b_send)
+{
+    /* ret code to verify status of sending 64 bytes command */
+    int ret_code = -EINVAL;
+    /* TODO: make the function more generic while implementing complete IOCTL */
+    ret_code = submit_command(nvme_dev, nvme_64b_send->queue_id,
+        nvme_64b_send->data_buf_ptr, nvme_64b_send->data_buf_size);
+    return ret_code;
+}
+
+
+/*
+* driver_default_ioctl - Default if none of the switch
+* in ioctl gets called.
+*/
+int driver_default_ioctl(struct file *file, unsigned long buffer,
+    size_t length)
+{
+    return 0;
+}
 /*
  * nvme_get_q_metrics will return the q metrics from the global data
  * structures if the q_id send down matches any q_id for this device.

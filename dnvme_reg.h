@@ -29,6 +29,7 @@ struct nvme_ctrl_reg {
 struct nvme_dev_entry {
     struct pci_dev *pdev; /* Pointer to pci dev                      */
     u8 *bar0mapped;       /* Bar 0 IO remapped value                 */
+    struct dma_pool *prp_page_pool; /* Mem for PRP List */
     struct nvme_ctrl_reg __iomem *nvme_ctrl_space;
                 /* Pointer to NVME controller space      */
     u8 init_flag;         /* indicates initiazation for this struct  */

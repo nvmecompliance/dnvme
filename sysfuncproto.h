@@ -1,5 +1,5 @@
-#ifndef _DFUNCPROTO_H_
-#define _DFUNCPROTO_H_
+#ifndef _SYSFUNCPROTO_H_
+#define _SYSFUNCPROTO_H_
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -158,4 +158,13 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
  */
 void free_allqs(void);
 
+/**
+* driver_send_64b - Routine for sending 64 bytes command into
+* admin/IO SQ/CQ's
+* @param nvme_dev
+* @param nvme_64b_send
+* @return Error Codes
+*/
+int driver_send_64b(struct nvme_dev_entry *nvme_dev,
+    struct nvme_64b_send *nvme_64b_send);
 #endif

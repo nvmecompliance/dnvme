@@ -1,5 +1,5 @@
-#ifndef _DNVME_H_
-#define _DNVME_H_
+#ifndef _SYSDNVME_H_
+#define _SYSDNVME_H_
 
 #define APPNAME         "dnvme"
 #define LEVEL           APPNAME
@@ -15,6 +15,9 @@
 #else
 #define LOG_DBG(fmt, ...)
 #endif
+
+/* Debug flag for IOCT_SEND_64B module */
+#define TEST_PRP_DEBUG
 
 /**
 * This definition is intended for making modification or quirks necessary to

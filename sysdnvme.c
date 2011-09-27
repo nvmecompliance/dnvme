@@ -23,6 +23,7 @@
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
 #include "version.h"
+#include "dnvme_cmds.h"
 
 #define    DRV_NAME            "dnvme"
 #define    NVME_DEVICE_NAME    "qnvme"
@@ -438,6 +439,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
     struct nvme_prep_cq *prep_cq;   /* CQ params for preparing IO CQ         */
     struct nvme_ring_sqxtdbl *ring_sqx; /* Ring SQx door-bell params         */
+    struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params */
 
     /* Get the device from the linked list */
     pdev = pmetrics_device_list->pnvme_device->pdev;
@@ -547,6 +549,19 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         LOG_DBG("IOCTL NVME_IOCTL_SEND_ADMN_CMD Command");
         break;
 
+    case NVME_IOCTL_SEND_64B_CMD:
+        LOG_DBG("IOCTL NVME_IOCTL_SEND_64B_CMD Command");
+        /* Assign user passed parameters to local struct pointrs */
+        nvme_64b_send = (struct nvme_64b_send *)ioctl_param;
+        ret_val =  driver_send_64b(nvme_dev, nvme_64b_send);
+        /* Display success or fail */
+        if (ret_val >= 0) {
+            LOG_NRM("PRP Creation Success");
+        } else {
+            LOG_NRM("PRP Creation Failed");
+        }
+        break;
+
     default:
         LOG_DBG("Cannot find IOCTL going to default case");
         break;
@@ -574,6 +589,11 @@ static void __exit dnvme_exit(void)
     cdev_del(&dev->cdev);
     unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
     pci_unregister_driver(&dnvme_pci_driver);
+
+    /* Free up the DMA pool */
+    /* TODO: Add freeing for all the devices
+     * once the new structures are in place */
+    destroy_dma_pool(nvme_dev);
 
     /* Free up all the allocated kernel memory before exiting */
     free_allqs();

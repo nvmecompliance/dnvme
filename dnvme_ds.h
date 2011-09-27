@@ -42,16 +42,6 @@ struct nvme_trk_cq {
 };
 
 /*
- * enum providing the definitions of the NVME commands.
- */
-enum nvme_cmds {
-    CMD_ADMIN,
-    CMD_NVME,
-    CMD_AON,
-    CMD_FENCE,        /* last element for loop over-run */
-};
-
-/*
  *    Structure definition for tracking the commands.
  */
 struct cmd_track {
