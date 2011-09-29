@@ -11,7 +11,7 @@ enum {
     NVME_ERR_CHK,          /** < enum Generic device status check func  */
     NVME_CREATE_ADMN_SQ,   /** < enum to invoke admin sq creation       */
     NVME_CREATE_ADMN_CQ,   /** < enum to invoke admin cq creation       */
-    NVME_CTLR_STATE,       /** < enum to enable and disable ctlr        */
+    NVME_DEVICE_STATE,       /** < enum to enable and disable ctlr        */
     NVME_SEND_64B_CMD,     /** < enum Send 64B command. */
     NVME_GET_Q_METRICS,    /** < enum to get the q metrics              */
     NVME_CREATE_ADMN_Q,    /** < enum to invoke creation of admin q's   */
@@ -84,8 +84,8 @@ enum {
 * third parameter give the size of data and type of data that is passed to
 * this ioctl from user level to kernel level.
 */
-#define NVME_IOCTL_CTLR_STATE _IOWR('A', NVME_CTLR_STATE,\
-        struct nvme_ctrl_enum)
+#define NVME_IOCTL_DEVICE_STATE _IOWR('A', NVME_DEVICE_STATE,\
+        struct nvme_ctrl_state)
 
 /**
 * @def NVME_IOCTL_GET_Q_METRICS

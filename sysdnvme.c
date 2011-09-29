@@ -433,7 +433,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     struct rw_generic *nvme_data; /* Local struct var for nvme rw dat        */
     int *nvme_dev_err_sts;        /* nvme device error status                */
     struct pci_dev *pdev = NULL;  /* pointer to pci device                   */
-    struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr            */
+    struct nvme_ctrl_state *ctrl_new_state; /* controller new state          */
     struct nvme_get_q_metrics *get_q_metrics; /* metrics q params            */
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
@@ -493,19 +493,24 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
             return -EINVAL;
         }
         break;
-    case NVME_IOCTL_CTLR_STATE:
+    case NVME_IOCTL_DEVICE_STATE:
 
         LOG_DBG("IOCTL for nvme controller set/reset Command");
         LOG_NRM("Invoke IOCTL for controller Status Setting");
         /* Assign user passed parameters to local struct */
-        nvme_ctrl_sts = (struct nvme_ctrl_enum *)ioctl_param;
+        ctrl_new_state = (struct nvme_ctrl_state *)ioctl_param;
 
-        if (nvme_ctrl_sts->nvme_status == NVME_CTLR_ENABLE) {
+        if (ctrl_new_state->new_state == ST_ENABLE) {
             LOG_NRM("Ctrlr is getting ENABLED...");
             ret_val = nvme_ctrl_enable(pnvme_device);
-        } else {
-            LOG_NRM("Ctrlr is going to DISABLE/RESET...");
+        } else if (ctrl_new_state->new_state == ST_DISABLE) {
+            LOG_NRM("Ctrlr is going to DISABLE/RESET, Admin Q's not affected");
             ret_val = nvme_ctrl_disable(pnvme_device);
+        } else if (ctrl_new_state->new_state == ST_DISABLE_COMPLETELY) {
+            LOG_NRM("Complete disable of controller including Admin Q's");
+        } else {
+            LOG_ERR("Device State not correctly specified.");
+            return -EINVAL;
         }
         break;
 

@@ -59,48 +59,22 @@ struct rw_generic {
 };
 
 /**
-* These enums are used for creating Admin Completion Q types based on requested
-* user type.
+* These enums are used while enabling or disabling or completely disabling the
+* controller.
 */
-enum nvme_qop_type {
-    NVME_Q_POLLING, /* Polling based Q */
-    NVME_Q_IRQ,   /* Interrupt Based Q */
+enum nvme_state {
+    ST_ENABLE,              /* Set the NVME Controller to enable state      */
+    ST_DISABLE,             /* Controller reset without affecting Admin Q   */
+    ST_DISABLE_COMPLETELY,  /* Completely destroy even Admin Q's            */
 };
 
 /**
-* This struct is the basic structure which has important parameter for
-* creating admin submission queue and gets the size from user.
+* The parametes in this structue is used for setting the controller a new
+* state.
 */
-struct nvme_asq_gen {
-    uint32_t asq_size;
+struct nvme_ctrl_state {
+    enum nvme_state new_state; /* New state of the controller requested. */
 };
-
-/**
-* This struct is the basic structure which has important parameter for
-* creating admin completion queue and gets the size from user including
-* priority for Q creation.
-*/
-struct nvme_acq_gen {
-    enum nvme_qop_type cq_type;
-    uint32_t acq_size;
-};
-
-/**
-* This enums are used while enabling or disabling the controller.
-*/
-enum nvme_en_dis {
-    NVME_CTLR_ENABLE, /* It does controller reset functionality */
-    NVME_CTLR_DISABLE, /* It shuts down the controller*/
-};
-
-/**
-* This Struct is used for setting the controller either
-*/
-struct nvme_ctrl_enum {
-    enum nvme_en_dis nvme_status;
-};
-
-
 
 /**
  * enum providing the definitions of the NVME commands.
