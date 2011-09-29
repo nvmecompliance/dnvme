@@ -440,6 +440,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     struct nvme_prep_cq *prep_cq;   /* CQ params for preparing IO CQ         */
     struct nvme_ring_sqxtdbl *ring_sqx; /* Ring SQx door-bell params         */
     struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params */
+    struct nvme_file    *n_file;
 
     /* Get the device from the linked list */
     pdev = pmetrics_device_list->pnvme_device->pdev;
@@ -545,10 +546,6 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         LOG_DBG("IOCTL NVME_IOCTL_DEL_ADMN_Q Command");
         break;
 
-    case NVME_IOCTL_SEND_ADMN_CMD:
-        LOG_DBG("IOCTL NVME_IOCTL_SEND_ADMN_CMD Command");
-        break;
-
     case NVME_IOCTL_SEND_64B_CMD:
         LOG_DBG("IOCTL NVME_IOCTL_SEND_64B_CMD Command");
         /* Assign user passed parameters to local struct pointrs */
@@ -560,6 +557,16 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         } else {
             LOG_NRM("PRP Creation Failed");
         }
+        break;
+
+    case NVME_IOCTL_DUMP_METRICS:
+        LOG_DBG("Dump Data Structure Metrics:");
+        /* Assign user passed parameters to local struct pointers */
+        LOG_NRM("1...");
+        n_file = (struct nvme_file *)ioctl_param;
+        ret_val = driver_log(n_file);
+        LOG_NRM("2...");
+
         break;
 
     default:

@@ -149,7 +149,7 @@ struct nvme_gen_cq {
     uint16_t    tail_ptr;    /* The value calculated for respective tail_ptr */
     uint16_t    head_ptr;    /* Actual value in CQxTDBL for this q_id        */
     uint16_t    elements;    /* pass the actual elements in this q           */
-    uint8_t     irqEnabled;  /* pass if using IRQ's or not.                  */
+    uint8_t     irq_enabled;  /* pass if using IRQ's or not.                  */
 };
 
 /**
@@ -226,4 +226,8 @@ struct nvme_ring_sqxtdbl {
     uint16_t    sq_id;  /* The SQ ID of the SQ to ring doorbell */
 };
 
+struct nvme_file {
+    uint16_t    flen; /* Length of file name, it is not the total bytes */
+    uint8_t     *file_name; /* location and file name to copy metrics   */
+};
 #endif

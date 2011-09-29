@@ -167,4 +167,12 @@ void free_allqs(void);
 */
 int driver_send_64b(struct nvme_dev_entry *nvme_dev,
     struct nvme_64b_send *nvme_64b_send);
+
+/**
+* driver_log - Driver routine to log data into file from metrics
+* @param n_file
+* @return allocation of contig mem SUCCESS or FAIL.
+*/
+int driver_log(struct nvme_file *n_file);
+
 #endif

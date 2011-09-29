@@ -18,6 +18,7 @@ enum {
     NVME_PREPARE_SQ_CREATION, /** <enum Allocate SQ contig memory       */
     NVME_PREPARE_CQ_CREATION, /** <enum Allocate SQ contig memory       */
     NVME_RING_SQ_DOORBELL, /** <enum Ring SQ Tail doorbell              */
+    NVME_DUMP_METRICS,     /** <enum Log data from Metrics structure    */
 };
 
 /**
@@ -150,5 +151,14 @@ enum {
 #define NVME_IOCTL_RING_SQ_DOORBELL _IOWR('A', NVME_RING_SQ_DOORBELL,\
         struct nvme_ring_sqxtdbl)
 
+/**
+* @def NVME_IOCTL_DUMP_METRICS
+* define a unique value to Dump Q metrics. The 'A' value
+* is the group to which this IOCTL type belongs to,generally from (0-255)the
+* second parameter is type within the group defined in the enum. The third
+* parameter give the size of data and type of data that is passed to this ioctl
+* from user level to kernel level.
+*/
+#define NVME_IOCTL_DUMP_METRICS _IOWR('A', NVME_DUMP_METRICS, struct nvme_file)
 
 #endif

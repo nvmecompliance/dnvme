@@ -96,6 +96,9 @@ struct nvme_queue {
 
 /* To use the linked list in queues. */
 extern struct list_head metrics_sq_ll;
+extern struct list_head metrics_cq_ll;
+extern struct list_head metrics_dev_ll;
+extern struct list_head sq_cmd_ll;
 
 /**
 * The user selection of IOCTL for creating admin cq eventually calls

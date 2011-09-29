@@ -15,7 +15,7 @@
  */
 struct isr_track {
     struct    list_head    isr_list_hd;   /* List head of isr tracker    */
-    u16       intVec;                     /* Interrupt vector            */
+    u16       int_vec;                     /* Interrupt vector            */
     u16       cq_id[];                    /* List of associated CQ's     */
 };
 
@@ -45,10 +45,11 @@ struct nvme_trk_cq {
  *    Structure definition for tracking the commands.
  */
 struct cmd_track {
+    struct list_head    cmd_list_hd;  /* link-list using the kernel list    */
     u16    unique_id;    /* driver assigned unique id for a particuler cmd. */
     u16    sq_id;        /* what is SQ id for this cmd to be submitted to   */
     u8     opcode;       /* command opcode as per spec                      */
-    enum   nvme_cmds   cmdSet;   /* what cmd set does this opcode belong to */
+    enum   nvme_cmds   cmd_set;   /* what cmd set does this opcode belong to */
     struct prp_element prp_nonpersist;
         /* points to the prp list if prp list exists. */
 };
@@ -61,7 +62,7 @@ struct nvme_trk_sq {
     dma_addr_t  asq_dma_addr;   /* dma mapped address using dma_alloc       */
     u32         size;           /* length in bytes of allocated Q in kernel */
     u16         unique_cmd_id;  /* unique to each SQ on a per device level  */
-    struct cmd_tack    *cmd_track_list;    /* to track a particular cmd     */
+    struct cmd_track    *cmd_track_list;    /* to track a particular cmd     */
     u32 __iomem *dbs;           /* Door Bell stride                         */
     struct prp_element  prp;    /* PRP element in CQ                        */
     u8          contig;         /* Indicates if prp list is contig or not   */
@@ -90,7 +91,7 @@ struct metrics_sq {
 struct nvme_device {
     struct pci_dev  *pdev;          /* Pointer to the device in PCI space  */
     struct nvme_ctrl_reg __iomem *nvme_ctrl_space; /* Pointer to reg space */
-    u8  *bar0mapped;                /* Bar 0 IO re-mapped value            */
+    u8  *bar_0_mapped;                /* Bar 0 IO re-mapped value            */
     struct device   *dmadev;        /* Pointer to the dma device from pdev */
     u8  device_no;                  /* Current device number               */
 };

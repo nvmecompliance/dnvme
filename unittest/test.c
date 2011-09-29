@@ -279,9 +279,33 @@ void tst_ring_dbl(int file_desc)
     ioctl_tst_ring_dbl(file_desc, 5);
     ioctl_tst_ring_dbl(file_desc, 0);
 }
+
+void ioctl_dump(int file_desc, char *tmpfile)
+{
+    int ret_val = -1;
+    struct nvme_file pfile;
+
+    pfile.flen = strlen(tmpfile);
+
+    printf("size = %d\n", pfile.flen);
+
+    pfile.file_name = malloc(sizeof(char) * pfile.flen);
+    strcpy((char *)pfile.file_name, tmpfile);
+
+    printf("File name = %s\n", pfile.file_name);
+
+    ret_val = ioctl(file_desc, NVME_IOCTL_DUMP_METRICS, &pfile);
+    if(ret_val < 0)
+        printf("Dump Metircs failed!\n");
+    else
+        printf("Dump Metrics SUCCESS\n");
+}
+
 int main(void)
 {
     int file_desc;
+    char *tmpfile1 = "/tmp/file_name1.txt";
+    char *tmpfile2 = "/tmp/file_name2.txt";
 
     printf("\n*****\t Demo \t*****\n");
 
@@ -297,22 +321,25 @@ int main(void)
 
     printf("Device File Succesfully Opened = %d\n", file_desc);
 
-    test_admin(file_desc);
+    ioctl_dump(file_desc, tmpfile1);
+   test_admin(file_desc);
 //    printf("\n...Test PASS if creation is success.");
 //    printf("\nPress any key to continue..");
 //    getchar();
 
     test_prep_sq(file_desc);
-    printf("\n...Test PASS if all Preparation success...");
-    printf("\nPress any key to continue..");
-    getchar();
-
-//    test_prep_cq(file_desc);
 //    printf("\n...Test PASS if all Preparation success...");
 //    printf("\nPress any key to continue..");
 //    getchar();
 
-    tst_ring_dbl(file_desc);
+    test_prep_cq(file_desc);
+//    printf("\n...Test PASS if all Preparation success...");
+//    printf("\nPress any key to continue..");
+//    getchar();
+
+    ioctl_dump(file_desc, tmpfile2);
+
+//    tst_ring_dbl(file_desc);
 
 //    test_admin(file_desc);
 //    printf("\n...Test PASS if creation is not successful.");

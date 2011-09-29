@@ -22,6 +22,7 @@
 /* initialize the linked list headers */
 LIST_HEAD(metrics_sq_ll);
 LIST_HEAD(metrics_cq_ll);
+LIST_HEAD(sq_cmd_ll);
 
 
 /*
@@ -587,7 +588,6 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
         LOG_ERR("Creation of DMA Pool failed");
         return -ENOMEM;
     }
-
     /* Allocate mem fo nvme device with kernel memory */
     pmetrics_device_list->pnvme_device = kmalloc(sizeof(struct nvme_device),
             GFP_KERNEL);
@@ -597,7 +597,7 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
     }
     /* Populate Metrics device list with this device */
     pmetrics_device_list->pnvme_device->pdev = pdev;
-    pmetrics_device_list->pnvme_device->bar0mapped =
+    pmetrics_device_list->pnvme_device->bar_0_mapped =
             nvme_dev->bar0mapped;
     pmetrics_device_list->pnvme_device->nvme_ctrl_space =
             (void __iomem *)nvme_dev->bar0mapped;

@@ -386,18 +386,12 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
     }
     /* Set Unique Command value to zero for starters. */
     pmetrics_sq_list->private_sq.unique_cmd_id = 0;
-    /*
-     * TODO: Waiting for Amber to clarify if the doorbell registers are zero
-     * after a delete IO is performed.
-     */
     cap_dstrd = (READQ(&pnvme_dev->nvme_ctrl_space->cap) >> 32) & 0xF;
     LOG_DBG("CAP DSTRD Value = 0x%x", cap_dstrd);
     pmetrics_sq_list->private_sq.dbs =
             ((void __iomem *)pnvme_dev->nvme_ctrl_space) + NVME_SQ0TBDL +
             ((2 * pmetrics_sq_list->public_sq.sq_id) * (4 << cap_dstrd));
 
-    /* Writing to doorbell before creating is undefined. So not writing here */
-    /* writel(0x0, pmetrics_sq_list->private_sq.dbs); */
     return ret_code;
 }
 
@@ -448,22 +442,17 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 
     /* Set if IRQ is being enabled */
     if (g_metrics_drv.irq != INT_NONE) {
-        pmetrics_cq_list->public_cq.irqEnabled = 0;
+        pmetrics_cq_list->public_cq.irq_enabled = 0;
     } else {
-        pmetrics_cq_list->public_cq.irqEnabled = 1;
+        pmetrics_cq_list->public_cq.irq_enabled = 1;
     }
-    /*
-     * TODO: Waiting for Amber to clarify if the doorbell registers are zero
-     * after a delete IO is performed.
-     */
+
     cap_dstrd = (READQ(&pnvme_dev->nvme_ctrl_space->cap) >> 32) & 0xF;
     LOG_DBG("CAP DSTRD Value = 0x%x", cap_dstrd);
     /* Here CQ also used SQ0TDBL offset i.e., 0x1000h. */
     pmetrics_cq_list->private_cq.dbs =
             ((void __iomem *)pnvme_dev->nvme_ctrl_space) + NVME_SQ0TBDL +
             ((2 * pmetrics_cq_list->public_cq.q_id + 1) * (4 << cap_dstrd));
-    /* Writing to doorbell before creating is undefined. So not writing here */
-    /* writel(0x0, pmetrics_cq_list->private_cq.dbs); */
 
     return ret_code;
 }
