@@ -562,10 +562,9 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     case NVME_IOCTL_DUMP_METRICS:
         LOG_DBG("Dump Data Structure Metrics:");
         /* Assign user passed parameters to local struct pointers */
-        LOG_NRM("1...");
         n_file = (struct nvme_file *)ioctl_param;
+        /* call logging routine */
         ret_val = driver_log(n_file);
-        LOG_NRM("2...");
 
         break;
 

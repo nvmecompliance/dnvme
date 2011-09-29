@@ -37,9 +37,9 @@ int driver_log(struct nvme_file *n_file)
     u8 data1[100];       /* Tmp buffer to spit out data to file             */
     struct  metrics_cq  *pmetrics_cq_list;        /* CQ linked list         */
     struct  metrics_device_list *pmetrics_device; /* Metrics device list    */
-    struct  cmd_track  *pcmd_track_list;          /* SQ linked list         */
+    struct  cmd_track  *pcmd_track_list;          /* cmd track linked list  */
     unsigned char __user *filename =
-            (unsigned char __user *)n_file->file_name;
+            (unsigned char __user *)n_file->file_name; /* user file name    */
 
     /* copy the file name sent from user */
     copy_from_user((u8 *)filename, (u8 *)n_file->file_name,
@@ -114,7 +114,7 @@ int driver_log(struct nvme_file *n_file)
                         private_cq.prp.prps.prp2);
                 vfs_write(file, data1, strlen(data1), &pos);
              } /* End of CQ list */
-            /* Reset Q number */
+            /* Reset Q cnt */
             i = 0;
             /* looping through available sq list */
             list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {

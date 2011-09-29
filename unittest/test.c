@@ -322,7 +322,7 @@ int main(void)
     printf("Device File Succesfully Opened = %d\n", file_desc);
 
     ioctl_dump(file_desc, tmpfile1);
-   test_admin(file_desc);
+    test_admin(file_desc);
 //    printf("\n...Test PASS if creation is success.");
 //    printf("\nPress any key to continue..");
 //    getchar();
