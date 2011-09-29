@@ -20,13 +20,27 @@ struct isr_track {
 };
 
 /*
- * Structure definition for global PRP persistent element.
+ * Strucutre used to define all the essential parameters
+ * related to PRP1, PRP2 and PRP List
+ */
+struct nvme_prps {
+    u32 npages; /* No. of pages inside the PRP List */
+    u32 type; /* refers to types of PRP Possible */
+    /* List of virtual pointers to PRP List pages */
+    __le64 **vir_prp_list;
+    __le64 prp1; /* Physical address in PRP1 of command */
+    __le64 prp2; /* Physical address in PRP2 of command */
+    /* TODO: Will be removed once complete IOCTL is working */
+    dma_addr_t first_dma; /* First entry in PRP List */
+};
+
+/*
+ * Structure definition for global PRP element.
  */
 struct prp_element {
-    u8        *prp_list;                /* pointer to prp list              */
-    u8        num_pages;                /* num pages in prp entry           */
-    u16       sq_id;                    /* Submission Q ID with prp         */
-    u16       unique_id;                /* drv assigned unique id for a cmd */
+    struct nvme_prps prps; /* Strucutre describing PRP's */
+    u16       sq_id; /* Submission Q ID with prp */
+    u16       unique_id; /* drv assigned unique id for a cmd */
 };
 
 /*
@@ -61,11 +75,11 @@ struct nvme_trk_sq {
     void        *vir_kern_addr; /* virtual kernal address using kmalloc     */
     dma_addr_t  asq_dma_addr;   /* dma mapped address using dma_alloc       */
     u32         size;           /* length in bytes of allocated Q in kernel */
-    u16         unique_cmd_id;  /* unique to each SQ on a per device level  */
-    struct cmd_track    *cmd_track_list;    /* to track a particular cmd     */
+    u16         unique_cmd_id;  /* unique counter for each comand in SQ     */
     u32 __iomem *dbs;           /* Door Bell stride                         */
     struct prp_element  prp;    /* PRP element in CQ                        */
     u8          contig;         /* Indicates if prp list is contig or not   */
+    struct cmd_track    *cmd_track_list;    /* to track a particular cmd     */
 };
 
 /*

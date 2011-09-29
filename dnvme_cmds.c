@@ -6,6 +6,7 @@
 #include "definitions.h"
 #include "dnvme_reg.h"
 #include "dnvme_cmds.h"
+#include "dnvme_ds.h"
 
 /* Declaration of static functions belonging to Submitting 64Bytes Command */
 static int pages_to_sg(struct page **,
@@ -69,11 +70,11 @@ int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
     num_prps = DIV_ROUND_UP(buf_len, PAGE_SIZE);
 
     if (prps.type == (PRP1 | PRP_List) || prps.type == (PRP2 | PRP_List)) {
-        if (!(prps.v_list)) {
+        if (!(prps.vir_prp_list)) {
             LOG_ERR("Creation of PRP failed");
             return -ENOMEM;
         }
-        prp_vlist = prps.v_list[0];
+        prp_vlist = prps.vir_prp_list[0];
         if (prps.type == (PRP2 | PRP_List)) {
             LOG_DBG("P1 Entry: %llx", (unsigned long long) prps.prp1);
         }
@@ -83,7 +84,7 @@ int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
                 j++;
                 num_prps -= i;
                 i = 0 ;
-                prp_vlist = prps.v_list[j];
+                prp_vlist = prps.vir_prp_list[j];
                 LOG_NRM("Physical address of next PRP Page: %llx",
                     (__le64) prp_vlist);
             }
@@ -313,7 +314,7 @@ prp_list:
     /* Taking into account the last entry of PRP Page */
     num_pg = DIV_ROUND_UP(PRP_Size * num_prps, PAGE_SIZE - PRP_Size);
 
-    prps->v_list = kmalloc(sizeof(__le64 *) *num_pg, GFP_ATOMIC);
+    prps->vir_prp_list = kmalloc(sizeof(__le64 *) *num_pg, GFP_ATOMIC);
     if (NULL == prps) {
         LOG_ERR("Memory allocation for virtual list failed");
         return -ENOMEM;
@@ -329,7 +330,7 @@ prp_list:
         LOG_ERR("Memory allocation for prp page failed");
         return -ENOMEM;
     }
-    prps->v_list[prp_page++] = prp_list;
+    prps->vir_prp_list[prp_page++] = prp_list;
     prps->first_dma = prp_dma;
     if (prps->type == (PRP2 | PRP_List)) {
         /* TODO: Verify Non-Zero offset */
@@ -354,7 +355,7 @@ prp_list:
                 err = -ENOMEM;
                 goto error;
             }
-            prps->v_list[prp_page++] = prp_list;
+            prps->vir_prp_list[prp_page++] = prp_list;
             old_prp_list[index] = cpu_to_le64(prp_dma);
             index = 0;
         }
@@ -413,13 +414,13 @@ static void free_prp_pool(struct nvme_dev_entry *dev,
         prp_dma = prps->first_dma;
 
         for (i = 0; i < npages; i++) {
-            prp_vlist = prps->v_list[i];
+            prp_vlist = prps->vir_prp_list[i];
             if (i < (npages - 1)) {
                 next_prp_dma = le64_to_cpu(prp_vlist[last_prp]);
             }
             dma_pool_free(dev->prp_page_pool, prp_vlist, prp_dma);
             prp_dma = next_prp_dma;
         }
-        kfree(prps->v_list);
+        kfree(prps->vir_prp_list);
     }
 }

@@ -23,17 +23,6 @@ enum data_buf_type {
     DISCONTG_IO_Q = 0 ,
     DATA_BUF = 1,
 };
-/* Strucutre for PRP */
-/* TODO: Modify strucutre while implementing complete IOCTL */
-struct nvme_prps {
-    __u32 npages;
-    __u32 type; /* refers to prp_type */
-    __le64 **v_list; /* Virtual List of DMA Pools */
-    __le64 prp1;
-    __le64 prp2;
-    dma_addr_t first_dma; /* First entry in PRP List */
-};
-
 
 /**
 * submit_command :
