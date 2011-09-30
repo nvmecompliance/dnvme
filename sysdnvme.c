@@ -319,7 +319,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     /* Update info in the metrics list */
     pmetrics_device_list->pnvme_device->minor_no = nvme_minor_x;
     /* update the device minor number */
-    nvme_minor_x = nvme_minor_x + 2;
+    nvme_minor_x = nvme_minor_x + 1;
 
     list_add_tail(&pmetrics_device_list->metrics_device_hd, &metrics_dev_ll);
     return retCode;
