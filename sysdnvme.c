@@ -317,7 +317,6 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
         return -EINVAL;
     }
     /* Update info in the metrics list */
-    pmetrics_device_list->pnvme_device->cdev = dev->cdev;
     pmetrics_device_list->pnvme_device->minor_no = nvme_minor_x;
     /* update the device minor number */
     nvme_minor_x = nvme_minor_x + 2;
@@ -429,8 +428,8 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     struct nvme_file    *n_file;
     int dev_found;
 
-    LOG_DBG("Minor N0 = %d", iminor(inode));
-    /* Loop through the devices */
+    LOG_DBG("Minor No = %d", iminor(inode));
+    /* Loop through the devices available in the metrics list */
     list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
         LOG_DBG("Minor Number in the List = %d", pmetrics_device->
                 pnvme_device->minor_no);
@@ -519,7 +518,6 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
             if (ret_val == SUCCESS) {
                 /* Clean Up the Data Structures. */
             }
-
         } else {
             LOG_ERR("Device State not correctly specified.");
             return -EINVAL;

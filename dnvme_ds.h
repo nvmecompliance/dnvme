@@ -95,9 +95,7 @@ struct nvme_device {
     struct nvme_ctrl_reg __iomem *nvme_ctrl_space; /* Pointer to reg space */
     u8  *bar_0_mapped;              /* Bar 0 IO re-mapped value            */
     struct device   *dmadev;        /* Pointer to the dma device from pdev */
-    u8  device_no;                  /* Current device number               */
-    struct cdev cdev;
-    int minor_no;
+    int minor_no;                   /* Minor no. of the device being used  */
 };
 
 /*

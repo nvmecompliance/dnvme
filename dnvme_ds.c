@@ -53,7 +53,10 @@ int driver_log(struct nvme_file *n_file)
         list_for_each_entry(pmetrics_device, &metrics_dev_ll,
                 metrics_device_hd) {
             /* Get the variable from metrics structure and write to file */
-            sprintf(data1, "metrics_device_list[%d]", dev++);
+            sprintf(data1, "metrics_device_list[%d]\n", dev++);
+            vfs_write(file, data1, strlen(data1), &pos);
+            sprintf(data1, "Minor Number = %d", pmetrics_device->pnvme_device->
+                    minor_no);
             vfs_write(file, data1, strlen(data1), &pos);
             /* Looping through the available CQ list */
             list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {

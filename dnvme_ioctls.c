@@ -604,14 +604,6 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
             (void __iomem *)nvme_dev->bar0mapped;
     pmetrics_device_list->pnvme_device->dmadev =
             &nvme_dev->pdev->dev;
-    pmetrics_device_list->pnvme_device->device_no = 1;
-
-    /*
-     * IRQ initialization is with no interrupts. To determine if device uses
-     * interrupt then, this gets updated in device status function where it
-     * checks for device capabilities.
-     */
-    g_metrics_drv.irq = INT_NONE;
 
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)nvme_dev->nvme_ctrl_space);
