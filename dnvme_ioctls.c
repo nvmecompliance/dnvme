@@ -595,6 +595,7 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
         LOG_ERR("failed mem allocation for device.");
         return -ENOMEM;
     }
+
     /* Populate Metrics device list with this device */
     pmetrics_device_list->pnvme_device->pdev = pdev;
     pmetrics_device_list->pnvme_device->bar_0_mapped =

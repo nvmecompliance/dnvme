@@ -155,22 +155,24 @@ int nvme_ctrl_enable(struct nvme_device *pnvme_dev)
 int nvme_ctrl_disable(struct nvme_device *pnvme_dev)
 {
     u32 ctrl_config;
+    u8 rdy_sts = 0xFF;
 
     /* Read Controller Configuration as we can only write 32 bits */
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
-
     /* BIT 0 is set to 0 i.e., CC.EN = 0 */
     ctrl_config &= ~0x1;
-
     /* Write the enable bit into CC register */
     writel(ctrl_config, &pnvme_dev->nvme_ctrl_space->cc);
-
     /* Do clean up */
     /* Write the enable bit into CC register */
     writel(0, &pnvme_dev->nvme_ctrl_space->cc);
-
-    /* TODO: Add clean up code. */
-
+    /* introduces at-least one second of delay */
+    mdelay(1000);
+    rdy_sts = readl(&pnvme_dev->nvme_ctrl_space->csts) & NVME_CSTS_RDY;
+    if (rdy_sts == NVME_CSTS_RDY) {
+        LOG_ERR("Disable Controller failed. CSTS.RDY is still set");
+        return -EINVAL;
+    }
     return SUCCESS;
 }
 /*
@@ -438,13 +440,6 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
             LOG_ERR("Unable to allocate DMA Address for IO CQ!!");
             return -ENOMEM;
         }
-    }
-
-    /* Set if IRQ is being enabled */
-    if (g_metrics_drv.irq != INT_NONE) {
-        pmetrics_cq_list->public_cq.irq_enabled = 0;
-    } else {
-        pmetrics_cq_list->public_cq.irq_enabled = 1;
     }
 
     cap_dstrd = (READQ(&pnvme_dev->nvme_ctrl_space->cap) >> 32) & 0xF;

@@ -1,23 +1,11 @@
 #ifndef _DNVME_DS_H_
 #define _DNVME_DS_H_
 
+#include <linux/cdev.h>
 #include <linux/list.h>
 #include "dnvme_interface.h"
 
-#define    NVME_DS_VERSION    1.1
-
-/*
- * Structure to define a global list of interrupt vector and
- * associated completion queue id. All the completion queue id's
- * created must have an associated interrupt vector which needs to
- * be populated in this isr tracking structure. The association of
- * is either 1 -- 1 or 1 -- * (INTVEC -- CQ ID's).
- */
-struct isr_track {
-    struct    list_head    isr_list_hd;   /* List head of isr tracker    */
-    u16       int_vec;                    /* Interrupt vector            */
-    u16       cq_id[];                    /* List of associated CQ's     */
-};
+#define    NVME_DS_VERSION    1.7
 
 /*
  * Strucutre used to define all the essential parameters
@@ -108,6 +96,8 @@ struct nvme_device {
     u8  *bar_0_mapped;              /* Bar 0 IO re-mapped value            */
     struct device   *dmadev;        /* Pointer to the dma device from pdev */
     u8  device_no;                  /* Current device number               */
+    struct cdev cdev;
+    int minor_no;
 };
 
 /*
@@ -116,7 +106,6 @@ struct nvme_device {
  */
 struct metrics_device_list {
     struct  list_head   metrics_device_hd; /* metrics linked list head    */
-    struct  isr_track   *isr_track_list;   /* ISR with CQ tracking list   */
     struct  metrics_cq  *metrics_cq_list;  /* CQ linked list              */
     struct  metrics_sq  *metrics_sq_list;  /* SQ linked list              */
     struct  nvme_device *pnvme_device;     /* Pointer to this nvme device */
