@@ -22,7 +22,7 @@
 /* initialize the linked list headers */
 LIST_HEAD(metrics_sq_ll);
 LIST_HEAD(metrics_cq_ll);
-LIST_HEAD(sq_cmd_ll);
+
 
 
 /*
@@ -627,6 +627,7 @@ int driver_send_64b(struct nvme_dev_entry *nvme_dev,
 {
     /* ret code to verify status of sending 64 bytes command */
     int ret_code = -EINVAL;
+
     /* TODO: make the function more generic while implementing complete IOCTL */
     ret_code = submit_command(nvme_dev, nvme_64b_send->queue_id,
         nvme_64b_send->data_buf_ptr, nvme_64b_send->data_buf_size);
@@ -807,6 +808,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     pmetrics_sq_list->public_sq.cq_id = prep_sq->cq_id;
     pmetrics_sq_list->public_sq.elements = prep_sq->elements;
     pmetrics_sq_list->private_sq.contig = prep_sq->contig;
+    INIT_LIST_HEAD(&(pmetrics_sq_list->private_sq.sq_cmd_trk_ll));
 
     ret_code = nvme_prepare_sq(pmetrics_sq_list, pnvme_dev);
 

@@ -88,30 +88,24 @@ int driver_log(struct nvme_file *n_file)
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"dbs = 0X%llX", (u64)pmetrics_cq_list->
                         private_cq.dbs);
+
+                sprintf(data1, IDNT_L3"prp_persist:");
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L3"prp.sq_id = %d", pmetrics_cq_list->
-                        private_cq.prp.sq_id);
+                sprintf(data1, IDNT_L4"npages = %d", pmetrics_cq_list->
+                        private_cq.prp_persist.npages);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L3"prp.unique_id = %d", pmetrics_cq_list->
-                        private_cq.prp.unique_id);
+                sprintf(data1, IDNT_L4"type = %d", pmetrics_cq_list->
+                        private_cq.prp_persist.type);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L4"prp.nvme_prps:");
-                vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L5"npages = %d", pmetrics_cq_list->
-                        private_cq.prp.prps.npages);
-                vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L5"type = %d", pmetrics_cq_list->
-                        private_cq.prp.prps.type);
-                vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L5"vir_prp_list = 0x%llX",
-                        (u64)pmetrics_cq_list->private_cq.prp.prps.
+                sprintf(data1, IDNT_L4"vir_prp_list = 0x%llX",
+                        (u64)pmetrics_cq_list->private_cq.prp_persist.
                         vir_prp_list);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L5"prp1 = 0x%llX", (u64)pmetrics_cq_list->
-                        private_cq.prp.prps.prp1);
+                sprintf(data1, IDNT_L4"prp1 = 0x%llX", (u64)pmetrics_cq_list->
+                        private_cq.prp_persist.prp1);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L5"prp2 = 0x%llX", (u64)pmetrics_cq_list->
-                        private_cq.prp.prps.prp2);
+                sprintf(data1, IDNT_L4"prp2 = 0x%llX", (u64)pmetrics_cq_list->
+                        private_cq.prp_persist.prp2);
                 vfs_write(file, data1, strlen(data1), &pos);
              } /* End of CQ list */
             /* Reset Q cnt */
@@ -156,49 +150,63 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L2"dbs = 0X%llX",
                         (u64)pmetrics_sq_list->private_sq.dbs);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L3"prp.sq_id = %d", pmetrics_sq_list->
-                        private_sq.prp.sq_id);
+
+                sprintf(data1, IDNT_L3"prp_persist:");
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L3"prp.unique_id = %d", pmetrics_sq_list->
-                        private_sq.prp.unique_id);
+                sprintf(data1, IDNT_L4"npages = %d", pmetrics_sq_list->
+                        private_sq.prp_persist.npages);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L4"prp.nvme_prps:");
+                sprintf(data1, IDNT_L4"type = %d", pmetrics_sq_list->
+                        private_sq.prp_persist.type);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L5"npages = %d", pmetrics_sq_list->
-                        private_sq.prp.prps.npages);
-                vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L5"type = %d", pmetrics_sq_list->
-                        private_sq.prp.prps.type);
-                vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L5"vir_prp_list = 0x%llX",
-                        (u64)pmetrics_sq_list->private_sq.prp.prps.
+                sprintf(data1, IDNT_L4"vir_prp_list = 0x%llX",
+                        (u64)pmetrics_sq_list->private_sq.prp_persist.
                         vir_prp_list);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L5"prp1 = 0x%llX", (u64)pmetrics_sq_list->
-                        private_sq.prp.prps.prp1);
+                sprintf(data1, IDNT_L4"prp1 = 0x%llX", (u64)pmetrics_sq_list->
+                        private_sq.prp_persist.prp1);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L5"prp2 = 0x%llX", (u64)pmetrics_sq_list->
-                        private_sq.prp.prps.prp2);
+                sprintf(data1, IDNT_L4"prp2 = 0x%llX", (u64)pmetrics_sq_list->
+                        private_sq.prp_persist.prp2);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L4"cmd track list = ");
+                sprintf(data1, IDNT_L3"cmd track list = ");
                 vfs_write(file, data1, strlen(data1), &pos);
+
                 /* Looping through the cmds if any */
-                list_for_each_entry(pcmd_track_list, &sq_cmd_ll,
+                list_for_each_entry(pcmd_track_list, &pmetrics_sq_list->private_sq.sq_cmd_trk_ll,
                         cmd_list_hd) {
                     /* write to file if any cmds exist */
-                    sprintf(data1, IDNT_L5"cmd track no = %d", cmd++);
+                    sprintf(data1, IDNT_L4"cmd track no = %d", cmd++);
                     vfs_write(file, data1, strlen(data1), &pos);
-                    sprintf(data1, IDNT_L5"unique_id = %d", pmetrics_sq_list->
-                            private_sq.cmd_track_list->unique_id);
+                    sprintf(data1, IDNT_L4"unique_id = %d",
+                        pcmd_track_list->unique_id);
                     vfs_write(file, data1, strlen(data1), &pos);
-                    sprintf(data1, IDNT_L5"sq_id = %d", pmetrics_sq_list->
-                            private_sq.cmd_track_list->sq_id);
+                    sprintf(data1, IDNT_L4"persist_q_id = %d",
+                        pcmd_track_list->persist_q_id);
                     vfs_write(file, data1, strlen(data1), &pos);
-                    sprintf(data1, IDNT_L5"opcode = %d", pmetrics_sq_list->
-                            private_sq.cmd_track_list->opcode);
+                    sprintf(data1, IDNT_L4"opcode = %d",
+                        pcmd_track_list->opcode);
                     vfs_write(file, data1, strlen(data1), &pos);
-                    sprintf(data1, IDNT_L5"cmd_set = %d", pmetrics_sq_list->
-                            private_sq.cmd_track_list->cmd_set);
+                    sprintf(data1, IDNT_L4"cmd_set = %d",
+                        pcmd_track_list->cmd_set);
+                    vfs_write(file, data1, strlen(data1), &pos);
+                    sprintf(data1, IDNT_L5"prp_nonpersist:");
+                    vfs_write(file, data1, strlen(data1), &pos);
+                    /* Printing prp_nonpersist memeber variables */
+                    sprintf(data1, IDNT_L6"npages = %d",
+                        pcmd_track_list->prp_nonpersist.npages);
+                    vfs_write(file, data1, strlen(data1), &pos);
+                    sprintf(data1, IDNT_L6"type = %d",
+                        pcmd_track_list->prp_nonpersist.type);
+                    vfs_write(file, data1, strlen(data1), &pos);
+                    sprintf(data1, IDNT_L6"vir_prp_list = 0x%llX",
+                        (u64)pcmd_track_list->prp_nonpersist.vir_prp_list);
+                    vfs_write(file, data1, strlen(data1), &pos);
+                    sprintf(data1, IDNT_L6"prp1 = 0x%llX",
+                        (u64)pcmd_track_list->prp_nonpersist.prp1);
+                    vfs_write(file, data1, strlen(data1), &pos);
+                    sprintf(data1, IDNT_L6"prp2 = 0x%llX",
+                        (u64)pcmd_track_list->prp_nonpersist.prp2);
                     vfs_write(file, data1, strlen(data1), &pos);
                 } /* End of cmd track list */
             } /* End of SQ metrics list */

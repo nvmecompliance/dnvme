@@ -230,4 +230,47 @@ struct nvme_file {
     uint16_t    flen; /* Length of file name, it is not the total bytes */
     uint8_t     *file_name; /* location and file name to copy metrics   */
 };
+
+/*
+ * Format of general purpose nvme command
+ */
+struct nvme_general_command {
+    __u8   opcode;
+    __u8   flags;
+    __u16  command_id;
+    __le32 nsid;
+    __u64  rsvd2;
+    __le64 metadata;
+    __le64 prp1;
+    __le64 prp2;
+    __u32  rsvd10[6];
+};
+
+/*
+ * Specific structure for Create CQ command
+ */
+struct nvme_create_cq {
+    __u8   opcode;
+    __u8   flags;
+    __u16  command_id;
+    __u32  rsvd1[5];
+    __le64 prp1;
+    __u64  rsvd8;
+    __le16 cqid;
+    __le16 qsize;
+    __le16 cq_flags;
+    __le16 irq_vector;
+    __u32  rsvd12[4];
+};
+
+/*
+ * Format of nvme command
+ */
+struct nvme_command {
+    union {
+    	/* xxx probably only gen_cmd is needed */
+        struct nvme_general_command gen_cmd;
+        struct nvme_create_cq create_cq_cmd;
+    };
+};
 #endif

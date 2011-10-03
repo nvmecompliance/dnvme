@@ -104,6 +104,7 @@ int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
     unmap_user_pg_to_dma(nvme_dev, WRITE_DEV, addr, buf_len, sg);
     /* TODO remove the last function arg */
     free_prp_pool(nvme_dev, &prps, prps.npages);
+    /* TODO free up the cmd track list */
     return 0;
 }
 
@@ -423,4 +424,64 @@ static void free_prp_pool(struct nvme_dev_entry *dev,
         }
         kfree(prps->vir_prp_list);
     }
+}
+
+/*
+ * Create and add the node inside command track list
+ *
+ */
+static int add_cmd_track_node (struct  metrics_sq  *pmetrics_sq, __u16 persist_q_id,
+    enum nvme_cmds cmd_type, struct nvme_prps prps, __u8 opcode, __u16 unique_cnt)
+{
+	/* pointer to cmd track linked list node */
+    struct cmd_track  *pcmd_track_list;
+
+    /* Fill the cmd_track structure */
+    LOG_DBG("Alloc memory for the node inside command track list");
+    pcmd_track_list = kmalloc(sizeof(struct cmd_track), GFP_KERNEL);
+    if (pcmd_track_list == NULL) {
+        LOG_ERR("Failed to alloc memory for the command track list");
+        return -ENOMEM;
+    }
+
+    /* Reset the data for this node */
+    memset(pcmd_track_list, 0, sizeof(struct cmd_track));
+
+    /* Fill the node */
+    pcmd_track_list->unique_id = unique_cnt;
+    pcmd_track_list->persist_q_id = persist_q_id;
+    pcmd_track_list->opcode = opcode;
+    pcmd_track_list->cmd_set = cmd_type;
+    /* xxx Check for local memory of &prps */
+    memcpy(&pcmd_track_list->prp_nonpersist, &prps, sizeof(struct nvme_prps));
+
+
+    /* Add an element to the end of the list */
+    list_add_tail(&pcmd_track_list->cmd_list_hd,
+        &pmetrics_sq->private_sq.sq_cmd_trk_ll);
+
+    return 0;
+}
+
+/*
+ * Delete the node inside command track list
+ * Note:- Should be called after
+ * unmap_user_pg_to_dma and free_prp_pool functions
+ */
+
+static void del_cmd_track_node (struct  metrics_sq  *pmetrics_sq)
+{
+
+	/* pointer to cmd track linked list node */
+    struct cmd_track  *pcmd_track_list;
+    /* parameters required for list_for_each_safe */
+    struct list_head *pos, *temp;
+
+    /* Loop through the cmd track list */
+    list_for_each_safe(pos, temp, &pmetrics_sq->private_sq.sq_cmd_trk_ll) {
+    	pcmd_track_list = list_entry (pos, struct cmd_track, cmd_list_hd);
+    	list_del(pos);
+    	kfree(pcmd_track_list);
+    }
+
 }
