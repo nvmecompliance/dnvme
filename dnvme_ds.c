@@ -182,6 +182,7 @@ int driver_log(struct nvme_file *n_file)
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"cmd track list = ");
                 vfs_write(file, data1, strlen(data1), &pos);
+
                 /* Looping through the cmds if any */
                 list_for_each_entry(pcmd_track_list, &sq_cmd_ll,
                         cmd_list_hd) {

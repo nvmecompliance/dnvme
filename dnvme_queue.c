@@ -496,3 +496,163 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
     /* If it falls here no SQ ID is found */
     return -EINVAL;
 }
+
+/*
+ * Deallocate function is called when we want to free up the kernel or prp
+ * memory based on the contig flag. The kernel memory is given back, nodes
+ * from the cq list are deleted.
+ */
+int deallocate_metrics_cq(struct device *dev,
+        struct  metrics_cq  *pmetrics_cq_list)
+{
+    /* Delete memory for all metrics_cq for current id here */
+    if (pmetrics_cq_list->private_cq.contig == 0) {
+        /* free prp list pointed by this non contig cq */
+    } else {
+        /* Contiguous CQ, so free the DMA memory */
+        dma_free_coherent(dev, pmetrics_cq_list->private_cq.size,
+                 (void *)pmetrics_cq_list->private_cq.vir_kern_addr,
+                 pmetrics_cq_list->private_cq.acq_dma_addr);
+
+    }
+    /* Delete the current cq entry from the list */
+    list_del_init(&pmetrics_cq_list->cq_list_hd);
+    /* free the node from the ll */
+    kfree(pmetrics_cq_list);
+
+    return SUCCESS;
+}
+
+/*
+ * Deallocate function is called when we want to free up the kernel or prp
+ * memory based on the contig flag. The kernel memory is given back, nodes
+ * from the sq list are deleted. The cmds tracked are dropped and nodes in
+ * command list are deleted.
+ */
+int deallocate_metrics_sq(struct device *dev,
+        struct  metrics_sq  *pmetrics_sq_list)
+{
+    struct cmd_track *pcmd_track_list;   /* to track a particular cmd     */
+    struct cmd_track *pcmd_track_next;   /* to track a particular cmd     */
+
+    /* drop all outstanding cmds for this SQ on the floor. */
+    list_for_each_entry_safe(pcmd_track_list, pcmd_track_next, &sq_cmd_ll,
+            cmd_list_hd) {
+        /* Free prp list pointed by this tracked cmd. */
+        LOG_DBG("Delete->cmd_id:sd_id = %d:%d", pcmd_track_list->unique_id,
+                pmetrics_sq_list->public_sq.sq_id);
+        /* Delete the current sq entry from the list */
+        list_del_init(&pcmd_track_list->cmd_list_hd);
+    }
+    /* Clean up memory for all metrics_sq for current id here */
+    if (pmetrics_sq_list->private_sq.contig == 0) {
+        /* free the prp pool pointed by this non contig sq. */
+        LOG_DBG("DMA Free for non-contig sq id = %d", pmetrics_sq_list->
+                public_sq.sq_id);
+    } else {
+        LOG_DBG("DMA Free for contig sq id = %d", pmetrics_sq_list->
+                public_sq.sq_id);
+        /* Contiguous SQ, so free the DMA memory */
+        dma_free_coherent(dev, pmetrics_sq_list->private_sq.size,
+                (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
+                pmetrics_sq_list->private_sq.asq_dma_addr);
+    }
+    /* Delete the current sq entry from the list */
+    list_del_init(&pmetrics_sq_list->sq_list_hd);
+    kfree(pmetrics_sq_list);
+    return SUCCESS;
+}
+
+/*
+ * Reinitialize the admin completion queue's public parameters, when
+ * a controller is not completely diabled
+ */
+int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
+{
+    pmetrics_cq_list->public_cq.head_ptr = 0;
+    pmetrics_cq_list->public_cq.tail_ptr = 0;
+    return SUCCESS;
+}
+
+/*
+ * Reinitialize the admin Submission queue's public parameters, when
+ * a controller is not completely diabled
+ */
+int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list)
+{
+    struct cmd_track *pcmd_track_list;   /* to track a particular cmd     */
+    struct cmd_track *pcmd_track_next;   /* to track a particular cmd     */
+
+    /* Wipe all outstanding cmds for this ASQ. */
+    list_for_each_entry_safe(pcmd_track_list, pcmd_track_next, &sq_cmd_ll,
+            cmd_list_hd) {
+        LOG_DBG("Cmd Free for sq id = %d", pmetrics_sq_list->public_sq.sq_id);
+        /* TODO Free the prp list described by cmd_track[j].prp_non_persist */
+        list_del_init(&pcmd_track_list->cmd_list_hd);
+        kfree(pcmd_track_list);
+    }
+
+    pmetrics_sq_list->public_sq.head_ptr = 0;
+    pmetrics_sq_list->public_sq.tail_ptr = 0;
+    pmetrics_sq_list->public_sq.tail_ptr_virt = 0;
+
+    return SUCCESS;
+}
+/*
+ *  deallocate_all_queues - This function will start freeing up the memory for
+ * the queues (SQ and CQ) allocated during the prepare queues. This function
+ * takes a parameter, ST_DISABLE or ST_DISABLE_COMPLETELY, which identifies if
+ * you need to clear Admin or not.
+ */
+int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
+        enum nvme_state new_state)
+{
+    s16 exclude_admin = -1;
+    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list   */
+    struct  metrics_sq  *pmetrics_sq_next;
+    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list   */
+    struct  metrics_cq  *pmetrics_cq_next;
+    struct device *dev;
+
+    if (new_state == ST_DISABLE) {
+        exclude_admin = 1;
+    }
+    /* Loop through the devices available in the metrics list */
+    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
+        dev = &pmetrics_device->pnvme_device->pdev->dev;
+        list_for_each_entry_safe(pmetrics_sq_list, pmetrics_sq_next,
+                &metrics_sq_ll, sq_list_hd) {
+            if ((exclude_admin == 1) &&
+                    (pmetrics_sq_list->public_sq.sq_id == 0)) {
+                LOG_DBG("Retaining Admin SQ from deallocation");
+                reinit_admn_sq(pmetrics_sq_list);
+            } else {
+                /* Call the generic deallocate sq function */
+                deallocate_metrics_sq(dev, pmetrics_sq_list);
+            }
+        } /* list loop for sq list */
+
+        list_for_each_entry_safe(pmetrics_cq_list, pmetrics_cq_next,
+                &metrics_cq_ll, cq_list_hd) {
+            if ((exclude_admin == 1) && pmetrics_cq_list->public_cq.q_id == 0) {
+                LOG_DBG("Retaining Admin CQ from deallocation");
+                reinit_admn_cq(pmetrics_cq_list);
+            } else {
+                /* Call the generic deallocate cq function */
+                deallocate_metrics_cq(dev, pmetrics_cq_list);
+            }
+        } /* list loop for cq list */
+
+        if (new_state == ST_DISABLE_COMPLETELY) {
+            /* Set the Registers to default values. */
+            /* Write 0 to AQA */
+            writel(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->aqa);
+            /* Write 0 to the DMA address into ASQ base address */
+            WRITEQ(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->asq);
+            /* Write 0 to the DMA address into ACQ base address */
+            WRITEQ(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->acq);
+        }
+    } /* list loop list of devices */
+
+    return SUCCESS;
+}

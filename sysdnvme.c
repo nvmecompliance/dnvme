@@ -85,7 +85,7 @@ struct nvme_dev_char *dev;
 struct device *device;
 LIST_HEAD(nvme_devices_llist);
 LIST_HEAD(metrics_dev_ll);
-int nvme_minor_x = 0;
+int nvme_minor_x;
 module_param(NVME_MAJOR, int, 0);
 
 /*
@@ -433,15 +433,14 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
         LOG_DBG("Minor Number in the List = %d", pmetrics_device->
                 pnvme_device->minor_no);
-        if(iminor(inode) == pmetrics_device->pnvme_device->minor_no){
+        if (iminor(inode) == pmetrics_device->pnvme_device->minor_no) {
             LOG_DBG("Found device in the metrics list");
             /* Get the device from the linked list */
             pdev = pmetrics_device->pnvme_device->pdev;
             pnvme_device = pmetrics_device->pnvme_device;
             dev_found = 1;
             break;
-        }
-        else {
+        } else {
             dev_found = 0;
         }
     }
@@ -506,19 +505,17 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         if (ctrl_new_state->new_state == ST_ENABLE) {
             LOG_NRM("Ctrlr is getting ENABLED...");
             ret_val = nvme_ctrl_enable(pnvme_device);
-        } else if (ctrl_new_state->new_state == ST_DISABLE) {
-            LOG_NRM("Controller is going to DISABLE, Admin Q's not affected");
+        } else if ((ctrl_new_state->new_state == ST_DISABLE) ||
+                (ctrl_new_state->new_state == ST_DISABLE_COMPLETELY)) {
+            LOG_NRM("Controller is going to DISABLE...");
+            /* Waiting for the controller to go idle. */
             ret_val = nvme_ctrl_disable(pnvme_device);
             if (ret_val == SUCCESS) {
                 /* Clean Up the Data Structures. */
+                deallocate_all_queues(pmetrics_device,
+                        ctrl_new_state->new_state);
             }
-        } else if (ctrl_new_state->new_state == ST_DISABLE_COMPLETELY) {
-            LOG_NRM("Complete disable of controller including Admin Q's");
-            ret_val = nvme_ctrl_disable(pnvme_device);
-            if (ret_val == SUCCESS) {
-                /* Clean Up the Data Structures. */
-            }
-        } else {
+         } else {
             LOG_ERR("Device State not correctly specified.");
             return -EINVAL;
         }
@@ -598,12 +595,14 @@ static void __exit dnvme_exit(void)
 {
     struct nvme_device_entry *pnvme_dev_entry;
     struct pci_dev *pdev;
+    struct  metrics_device_list *pmetrics_device;  /* Metrics device list    */
 
     /* Get the device from the linked list */
     list_for_each_entry(pnvme_dev_entry, &nvme_devices_llist, list) {
         pdev = pnvme_dev_entry->pdev;
         pci_release_regions(pdev);
     }
+
     device_del(device);
     class_destroy(class_nvme);
     cdev_del(&dev->cdev);
@@ -615,6 +614,11 @@ static void __exit dnvme_exit(void)
      * once the new structures are in place */
     destroy_dma_pool(nvme_dev);
 
+    /* Loop through the devices available in the metrics list */
+    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
+        /* Clean Up the Data Structures. */
+        deallocate_all_queues(pmetrics_device, ST_DISABLE_COMPLETELY);
+    }
     /* Free up all the allocated kernel memory before exiting */
     free_allqs();
 

@@ -175,4 +175,14 @@ int driver_send_64b(struct nvme_dev_entry *nvme_dev,
 */
 int driver_log(struct nvme_file *n_file);
 
+/**
+ * deallocate_all_queues - This function will start freeing up the memory for
+ * the queues (SQ and CQ) allocated during the prepare queues. This function
+ * takes a parameter, ST_DISABLE or ST_DISABLE_COMPLETELY, which identifies if
+ * you need to clear Admin or not. Also while driver exit call this function
+ * with ST_DISABLE_COMPLETELY.
+ */
+int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
+        enum nvme_state nstate);
+
 #endif
