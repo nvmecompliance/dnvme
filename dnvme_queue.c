@@ -600,42 +600,48 @@ int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list)
 }
 /*
  *  deallocate_all_queues - This function will start freeing up the memory for
- * the queues (SQ and CQ) allocated during the prepare queues. This function
- * takes a parameter, ST_DISABLE or ST_DISABLE_COMPLETELY, which identifies if
- * you need to clear Admin or not.
+ * the queues (SQ and CQ) allocated during the prepare queues. The parameter
+ * 'new_state', ST_DISABLE or ST_DISABLE_COMPLETELY, identifies if you need to
+ * clear Admin Q as well along with other Q's.
  */
 int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
         enum nvme_state new_state)
 {
     s16 exclude_admin = -1;
-    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list   */
+    struct  metrics_sq  *pmetrics_sq_list;
     struct  metrics_sq  *pmetrics_sq_next;
-    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list   */
+    struct  metrics_cq  *pmetrics_cq_list;
     struct  metrics_cq  *pmetrics_cq_next;
     struct device *dev;
 
+    /* Check the desired state of the controller */
     if (new_state == ST_DISABLE) {
         exclude_admin = 1;
     }
     /* Loop through the devices available in the metrics list */
     list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
         dev = &pmetrics_device->pnvme_device->pdev->dev;
+        /* Loop for each sq node */
         list_for_each_entry_safe(pmetrics_sq_list, pmetrics_sq_next,
                 &metrics_sq_ll, sq_list_hd) {
+            /* Check if Admin Q is excluded or not */
             if ((exclude_admin == 1) &&
                     (pmetrics_sq_list->public_sq.sq_id == 0)) {
                 LOG_DBG("Retaining Admin SQ from deallocation");
+                /* drop sq cmds and set to zero the public metrics of asq */
                 reinit_admn_sq(pmetrics_sq_list);
             } else {
                 /* Call the generic deallocate sq function */
                 deallocate_metrics_sq(dev, pmetrics_sq_list);
             }
         } /* list loop for sq list */
-
+        /* Loop for each cq node */
         list_for_each_entry_safe(pmetrics_cq_list, pmetrics_cq_next,
                 &metrics_cq_ll, cq_list_hd) {
+            /* Check if Admin Q is excluded or not */
             if ((exclude_admin == 1) && pmetrics_cq_list->public_cq.q_id == 0) {
                 LOG_DBG("Retaining Admin CQ from deallocation");
+                /* set to zero the public metrics of acq */
                 reinit_admn_cq(pmetrics_cq_list);
             } else {
                 /* Call the generic deallocate cq function */
@@ -643,6 +649,7 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
             }
         } /* list loop for cq list */
 
+        /* if complete disable then reset the controller admin registers. */
         if (new_state == ST_DISABLE_COMPLETELY) {
             /* Set the Registers to default values. */
             /* Write 0 to AQA */

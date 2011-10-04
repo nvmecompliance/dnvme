@@ -93,6 +93,7 @@ struct metrics_sq {
 struct nvme_device {
     struct pci_dev  *pdev;          /* Pointer to the device in PCI space  */
     struct nvme_ctrl_reg __iomem *nvme_ctrl_space; /* Pointer to reg space */
+    struct dma_pool *prp_page_pool; /* Mem for PRP List */
     u8  *bar_0_mapped;              /* Bar 0 IO re-mapped value            */
     struct device   *dmadev;        /* Pointer to the dma device from pdev */
     int minor_no;                   /* Minor no. of the device being used  */

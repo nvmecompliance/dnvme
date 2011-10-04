@@ -68,14 +68,6 @@ struct nvme_dev_char {
     struct cdev cdev;
 };
 
-/*
-* Block device ioctls when necessary in future.
-*/
-static const struct block_device_operations dnvme_fops = {
-    .owner = THIS_MODULE,
-    .ioctl = dnvme_ioctl,
-};
-
 /* local parameters */
 static int NVME_MAJOR;
 static struct class *class_nvme;
@@ -283,12 +275,6 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &BaseAddress0);
     LOG_DBG("PCI BAR 0 = 0x%x", BaseAddress0);
 
-    /*
-     * Call function to get the NVME Allocated to IOCTLs.Using the generic
-     * nvme fops we will allocate the required ioctl entry function.
-     */
-    dnvme_blk_gendisk(pdev, 0);
-
     nvme_dev_list->pdev = pdev;
     memcpy(&nvme_dev_list->bar, &BaseAddress0, sizeof(u32));
     nvme_dev_list->bus =  pdev->bus->number;
@@ -326,78 +312,6 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 }
 
 /*
-* dnvme_blk_gendisk - Creates Block Disk to add to the the kernel
-* This function helps in setting up the block device
-* with required parameters for inserting into disk.
-*/
-int dnvme_blk_gendisk(struct pci_dev *pdev, int which)
-{
-    struct gendisk *disk;
-    int size = 14096;
-
-    disk = alloc_disk(NVME_MINORS);
-    if (!disk) {
-        LOG_ERR("Disk Allocation 0x%x Failed", disk->major);
-        return -EINVAL;
-    } else {
-        LOG_DBG("Major Allocation 0x%x", disk->major);
-        LOG_DBG("Minor Allocation 0x%x", disk->minors);
-        LOG_DBG("First Minor Allocation 0x%x", disk->first_minor);
-    }
-
-    disk->major = NVME_MAJOR;
-    disk->first_minor = which * NVME_MINORS;
-    disk->fops = &dnvme_fops;
-
-    snprintf(disk->disk_name, 32, "blkqnvme%c", which+'a');
-    LOG_DBG("Disk Name = %s", disk->disk_name);
-    if (disk->disk_name == NULL) {
-        LOG_ERR("Disk name is empty");
-        return -EINVAL;
-   }
-
-    set_capacity(disk, size);
-
-    /* Driver Fails when tried add disk to kernel, for now using as char dev */
-    /* add_disk(disk); */
-
-    return 0;
-}
-
-/*
-* dnvme_ioctl  - Call corresponding ioctl functions from Blk driver.
-* This function is used only when the device is initialized as block
-* device otherwise the char type ioctl is used.
-*/
-int dnvme_ioctl(struct block_device *bdev, fmode_t mode,
-    unsigned int cmd, unsigned long arg)
-{
-    switch (cmd) {
-    case NVME_IOCTL_IDENTIFY_NS:
-        LOG_DBG("IOCTL Identify NS Command");
-        break;
-    case NVME_IOCTL_IDENTIFY_CTRL:
-        LOG_DBG("IOCTL Identify CTRL Command");
-        break;
-    case NVME_IOCTL_GET_RANGE_TYPE:
-        LOG_DBG("IOCTL  NVME_IOCTL_GET_RANGE_TYPE Get Range Command");
-        break;
-    case NVME_IOCTL_SUBMIT_IO:
-        LOG_DBG("IOCTL NVME_IOCTL_SUBMIT_IO Command");
-        break;
-    case NVME_IOCTL_DOWNLOAD_FW:
-        LOG_DBG("IOCTL CNVME_IOCTL_DOWNLOAD_FW Command");
-        break;
-    case NVME_IOCTL_ACTIVATE_FW:
-        LOG_DBG("IOCTL INVME_IOCTL_ACTIVATE_FW Command");
-        break;
-    default:
-        return -ENOTTY;
-    }
-    return 0;
-}
-
-/*
  * This function is called whenever a process tries to do an ioctl on our
  * device file. We get two extra parameters (additional to the inode and file
  * structures, which all device functions get): the number of the ioctl called
@@ -407,10 +321,8 @@ int dnvme_ioctl(struct block_device *bdev, fmode_t mode,
  * calling process), the ioctl call returns the output of this function.
  *
 */
-int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
-    struct file *file,    /* ditto */
-        unsigned int ioctl_num,    /* nmbr and param for ioctl */
-            unsigned long ioctl_param)
+int dnvme_ioctl_device(struct inode *inode, struct file *file,
+        unsigned int ioctl_num, unsigned long ioctl_param)
 {
     struct nvme_device *pnvme_device = NULL; /* ptr to metrics device        */
     struct  metrics_device_list *pmetrics_device;  /* Metrics device list    */
@@ -423,9 +335,10 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
     struct nvme_prep_cq *prep_cq;   /* CQ params for preparing IO CQ         */
-    struct nvme_ring_sqxtdbl *ring_sqx; /* Ring SQx door-bell params         */
-    struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params */
-    struct nvme_file    *n_file;
+    struct nvme_ring_sqxtdbl *ring_sqx;  /* Ring SQx door-bell params        */
+    struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params               */
+    struct nvme_file    *n_file;         /* dump metrics params              */
+    struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
     int dev_found;
 
     LOG_DBG("Minor No = %d", iminor(inode));
@@ -455,32 +368,26 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
      */
     switch (ioctl_num) {
     case NVME_IOCTL_ERR_CHK:
-        /*
-         * check if the device has any errors set in its status
-         * register. And report errors.
-         */
+        /* check if the device has any errors set in its status
+           register. And report errors. */
         nvme_dev_err_sts = (int *)ioctl_param;
         LOG_DBG("Checking device Status");
         ret_val = device_status_chk(pdev, nvme_dev_err_sts);
         break;
 
     case NVME_IOCTL_READ_GENERIC:
-
         LOG_DBG("Invoking User App request to read  the PCI Header Space");
         nvme_data = (struct rw_generic *)ioctl_param;
-
         ret_val = driver_generic_read(file, nvme_data, pdev);
         break;
 
     case NVME_IOCTL_WRITE_GENERIC:
-
         LOG_DBG("Invoke IOCTL Generic Write Function");
         nvme_data = (struct rw_generic *)ioctl_param;
-
         ret_val = driver_generic_write(file, nvme_data, pdev);
         break;
-    case NVME_IOCTL_CREATE_ADMN_Q:
 
+    case NVME_IOCTL_CREATE_ADMN_Q:
         LOG_DBG("IOCTL for Create Admin Q's...");
         create_admn_q = (struct nvme_create_admn_q *)ioctl_param;
         /* Check the type of Admin Q and call corresponding functions */
@@ -497,6 +404,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
             return -EINVAL;
         }
         break;
+
     case NVME_IOCTL_DEVICE_STATE:
         LOG_DBG("IOCTL for nvme controller set/reset Command");
         LOG_NRM("Invoke IOCTL for controller Status Setting");
@@ -551,10 +459,6 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         ring_sqx = (struct nvme_ring_sqxtdbl *)ioctl_param;
         /* Call the ring doorbell driver function */
         ret_val = nvme_ring_sqx_dbl(ring_sqx, pnvme_device);
-
-        break;
-    case NVME_IOCTL_DEL_ADMN_Q:
-        LOG_DBG("IOCTL NVME_IOCTL_DEL_ADMN_Q Command");
         break;
 
     case NVME_IOCTL_SEND_64B_CMD:
@@ -576,7 +480,14 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         n_file = (struct nvme_file *)ioctl_param;
         /* call logging routine */
         ret_val = driver_log(n_file);
+        break;
 
+    case NVME_IOCTL_REAP_INQUIRY:
+        LOG_DBG("Reap Inquiry ioctl:");
+        /* Assign user passed parameters to local reap structure */
+        reap_inq = (struct nvme_reap_inquiry *)ioctl_param;
+        /* call logging routine */
+        // ret_val = reap_inquiry(reap_inq);
         break;
 
     default:
