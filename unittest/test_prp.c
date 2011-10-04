@@ -13,10 +13,8 @@
 
 #define _TNVME_H_
 
-#include "../dnvme/dnvme_interface.h"
-#include "../dnvme/dnvme_ioctls.h"
-
-#define DEVICE_FILE_NAME "/dev/qnvme0"
+#include "../dnvme_interface.h"
+#include "../dnvme_ioctls.h"
 
 void ioctl_create_prp_more_than_two_page(int file_desc)
 {
@@ -161,28 +159,4 @@ void ioctl_create_fill_list_of_prp(int file_desc)
         printf("PRP Creation SUCCESS\n");
     }
     free(addr);
-}
-
-int main(void)
-{
-    int file_desc;
-
-    printf("Ensure you have permissions to device..\n\
-    else \n do \"chmod 777 /dev/qnvme0\" \n");
-    printf("Starting Test Application...\n");
-    file_desc = open(DEVICE_FILE_NAME, 0);
-    if (file_desc < 0) {
-        printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
-        exit(-1);
-    }
-
-    printf("Device File Succesfully Opened = %d\n", file_desc);
-
-    ioctl_create_prp_one_page(file_desc);
-    ioctl_create_prp_less_than_one_page(file_desc);
-    ioctl_create_prp_more_than_two_page(file_desc);
-    ioctl_create_list_of_prp(file_desc);
-    ioctl_create_fill_list_of_prp(file_desc);
-    close(file_desc);
-    return 0;
 }

@@ -85,6 +85,7 @@ struct nvme_dev_char *dev;
 struct device *device;
 LIST_HEAD(nvme_devices_llist);
 LIST_HEAD(metrics_dev_ll);
+int nvme_minor_x;
 module_param(NVME_MAJOR, int, 0);
 
 /*
@@ -98,10 +99,8 @@ static int dnvme_init(void)
 {
     int retCode = -ENODEV;
     int nvme_major = -EBUSY;
-    int nvme_minor = 0;
     int err = -EINVAL;
     dev_t nvme_dev_c = 0;
-    dev_t devno = 0;
     int nvme_ndevices = NVME_N_DEVICES;
 
     LOG_NRM("version: %d.%d", VER_MAJOR, VER_MINOR);
@@ -124,14 +123,14 @@ static int dnvme_init(void)
      *  Unable to register block device for the moment in QEMU
      *  using it as char dev instead
      */
-     /* This is classic way to register a char device */
+    /* This is classic way to register a char device */
     if (_CLASSIC_ == 1) {
         nvme_major = register_chrdev(NVME_MAJOR, NVME_DEVICE_NAME,
             &dnvme_fops_f);
-    if (nvme_major < 0) {
-        LOG_ERR("NVME Char Registration failed");
-        return -ENODEV;
-    }
+        if (nvme_major < 0) {
+            LOG_ERR("NVME Char Registration failed");
+            return -ENODEV;
+        }
         LOG_DBG("NVME Char type registered..");
     } else {
         err = alloc_chrdev_region(&nvme_dev_c, 0, nvme_ndevices,
@@ -169,37 +168,6 @@ static int dnvme_init(void)
     /* Allocate kernel mem for each of the device using one now */
     dev = kzalloc(nvme_ndevices * sizeof(struct nvme_dev_char),
         GFP_KERNEL);
-    /* Make device with nvme major and minor number */
-    devno = MKDEV(nvme_major, nvme_minor);
-
-    /* initialize the device and char device */
-    cdev_init(&dev->cdev, &dnvme_fops_f);
-
-    /* Set the owner */
-    dev->cdev.owner = THIS_MODULE;
-
-    /* assign the fops to char device */
-    dev->cdev.ops = &dnvme_fops_f;
-
-    /* Add this char device to kernel */
-    err = cdev_add(&dev->cdev, devno, 1);
-
-    if (err) {
-        LOG_ERR("Adding device to kernel failed");
-        return err;
-    }
-
-    /* Create device with class name class_nvme */
-    device = device_create(class_nvme, NULL, devno, NULL,
-        NVME_DEVICE_NAME"%d", nvme_minor);
-    if (IS_ERR(device)) {
-        err = PTR_ERR(device);
-        LOG_ERR("Device Creation failed");
-        return err;
-    }
-
-    /* update the device minor number */
-    nvme_minor = nvme_minor + 1;
 
     /* Register this device as pci device */
     retCode = pci_register_driver(&dnvme_pci_driver);
@@ -215,27 +183,27 @@ static int dnvme_init(void)
 }
 
 /*
-* dnvme_pci_probe - Probe the NVME PCIe device for BARs.
-* this function is called when the driver invokes the fops
-* after basic initialization is performed.
+* dnvme_pci_probe - Probe the NVME PCIe device for BARs. This function is
+* called when the driver invokes the fops after basic initialization is
+* performed.
 */
 int __devinit dnvme_pci_probe(struct pci_dev *pdev,
-    const struct pci_device_id *id)
+        const struct pci_device_id *id)
 {
-    int retCode = -ENODEV; /* retCode is set to no devices */
-    int bars = 0; /* initialize bars to 0 */
+    int retCode = -ENODEV;  /* retCode is set to no devices */
+    int bars = 0;           /* initialize bars to 0         */
     struct nvme_device_entry *nvme_dev_list = NULL;
     u32  BaseAddress0 = 0;
     u32  *bar;
+    dev_t devno = 0;
+    int err;
 
     /*
      *    Following the Iniitalization steps from LDD 3 and pci.txt.
      *    Before touching any device registers, the driver needs to enable
      *    the PCI device by calling pci_enable_device().
      */
-
     LOG_DBG("Start probing for NVME PCI Express Device");
-
     if ((retCode == pci_enable_device(pdev)) < 0) {
         LOG_ERR("PciEnable not successful");
         return retCode;
@@ -243,18 +211,40 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 
     /* Why does retcode is negative here and still success? TSK */
     LOG_DBG("PCI enable Success!. Return Code = 0x%x", retCode);
-
     if (pci_enable_device_mem(pdev)) {
         LOG_ERR("pci_enalbe_device_mem not successful");
         return -1;
     }
 
-    LOG_DBG("NVME Probing... Dev = 0x%x Vendor = 0x%x",
-        pdev->device, pdev->vendor);
-    LOG_DBG("Bus No = 0x%x, Dev Slot = 0x%x",
-        pdev->bus->number, PCI_SLOT(pdev->devfn));
-    LOG_DBG("Dev Func = 0x%x, Class = 0x%x",
-        PCI_FUNC(pdev->devfn), pdev->class);
+    LOG_DBG("NVME Probing... Dev = 0x%x Vendor = 0x%x", pdev->device,
+            pdev->vendor);
+    LOG_DBG("Bus No = 0x%x, Dev Slot = 0x%x", pdev->bus->number,
+            PCI_SLOT(pdev->devfn));
+    LOG_DBG("Dev Func = 0x%x, Class = 0x%x", PCI_FUNC(pdev->devfn),
+            pdev->class);
+
+    /* Make device with nvme major and minor number */
+    devno = MKDEV(NVME_MAJOR, nvme_minor_x);
+    /* initialize the device and char device */
+    cdev_init(&dev->cdev, &dnvme_fops_f);
+    /* Set the owner */
+    dev->cdev.owner = THIS_MODULE;
+    /* assign the fops to char device */
+    dev->cdev.ops = &dnvme_fops_f;
+    /* Add this char device to kernel */
+    err = cdev_add(&dev->cdev, devno, 1);
+    if (err) {
+        LOG_ERR("Adding device to kernel failed");
+        return err;
+    }
+    /* Create device with class name class_nvme */
+    device = device_create(class_nvme, NULL, devno, NULL, NVME_DEVICE_NAME"%d",
+            nvme_minor_x);
+    if (IS_ERR(device)) {
+        err = PTR_ERR(device);
+        LOG_ERR("Device Creation failed");
+        return err;
+    }
 
     /* Return void, Enables bus mastering and calls pcibios_set_master */
     pci_set_master(pdev);
@@ -269,28 +259,20 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
         LOG_DBG("Select regions success");
     }
 
-       LOG_DBG("Mask for PCI BARS = 0x%x", bars);
-       LOG_DBG("PCI Probe Success!. Return Code = 0x%x", retCode);
+    LOG_DBG("Mask for PCI BARS = 0x%x", bars);
+    LOG_DBG("PCI Probe Success!. Return Code = 0x%x", retCode);
 
     /*
-     *  Try Allocating the device memory in the host and check
-     *  for success.
+     *  Try Allocating the device memory in the host and check for success.
      */
-
     nvme_dev_list = kzalloc((int)sizeof(struct nvme_device_entry), GFP_KERNEL);
-
     if (nvme_dev_list == NULL) {
         LOG_ERR("allocate Host Memory for Device Failed!!...nvme_dev_list");
         return -ENOMEM;
     }
 
-    bar = ioremap(pci_resource_start(pdev, 0),
-        pci_resource_len(pdev, 0));
-
-    if (bar != NULL) {
-        LOG_DBG("Bar 0 Address:");
-        LOG_DBG("Remap value.");
-    } else {
+    bar = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
+    if (bar == NULL) {
         LOG_ERR("allocate Host Memory for Device Failed!!");
         return -EINVAL;
     }
@@ -302,9 +284,8 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     LOG_DBG("PCI BAR 0 = 0x%x", BaseAddress0);
 
     /*
-     * Call function to get the NVME Allocated to IOCTLs.
-     * Using the generic nvme fops we will allocate the required
-     * ioctl entry function.
+     * Call function to get the NVME Allocated to IOCTLs.Using the generic
+     * nvme fops we will allocate the required ioctl entry function.
      */
     dnvme_blk_gendisk(pdev, 0);
 
@@ -335,9 +316,12 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
         LOG_ERR("Failed driver ioctl initializations!!");
         return -EINVAL;
     }
+    /* Update info in the metrics list */
+    pmetrics_device_list->pnvme_device->minor_no = nvme_minor_x;
+    /* update the device minor number */
+    nvme_minor_x = nvme_minor_x + 1;
 
     list_add_tail(&pmetrics_device_list->metrics_device_hd, &metrics_dev_ll);
-
     return retCode;
 }
 
@@ -428,12 +412,13 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         unsigned int ioctl_num,    /* nmbr and param for ioctl */
             unsigned long ioctl_param)
 {
-    struct nvme_device *pnvme_device;   /* ptr to metrics device             */
+    struct nvme_device *pnvme_device = NULL; /* ptr to metrics device        */
+    struct  metrics_device_list *pmetrics_device;  /* Metrics device list    */
     int ret_val = -EINVAL;        /* set ret val to invalid, chk for success */
     struct rw_generic *nvme_data; /* Local struct var for nvme rw dat        */
     int *nvme_dev_err_sts;        /* nvme device error status                */
     struct pci_dev *pdev = NULL;  /* pointer to pci device                   */
-    struct nvme_ctrl_enum *nvme_ctrl_sts; /* Sets and Resets ctlr            */
+    struct nvme_ctrl_state *ctrl_new_state; /* controller new state          */
     struct nvme_get_q_metrics *get_q_metrics; /* metrics q params            */
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
@@ -441,10 +426,29 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
     struct nvme_ring_sqxtdbl *ring_sqx; /* Ring SQx door-bell params         */
     struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params */
     struct nvme_file    *n_file;
+    int dev_found;
 
-    /* Get the device from the linked list */
-    pdev = pmetrics_device_list->pnvme_device->pdev;
-    pnvme_device = pmetrics_device_list->pnvme_device;
+    LOG_DBG("Minor No = %d", iminor(inode));
+    /* Loop through the devices available in the metrics list */
+    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
+        LOG_DBG("Minor Number in the List = %d", pmetrics_device->
+                pnvme_device->minor_no);
+        if (iminor(inode) == pmetrics_device->pnvme_device->minor_no) {
+            LOG_DBG("Found device in the metrics list");
+            /* Get the device from the linked list */
+            pdev = pmetrics_device->pnvme_device->pdev;
+            pnvme_device = pmetrics_device->pnvme_device;
+            dev_found = 1;
+            break;
+        } else {
+            dev_found = 0;
+        }
+    }
+    /* The specified device could not be found in the list */
+    if (dev_found != 1) {
+        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
+        return -ENOTTY;
+    }
 
     /*
      * Given a ioctl_num invoke corresponding function
@@ -493,19 +497,29 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
             return -EINVAL;
         }
         break;
-    case NVME_IOCTL_CTLR_STATE:
-
+    case NVME_IOCTL_DEVICE_STATE:
         LOG_DBG("IOCTL for nvme controller set/reset Command");
         LOG_NRM("Invoke IOCTL for controller Status Setting");
         /* Assign user passed parameters to local struct */
-        nvme_ctrl_sts = (struct nvme_ctrl_enum *)ioctl_param;
-
-        if (nvme_ctrl_sts->nvme_status == NVME_CTLR_ENABLE) {
+        ctrl_new_state = (struct nvme_ctrl_state *)ioctl_param;
+        if (ctrl_new_state->new_state == ST_ENABLE) {
             LOG_NRM("Ctrlr is getting ENABLED...");
             ret_val = nvme_ctrl_enable(pnvme_device);
-        } else {
-            LOG_NRM("Ctrlr is going to DISABLE/RESET...");
+        } else if (ctrl_new_state->new_state == ST_DISABLE) {
+            LOG_NRM("Controller is going to DISABLE, Admin Q's not affected");
             ret_val = nvme_ctrl_disable(pnvme_device);
+            if (ret_val == SUCCESS) {
+                /* Clean Up the Data Structures. */
+            }
+        } else if (ctrl_new_state->new_state == ST_DISABLE_COMPLETELY) {
+            LOG_NRM("Complete disable of controller including Admin Q's");
+            ret_val = nvme_ctrl_disable(pnvme_device);
+            if (ret_val == SUCCESS) {
+                /* Clean Up the Data Structures. */
+            }
+        } else {
+            LOG_ERR("Device State not correctly specified.");
+            return -EINVAL;
         }
         break;
 
@@ -537,7 +551,6 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         LOG_DBG("Driver Call to Ring SQx Doorbell");
         /* Assign user passed parameters to q metrics structure. */
         ring_sqx = (struct nvme_ring_sqxtdbl *)ioctl_param;
-
         /* Call the ring doorbell driver function */
         ret_val = nvme_ring_sqx_dbl(ring_sqx, pnvme_device);
 

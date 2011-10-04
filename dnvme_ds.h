@@ -1,23 +1,11 @@
 #ifndef _DNVME_DS_H_
 #define _DNVME_DS_H_
 
+#include <linux/cdev.h>
 #include <linux/list.h>
 #include "dnvme_interface.h"
 
-#define    NVME_DS_VERSION    1.1
-
-/*
- * Structure to define a global list of interrupt vector and
- * associated completion queue id. All the completion queue id's
- * created must have an associated interrupt vector which needs to
- * be populated in this isr tracking structure. The association of
- * is either 1 -- 1 or 1 -- * (INTVEC -- CQ ID's).
- */
-struct isr_track {
-    struct    list_head    isr_list_hd;   /* List head of isr tracker    */
-    u16       int_vec;                     /* Interrupt vector            */
-    u16       cq_id[];                    /* List of associated CQ's     */
-};
+#define    NVME_DS_VERSION    1.7
 
 /*
  * Strucutre used to define all the essential parameters
@@ -42,7 +30,7 @@ struct nvme_trk_cq {
     dma_addr_t  acq_dma_addr;   /* dma mapped address using dma_alloc       */
     u32         size;           /* length in bytes of the alloc Q in kernel */
     u32 __iomem *dbs;           /* Door Bell stride                         */
-    struct nvme_prps  prp_persist; /* PRP element in CQ                        */
+    struct nvme_prps  prp_persist; /* PRP element in CQ                     */
     u8          contig;         /* Indicates if prp list is contig or not   */
 };
 
@@ -69,10 +57,7 @@ struct nvme_trk_sq {
     u32 __iomem *dbs; /* Door Bell stride */
     struct nvme_prps  prp_persist; /* PRP element in CQ */
     u8          contig; /* Indicates if prp list is contig or not */
-    /* TODO xxx remove once not needed */
-    /* struct cmd_track    *cmd_track_list;  to track a particular cmd*/
-    /* link-list for tracking commands in SQ */
-    struct    list_head    sq_cmd_trk_ll;
+    struct cmd_track    cmd_track; /* to track cmds for a sq */
 };
 
 /*
@@ -98,9 +83,9 @@ struct metrics_sq {
 struct nvme_device {
     struct pci_dev  *pdev;          /* Pointer to the device in PCI space  */
     struct nvme_ctrl_reg __iomem *nvme_ctrl_space; /* Pointer to reg space */
-    u8  *bar_0_mapped;                /* Bar 0 IO re-mapped value            */
+    u8  *bar_0_mapped;              /* Bar 0 IO re-mapped value            */
     struct device   *dmadev;        /* Pointer to the dma device from pdev */
-    u8  device_no;                  /* Current device number               */
+    int minor_no;                   /* Minor no. of the device being used  */
 };
 
 /*
@@ -109,7 +94,6 @@ struct nvme_device {
  */
 struct metrics_device_list {
     struct  list_head   metrics_device_hd; /* metrics linked list head    */
-    struct  isr_track   *isr_track_list;   /* ISR with CQ tracking list   */
     struct  metrics_cq  *metrics_cq_list;  /* CQ linked list              */
     struct  metrics_sq  *metrics_sq_list;  /* SQ linked list              */
     struct  nvme_device *pnvme_device;     /* Pointer to this nvme device */

@@ -18,6 +18,9 @@ static void unmap_user_pg_to_dma(struct nvme_dev_entry *, __u8,
 static int setup_prps(struct nvme_dev_entry *, struct scatterlist *,
     __s32, struct nvme_prps *, __u8);
 static void free_prp_pool(struct nvme_dev_entry *, struct nvme_prps *, __u32);
+static int add_cmd_track_node(struct  metrics_sq  *, __u16, enum nvme_cmds,
+    struct nvme_prps, __u8, __u16);
+static void del_cmd_track_node(struct  metrics_sq  *);
 
 /*
  * submit_command:
@@ -427,13 +430,15 @@ static void free_prp_pool(struct nvme_dev_entry *dev,
 }
 
 /*
+ * add_cmd_track_node:
  * Create and add the node inside command track list
  *
  */
-static int add_cmd_track_node (struct  metrics_sq  *pmetrics_sq, __u16 persist_q_id,
-    enum nvme_cmds cmd_type, struct nvme_prps prps, __u8 opcode, __u16 unique_cnt)
+static int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
+    __u16 persist_q_id, enum nvme_cmds cmd_type, struct nvme_prps prps,
+        __u8 opcode, __u16 unique_cnt)
 {
-	/* pointer to cmd track linked list node */
+    /* pointer to cmd track linked list node */
     struct cmd_track  *pcmd_track_list;
 
     /* Fill the cmd_track structure */
@@ -458,30 +463,32 @@ static int add_cmd_track_node (struct  metrics_sq  *pmetrics_sq, __u16 persist_q
 
     /* Add an element to the end of the list */
     list_add_tail(&pcmd_track_list->cmd_list_hd,
-        &pmetrics_sq->private_sq.sq_cmd_trk_ll);
+        &pmetrics_sq->private_sq.cmd_track.cmd_list_hd);
 
     return 0;
 }
 
 /*
+ * del_cmd_track_node:
  * Delete the node inside command track list
  * Note:- Should be called after
  * unmap_user_pg_to_dma and free_prp_pool functions
  */
 
-static void del_cmd_track_node (struct  metrics_sq  *pmetrics_sq)
+static void del_cmd_track_node(struct  metrics_sq  *pmetrics_sq)
 {
 
-	/* pointer to cmd track linked list node */
+    /* pointer to cmd track linked list node */
     struct cmd_track  *pcmd_track_list;
     /* parameters required for list_for_each_safe */
     struct list_head *pos, *temp;
 
     /* Loop through the cmd track list */
-    list_for_each_safe(pos, temp, &pmetrics_sq->private_sq.sq_cmd_trk_ll) {
-    	pcmd_track_list = list_entry (pos, struct cmd_track, cmd_list_hd);
-    	list_del(pos);
-    	kfree(pcmd_track_list);
+    list_for_each_safe(pos, temp,
+        &pmetrics_sq->private_sq.cmd_track.cmd_list_hd) {
+        pcmd_track_list = list_entry(pos, struct cmd_track, cmd_list_hd);
+        list_del(pos);
+        kfree(pcmd_track_list);
     }
 
 }

@@ -59,48 +59,22 @@ struct rw_generic {
 };
 
 /**
-* These enums are used for creating Admin Completion Q types based on requested
-* user type.
+* These enums are used while enabling or disabling or completely disabling the
+* controller.
 */
-enum nvme_qop_type {
-    NVME_Q_POLLING, /* Polling based Q */
-    NVME_Q_IRQ,   /* Interrupt Based Q */
+enum nvme_state {
+    ST_ENABLE,              /* Set the NVME Controller to enable state      */
+    ST_DISABLE,             /* Controller reset without affecting Admin Q   */
+    ST_DISABLE_COMPLETELY,  /* Completely destroy even Admin Q's            */
 };
 
 /**
-* This struct is the basic structure which has important parameter for
-* creating admin submission queue and gets the size from user.
+* The parametes in this structue is used for setting the controller a new
+* state.
 */
-struct nvme_asq_gen {
-    uint32_t asq_size;
+struct nvme_ctrl_state {
+    enum nvme_state new_state; /* New state of the controller requested. */
 };
-
-/**
-* This struct is the basic structure which has important parameter for
-* creating admin completion queue and gets the size from user including
-* priority for Q creation.
-*/
-struct nvme_acq_gen {
-    enum nvme_qop_type cq_type;
-    uint32_t acq_size;
-};
-
-/**
-* This enums are used while enabling or disabling the controller.
-*/
-enum nvme_en_dis {
-    NVME_CTLR_ENABLE, /* It does controller reset functionality */
-    NVME_CTLR_DISABLE, /* It shuts down the controller*/
-};
-
-/**
-* This Struct is used for setting the controller either
-*/
-struct nvme_ctrl_enum {
-    enum nvme_en_dis nvme_status;
-};
-
-
 
 /**
  * enum providing the definitions of the NVME commands.
@@ -149,7 +123,6 @@ struct nvme_gen_cq {
     uint16_t    tail_ptr;    /* The value calculated for respective tail_ptr */
     uint16_t    head_ptr;    /* Actual value in CQxTDBL for this q_id        */
     uint16_t    elements;    /* pass the actual elements in this q           */
-    uint8_t     irq_enabled;  /* pass if using IRQ's or not.                  */
 };
 
 /**
@@ -235,32 +208,32 @@ struct nvme_file {
  * Format of general purpose nvme command
  */
 struct nvme_general_command {
-    __u8   opcode;
-    __u8   flags;
-    __u16  command_id;
-    __le32 nsid;
-    __u64  rsvd2;
-    __le64 metadata;
-    __le64 prp1;
-    __le64 prp2;
-    __u32  rsvd10[6];
+    uint8_t   opcode;
+    uint8_t   flags;
+    uint16_t  command_id;
+    uint32_t  nsid;
+    uint64_t  rsvd2;
+    uint64_t  metadata;
+    uint64_t  prp1;
+    uint64_t  prp2;
+    uint32_t  rsvd10[6];
 };
 
 /*
  * Specific structure for Create CQ command
  */
 struct nvme_create_cq {
-    __u8   opcode;
-    __u8   flags;
-    __u16  command_id;
-    __u32  rsvd1[5];
-    __le64 prp1;
-    __u64  rsvd8;
-    __le16 cqid;
-    __le16 qsize;
-    __le16 cq_flags;
-    __le16 irq_vector;
-    __u32  rsvd12[4];
+    uint8_t   opcode;
+    uint8_t   flags;
+    uint16_t  command_id;
+    uint32_t  rsvd1[5];
+    uint64_t  prp1;
+    uint64_t  rsvd8;
+    uint16_t  cqid;
+    uint16_t  qsize;
+    uint16_t  cq_flags;
+    uint16_t  irq_vector;
+    uint32_t  rsvd12[4];
 };
 
 /*
@@ -268,7 +241,6 @@ struct nvme_create_cq {
  */
 struct nvme_command {
     union {
-    	/* xxx probably only gen_cmd is needed */
         struct nvme_general_command gen_cmd;
         struct nvme_create_cq create_cq_cmd;
     };
