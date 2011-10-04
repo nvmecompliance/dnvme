@@ -563,7 +563,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         LOG_DBG("IOCTL NVME_IOCTL_SEND_64B_CMD Command");
         /* Assign user passed parameters to local struct pointrs */
         nvme_64b_send = (struct nvme_64b_send *)ioctl_param;
-        ret_val =  driver_send_64b(nvme_dev, nvme_64b_send);
+        ret_val =  driver_send_64b(pnvme_device, nvme_64b_send);
         /* Display success or fail */
         if (ret_val >= 0) {
             LOG_NRM("PRP Creation Success");
@@ -597,6 +597,7 @@ static void __exit dnvme_exit(void)
 {
     struct nvme_device_entry *pnvme_dev_entry;
     struct pci_dev *pdev;
+    struct  metrics_device_list *pmetrics_device;  /* Metrics device list    */
 
     /* Get the device from the linked list */
     list_for_each_entry(pnvme_dev_entry, &nvme_devices_llist, list) {
@@ -609,10 +610,13 @@ static void __exit dnvme_exit(void)
     unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
     pci_unregister_driver(&dnvme_pci_driver);
 
-    /* Free up the DMA pool */
-    /* TODO: Add freeing for all the devices
-     * once the new structures are in place */
-    destroy_dma_pool(nvme_dev);
+
+
+    /* Loop through the devices available in the metrics list */
+    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
+        /* Free up the DMA pool */
+        destroy_dma_pool(pmetrics_device->pnvme_device);
+    }
 
     /* Free up all the allocated kernel memory before exiting */
     free_allqs();

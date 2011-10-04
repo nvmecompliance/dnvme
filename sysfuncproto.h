@@ -165,7 +165,7 @@ void free_allqs(void);
 * @param nvme_64b_send
 * @return Error Codes
 */
-int driver_send_64b(struct nvme_dev_entry *nvme_dev,
+int driver_send_64b(struct nvme_device *nvme_dev,
     struct nvme_64b_send *nvme_64b_send);
 
 /**

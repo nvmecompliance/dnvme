@@ -560,7 +560,6 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
 int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
         struct metrics_device_list *pmetrics_device_list)
 {
-    struct device *dmadev; /* DMA device structure */
 
     LOG_DBG("Inside driver IOCTL init function");
     LOG_NRM("Initializing the BAR01 and NVME Controller Space");
@@ -583,14 +582,6 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
     /* Set the pci device of the nvme_dev to point to pdev from ioctl */
     nvme_dev->pdev = pdev;
 
-    /* Used to create Coherent DMA mapping for PRP List */
-    dmadev = &nvme_dev->pdev->dev;
-    nvme_dev->prp_page_pool = dma_pool_create("prp page", dmadev,
-        PAGE_SIZE, PAGE_SIZE, 0);
-    if (NULL == nvme_dev->prp_page_pool) {
-        LOG_ERR("Creation of DMA Pool failed");
-        return -ENOMEM;
-    }
     /* Allocate mem fo nvme device with kernel memory */
     pmetrics_device_list->pnvme_device = kmalloc(sizeof(struct nvme_device),
             GFP_KERNEL);
@@ -608,6 +599,16 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
     pmetrics_device_list->pnvme_device->dmadev =
             &nvme_dev->pdev->dev;
 
+    /* Used to create Coherent DMA mapping for PRP List */
+    pmetrics_device_list->pnvme_device->prp_page_pool =
+        dma_pool_create("prp page",
+            &pmetrics_device_list->pnvme_device->pdev->dev,
+                PAGE_SIZE, PAGE_SIZE, 0);
+    if (NULL == pmetrics_device_list->pnvme_device->prp_page_pool) {
+        LOG_ERR("Creation of DMA Pool failed");
+        return -ENOMEM;
+     }
+
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)nvme_dev->nvme_ctrl_space);
 
@@ -618,7 +619,7 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
 *  driver_send_64b - Routine for sending 64 bytes command into
 *  admin/IO SQ/CQ's
 */
-int driver_send_64b(struct nvme_dev_entry *nvme_dev,
+int driver_send_64b(struct nvme_device *nvme_dev,
     struct nvme_64b_send *nvme_64b_send)
 {
     /* ret code to verify status of sending 64 bytes command */

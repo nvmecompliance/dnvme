@@ -5,19 +5,20 @@
 #include "sysdnvme.h"
 #include "definitions.h"
 #include "dnvme_reg.h"
-#include "dnvme_cmds.h"
 #include "dnvme_ds.h"
+#include "dnvme_cmds.h"
+
 
 /* Declaration of static functions belonging to Submitting 64Bytes Command */
 static int pages_to_sg(struct page **,
     __u32, __u32, __u32, struct scatterlist **);
-static int map_user_pg_to_dma(struct nvme_dev_entry *, __u8,
+static int map_user_pg_to_dma(struct nvme_device *, __u8,
     unsigned long, __u32, struct scatterlist **);
-static void unmap_user_pg_to_dma(struct nvme_dev_entry *, __u8,
+static void unmap_user_pg_to_dma(struct nvme_device *, __u8,
     unsigned long, __u32, struct scatterlist *);
-static int setup_prps(struct nvme_dev_entry *, struct scatterlist *,
+static int setup_prps(struct nvme_device *, struct scatterlist *,
     __s32, struct nvme_prps *, __u8);
-static void free_prp_pool(struct nvme_dev_entry *, struct nvme_prps *, __u32);
+static void free_prp_pool(struct nvme_device *, struct nvme_prps *, __u32);
 static int add_cmd_track_node(struct  metrics_sq  *, __u16, enum nvme_cmds,
     struct nvme_prps, __u8, __u16);
 static void del_cmd_track_node(struct  metrics_sq  *);
@@ -29,7 +30,7 @@ static void del_cmd_track_node(struct  metrics_sq  *);
  * Add the implementation logic of complete ioctl and update the
  * function arguments accordingly
  */
-int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
+int submit_command(struct nvme_device *nvme_dev, __u16 q_id,
     __u8 *buf_addr, __u32 buf_len)
 {
     int err; /* Error code return values */
@@ -116,7 +117,7 @@ int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
  * Destroy's the dma pool
  * Returns void
  */
-void destroy_dma_pool(struct nvme_dev_entry *nvme_dev)
+void destroy_dma_pool(struct nvme_device *nvme_dev)
 {
     /* Destroy the DMA pool */
     dma_pool_destroy(nvme_dev->prp_page_pool);
@@ -127,7 +128,7 @@ void destroy_dma_pool(struct nvme_dev_entry *nvme_dev)
  * Maps User pages to DMA via SG List
  * Returns Error codes or number of physical segments mapped
  */
-static int map_user_pg_to_dma(struct nvme_dev_entry *nvme_dev, __u8 write,
+static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
     unsigned long buf_addr, __u32 buf_len, struct scatterlist **sgp)
 {
     __u32 offset, count; /* Offset inside Page, No. of pages */
@@ -234,7 +235,7 @@ static int pages_to_sg(struct page **pages,
  * unmap_user_pg_to_dma:
  * Unmaps mapped DMA pages and frees the pinned down pages
  */
-static void unmap_user_pg_to_dma(struct nvme_dev_entry *dev, __u8 write,
+static void unmap_user_pg_to_dma(struct nvme_device *dev, __u8 write,
     unsigned long buf_addr, __u32 buf_len, struct scatterlist *sg)
 {
     int i, count;
@@ -254,7 +255,7 @@ static void unmap_user_pg_to_dma(struct nvme_dev_entry *dev, __u8 write,
  * Returns Error codes
  * TODO: Handle Create IO CQ/SQ case
  */
-static int setup_prps(struct nvme_dev_entry *nvme_dev, struct scatterlist *sg,
+static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     __s32 buf_len, struct nvme_prps *prps, __u8 cr_io_q)
 {
     dma_addr_t prp_dma, dma_addr;
@@ -402,7 +403,7 @@ error:
  * free_prp_pool:
  * Free's PRP List and virtual List
  */
-static void free_prp_pool(struct nvme_dev_entry *dev,
+static void free_prp_pool(struct nvme_device *dev,
     struct nvme_prps *prps, __u32 npages)
 {
     const int last_prp = PAGE_SIZE / PRP_Size - 1;

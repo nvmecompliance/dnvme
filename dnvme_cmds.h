@@ -38,7 +38,7 @@ enum data_buf_type {
 * Add the implementation logic of complete ioctl and update the
 * function arguments accordingly
 */
-int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
+int submit_command(struct nvme_device *nvme_dev, __u16 q_id,
     __u8 *buf_addr, __u32 buf_len);
 
 /**
@@ -47,6 +47,6 @@ int submit_command(struct nvme_dev_entry *nvme_dev, __u16 q_id,
  * @param nvme_dev
  * @return void
  */
-void destroy_dma_pool(struct nvme_dev_entry *nvme_dev);
+void destroy_dma_pool(struct nvme_device *nvme_dev);
 
 #endif
