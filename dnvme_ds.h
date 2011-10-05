@@ -38,11 +38,11 @@ struct nvme_trk_cq {
  *    Structure definition for tracking the commands.
  */
 struct cmd_track {
-    struct list_head    cmd_list_hd;  /* link-list using the kernel list    */
-    u16    unique_id;    /* driver assigned unique id for a particuler cmd. */
+    struct list_head cmd_list_hd; /* link-list using the kernel list */
+    u16    unique_id; /* driver assigned unique id for a particuler cmd. */
     u16    persist_q_id; /* Q ID used for Create/Delete Queues */
-    u8     opcode;       /* command opcode as per spec                      */
-    enum   nvme_cmds   cmd_set;   /* what cmd set does this opcode belong to */
+    u8     opcode; /* command opcode as per spec */
+    enum   nvme_cmds   cmd_set; /* what cmd set does this opcode belong to */
     struct nvme_prps prp_nonpersist; /* Non persistent PRP entries */
 };
 
@@ -57,7 +57,7 @@ struct nvme_trk_sq {
     u32 __iomem *dbs; /* Door Bell stride */
     struct nvme_prps  prp_persist; /* PRP element in CQ */
     u8          contig; /* Indicates if prp list is contig or not */
-    struct cmd_track    cmd_track; /* to track cmds for a sq */
+    struct list_head cmd_track_list; /* link-list head for cmd_track list */
 };
 
 /*

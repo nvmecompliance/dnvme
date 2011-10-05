@@ -174,8 +174,9 @@ int driver_log(struct nvme_file *n_file)
 
                 /* Looping through the cmds if any */
                 list_for_each_entry(pcmd_track_list,
-                		&(pmetrics_sq_list->private_sq.cmd_track.cmd_list_hd), cmd_list_hd) {
-                	/* write to file if any cmds exist */
+                    &(pmetrics_sq_list->private_sq.cmd_track_list),
+                        cmd_list_hd) {
+                    /* write to file if any cmds exist */
                     sprintf(data1, IDNT_L4"cmd track no = %d", cmd++);
                     vfs_write(file, data1, strlen(data1), &pos);
                     sprintf(data1, IDNT_L4"unique_id = %d",

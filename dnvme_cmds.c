@@ -450,9 +450,6 @@ static int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
         return -ENOMEM;
     }
 
-    /* Reset the data for this node */
-    memset(pcmd_track_list, 0, sizeof(struct cmd_track));
-
     /* Fill the node */
     pcmd_track_list->unique_id = unique_cnt;
     pcmd_track_list->persist_q_id = persist_q_id;
@@ -464,7 +461,7 @@ static int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
 
     /* Add an element to the end of the list */
     list_add_tail(&pcmd_track_list->cmd_list_hd,
-        &pmetrics_sq->private_sq.cmd_track.cmd_list_hd);
+        &pmetrics_sq->private_sq.cmd_track_list);
 
     return 0;
 }
@@ -486,7 +483,7 @@ static void del_cmd_track_node(struct  metrics_sq  *pmetrics_sq)
 
     /* Loop through the cmd track list */
     list_for_each_safe(pos, temp,
-        &pmetrics_sq->private_sq.cmd_track.cmd_list_hd) {
+        &pmetrics_sq->private_sq.cmd_track_list) {
         pcmd_track_list = list_entry(pos, struct cmd_track, cmd_list_hd);
         list_del(pos);
         kfree(pcmd_track_list);

@@ -475,7 +475,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     pmetrics_sq_list->public_sq.cq_id = admn_id;
 
     /* Adding Command Tracking list */
-    INIT_LIST_HEAD(&(pmetrics_sq_list->private_sq.cmd_track.cmd_list_hd));
+    INIT_LIST_HEAD(&(pmetrics_sq_list->private_sq.cmd_track_list));
 
     /* Call dma allocation, creation of contiguous memory for ASQ */
     ret_code = create_admn_sq(pnvme_dev, pmetrics_sq_list->public_sq.elements,
@@ -806,7 +806,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     pmetrics_sq_list->public_sq.elements = prep_sq->elements;
     pmetrics_sq_list->private_sq.contig = prep_sq->contig;
     /* Adding Command Tracking list */
-    INIT_LIST_HEAD(&(pmetrics_sq_list->private_sq.cmd_track.cmd_list_hd));
+    INIT_LIST_HEAD(&(pmetrics_sq_list->private_sq.cmd_track_list));
 
     ret_code = nvme_prepare_sq(pmetrics_sq_list, pnvme_dev);
 
@@ -831,7 +831,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     LOG_NRM("\tSize Allocated = %d", pmetrics_sq_list->private_sq.size);
     LOG_NRM("\tDBS= 0x%llx", (u64)pmetrics_sq_list->private_sq.dbs);
     LOG_NRM("Cmd track ll address: %llx",
-        (u64) &(pmetrics_sq_list->private_sq.cmd_track.cmd_list_hd));
+        (u64) &(pmetrics_sq_list->private_sq.cmd_track_list));
 #endif
 
     /* Add this element to the end of the list */
