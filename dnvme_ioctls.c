@@ -22,7 +22,7 @@
 /* initialize the linked list headers */
 LIST_HEAD(metrics_sq_ll);
 LIST_HEAD(metrics_cq_ll);
-LIST_HEAD(sq_cmd_ll);
+
 
 /*
 *  device_status_chk  - Generic error checking function
@@ -433,6 +433,9 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     /* Admin SQ is always associated with Admin CQ. */
     pmetrics_sq_list->public_sq.cq_id = admn_id;
 
+    /* Adding Command Tracking list */
+    INIT_LIST_HEAD(&(pmetrics_sq_list->private_sq.cmd_track_list));
+
     /* Call dma allocation, creation of contiguous memory for ASQ */
     ret_code = create_admn_sq(pnvme_dev, pmetrics_sq_list->public_sq.elements,
             pmetrics_sq_list);
@@ -550,6 +553,16 @@ int driver_ioctl_init(struct pci_dev *pdev,
             ("prp page", &pmetrics_device_list->pnvme_device->pdev->dev,
                     PAGE_SIZE, PAGE_SIZE, 0);
 
+    /* Used to create Coherent DMA mapping for PRP List */
+    pmetrics_device_list->pnvme_device->prp_page_pool =
+        dma_pool_create("prp page",
+            &pmetrics_device_list->pnvme_device->pdev->dev,
+                PAGE_SIZE, PAGE_SIZE, 0);
+    if (NULL == pmetrics_device_list->pnvme_device->prp_page_pool) {
+        LOG_ERR("Creation of DMA Pool failed");
+        return -ENOMEM;
+     }
+
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)pmetrics_device_list->pnvme_device->nvme_ctrl_space);
 
@@ -560,17 +573,20 @@ int driver_ioctl_init(struct pci_dev *pdev,
 *  driver_send_64b - Routine for sending 64 bytes command into
 *  admin/IO SQ/CQ's
 */
-int driver_send_64b(struct nvme_dev_entry *nvme_dev,
+int driver_send_64b(struct  metrics_device_list *pmetrics_device_element,
     struct nvme_64b_send *nvme_64b_send)
 {
     /* ret code to verify status of sending 64 bytes command */
     int ret_code = -EINVAL;
+    struct nvme_device *nvme_dev;
+
+    nvme_dev = pmetrics_device_element->pnvme_device;
+
     /* TODO: make the function more generic while implementing complete IOCTL */
     ret_code = submit_command(nvme_dev, nvme_64b_send->queue_id,
         nvme_64b_send->data_buf_ptr, nvme_64b_send->data_buf_size);
     return ret_code;
 }
-
 
 /*
 * driver_default_ioctl - Default if none of the switch
@@ -749,6 +765,8 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     pmetrics_sq_list->public_sq.cq_id = prep_sq->cq_id;
     pmetrics_sq_list->public_sq.elements = prep_sq->elements;
     pmetrics_sq_list->private_sq.contig = prep_sq->contig;
+    /* Adding Command Tracking list */
+    INIT_LIST_HEAD(&(pmetrics_sq_list->private_sq.cmd_track_list));
 
     ret_code = nvme_prepare_sq(pmetrics_sq_list, pnvme_dev);
 
@@ -772,6 +790,8 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     LOG_NRM("\tContiguous = %d", pmetrics_sq_list->private_sq.contig);
     LOG_NRM("\tSize Allocated = %d", pmetrics_sq_list->private_sq.size);
     LOG_NRM("\tDBS= 0x%llx", (u64)pmetrics_sq_list->private_sq.dbs);
+    LOG_NRM("Cmd track ll address: %llx",
+        (u64) &(pmetrics_sq_list->private_sq.cmd_track_list));
 #endif
 
     /* Add this element to the end of the list */

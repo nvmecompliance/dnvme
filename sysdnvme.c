@@ -298,12 +298,10 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 int dnvme_ioctl_device(struct inode *inode, struct file *file,
         unsigned int ioctl_num, unsigned long ioctl_param)
 {
-    struct nvme_device *pnvme_device = NULL; /* ptr to metrics device        */
     struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
     int ret_val = -EINVAL;        /* set ret val to invalid, chk for success */
     struct rw_generic *nvme_data; /* Local struct var for nvme rw dat        */
     int *nvme_dev_err_sts;        /* nvme device error status                */
-    struct pci_dev *pdev = NULL;  /* pointer to pci device                   */
     struct nvme_ctrl_state *ctrl_new_state; /* controller new state          */
     struct nvme_get_q_metrics *get_q_metrics; /* metrics q params            */
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
@@ -323,9 +321,6 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
                 pnvme_device->minor_no);
         if (iminor(inode) == pmetrics_device_element->pnvme_device->minor_no) {
             LOG_DBG("Found device in the metrics list");
-            /* Get the device from the linked list */
-            pdev = pmetrics_device_element->pnvme_device->pdev;
-            pnvme_device = pmetrics_device_element->pnvme_device;
             dev_found = 1;
             break;
         } else {
@@ -440,7 +435,7 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         LOG_DBG("IOCTL NVME_IOCTL_SEND_64B_CMD Command");
         /* Assign user passed parameters to local struct pointrs */
         nvme_64b_send = (struct nvme_64b_send *)ioctl_param;
-        //ret_val =  driver_send_64b(nvme_dev, nvme_64b_send);
+        ret_val =  driver_send_64b(pmetrics_device_element, nvme_64b_send);
         /* Display success or fail */
         if (ret_val >= 0) {
             LOG_NRM("PRP Creation Success");
@@ -488,14 +483,11 @@ static void __exit dnvme_exit(void)
     unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
     pci_unregister_driver(&dnvme_pci_driver);
 
-    /* Free up the DMA pool */
-    /* TODO: Add freeing for all the devices
-     * once the new structures are in place */
-    //destroy_dma_pool(nvme_dev);
-
     /* Loop through the devices available in the metrics list */
     list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
             metrics_device_hd) {
+        /* Free up the DMA pool */
+        destroy_dma_pool(pmetrics_device_element->pnvme_device);
         /* Clean Up the Data Structures. */
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
         pdev = pmetrics_device_element->pnvme_device->pdev;

@@ -218,4 +218,47 @@ struct nvme_reap_inquiry {
     uint16_t    num_remaining;  /* return no of cmds waiting to be reaped */
 };
 
+
+/**
+ * Format of general purpose nvme command
+ */
+struct nvme_general_command {
+    uint8_t   opcode;
+    uint8_t   flags;
+    uint16_t  command_id;
+    uint32_t  nsid;
+    uint64_t  rsvd2;
+    uint64_t  metadata;
+    uint64_t  prp1;
+    uint64_t  prp2;
+    uint32_t  rsvd10[6];
+};
+
+/**
+ * Specific structure for Create CQ command
+ */
+struct nvme_create_cq {
+    uint8_t   opcode;
+    uint8_t   flags;
+    uint16_t  command_id;
+    uint32_t  rsvd1[5];
+    uint64_t  prp1;
+    uint64_t  rsvd8;
+    uint16_t  cqid;
+    uint16_t  qsize;
+    uint16_t  cq_flags;
+    uint16_t  irq_vector;
+    uint32_t  rsvd12[4];
+};
+
+/**
+ * Format of nvme command
+ */
+struct nvme_command {
+    union {
+        struct nvme_general_command gen_cmd;
+        struct nvme_create_cq create_cq_cmd;
+    };
+};
+
 #endif

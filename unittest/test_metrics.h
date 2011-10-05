@@ -11,3 +11,10 @@ void ioctl_prep_sq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint16_t elem,
 void ioctl_prep_cq(int file_desc, uint16_t cq_id, uint16_t elem, uint8_t contig);
 
 void ioctl_tst_ring_dbl(int file_desc, int sq_id);
+
+void ioctl_create_prp_one_page(int file_desc);
+void ioctl_create_prp_less_than_one_page(int file_desc);
+void ioctl_create_prp_more_than_two_page(int file_desc);
+void ioctl_create_list_of_prp(int file_desc);
+void ioctl_create_fill_list_of_prp(int file_desc);
+

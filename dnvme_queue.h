@@ -61,44 +61,10 @@ enum {
     NVME_CSTS_SHST_CMPLT  = 2 << 2,
 };
 
-/*
-* Command structure with parameters for creating SQ.
-*/
-struct nvme_create_sq {
-    __u16 comand_id;
-};
-
-/*
-* Nvme Structure for different command sets.
-*/
-struct nvme_command {
-    struct nvme_create_sq create_sq;
-};
-
-/*
-* Structure definition for the NVME Express Queue. This is the main entry
-* point for all the Q's that the NVME device functions with and manipulates.
-*/
-struct nvme_queue {
-    struct    device   *dmadev;
-    spinlock_t         q_lock;
-    struct    nvme_command   *nvme_sq_cmds;
-    void               *virt_asq_addr;
-    void               *virt_acq_addr;
-    dma_addr_t         asq_dma_addr;
-    dma_addr_t         acq_dma_addr;
-    u16                asq_depth;
-    u16                acq_depth;
-    u16                sq_head;
-    u16                sq_tail;
-    u8                 q_init;
-};
-
 /* To use the linked list in queues. */
 extern struct list_head metrics_sq_ll;
 extern struct list_head metrics_cq_ll;
 extern struct list_head metrics_dev_ll;
-extern struct list_head sq_cmd_ll;
 
 /**
 * The user selection of IOCTL for creating admin cq eventually calls

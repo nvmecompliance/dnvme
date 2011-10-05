@@ -158,11 +158,11 @@ void free_allqs(void);
 /**
 * driver_send_64b - Routine for sending 64 bytes command into
 * admin/IO SQ/CQ's
-* @param nvme_dev
+* @param pmetrics_device_element
 * @param nvme_64b_send
 * @return Error Codes
 */
-int driver_send_64b(struct nvme_dev_entry *nvme_dev,
+int driver_send_64b(struct  metrics_device_list *pmetrics_device_element,
     struct nvme_64b_send *nvme_64b_send);
 
 /**

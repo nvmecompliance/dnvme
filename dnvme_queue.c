@@ -554,10 +554,12 @@ int deallocate_metrics_cq(struct device *dev,
 int deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list)
 {
+#if 0
     struct cmd_track *pcmd_track_list;   /* to track a particular cmd     */
     struct cmd_track *pcmd_track_next;   /* to track a particular cmd     */
 
     /* drop all outstanding cmds for this SQ on the floor. */
+    /* TODO */
     list_for_each_entry_safe(pcmd_track_list, pcmd_track_next, &sq_cmd_ll,
             cmd_list_hd) {
         /* Free prp list pointed by this tracked cmd. */
@@ -566,6 +568,8 @@ int deallocate_metrics_sq(struct device *dev,
         /* Delete the current sq entry from the list */
         list_del_init(&pcmd_track_list->cmd_list_hd);
     }
+#endif
+
     /* Clean up memory for all metrics_sq for current id here */
     if (pmetrics_sq_list->private_sq.contig == 0) {
         /* free the prp pool pointed by this non contig sq. */
@@ -602,6 +606,7 @@ int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
  */
 int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list)
 {
+#if 0
     struct cmd_track *pcmd_track_list;   /* to track a particular cmd     */
     struct cmd_track *pcmd_track_next;   /* to track a particular cmd     */
 
@@ -613,6 +618,7 @@ int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list)
         list_del_init(&pcmd_track_list->cmd_list_hd);
         kfree(pcmd_track_list);
     }
+#endif
 
     pmetrics_sq_list->public_sq.head_ptr = 0;
     pmetrics_sq_list->public_sq.tail_ptr = 0;

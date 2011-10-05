@@ -5,7 +5,7 @@
 #include <linux/list.h>
 #include "dnvme_interface.h"
 
-#define    NVME_DS_VERSION    1.7
+#define    NVME_DS_VERSION    1.9
 
 /*
  * Strucutre used to define all the essential parameters
@@ -23,15 +23,6 @@ struct nvme_prps {
 };
 
 /*
- * Structure definition for global PRP element.
- */
-struct prp_element {
-    struct nvme_prps prps; /* Strucutre describing PRP's        */
-    u16       sq_id;       /* Submission Q ID with prp          */
-    u16       unique_id;   /* drv assigned unique id for a cmd  */
-};
-
-/*
  * structure for the CQ tracking params with virtual address and size.
  */
 struct nvme_trk_cq {
@@ -39,7 +30,7 @@ struct nvme_trk_cq {
     dma_addr_t  acq_dma_addr;   /* dma mapped address using dma_alloc       */
     u32         size;           /* length in bytes of the alloc Q in kernel */
     u32 __iomem *dbs;           /* Door Bell stride                         */
-    struct prp_element  prp;    /* PRP element in CQ                        */
+    struct nvme_prps  prp_persist; /* PRP element in CQ                     */
     u8          contig;         /* Indicates if prp list is contig or not   */
 };
 
@@ -47,27 +38,26 @@ struct nvme_trk_cq {
  *    Structure definition for tracking the commands.
  */
 struct cmd_track {
-    struct list_head    cmd_list_hd;  /* link-list using the kernel list    */
-    u16    unique_id;    /* driver assigned unique id for a particuler cmd. */
-    u16    sq_id;        /* what is SQ id for this cmd to be submitted to   */
-    u8     opcode;       /* command opcode as per spec                      */
-    enum   nvme_cmds   cmd_set;  /* what cmd set does this opcode belong to */
-    struct prp_element prp_nonpersist;
-        /* points to the prp list if prp list exists. */
+    struct list_head cmd_list_hd; /* link-list using the kernel list */
+    u16    unique_id; /* driver assigned unique id for a particuler cmd. */
+    u16    persist_q_id; /* Q ID used for Create/Delete Queues */
+    u8     opcode; /* command opcode as per spec */
+    enum   nvme_cmds   cmd_set; /* what cmd set does this opcode belong to */
+    struct nvme_prps prp_nonpersist; /* Non persistent PRP entries */
 };
 
 /*
  * structure definition for SQ tracking parameters.
  */
 struct nvme_trk_sq {
-    void        *vir_kern_addr; /* virtual kernal address using kmalloc     */
-    dma_addr_t  asq_dma_addr;   /* dma mapped address using dma_alloc       */
-    u32         size;           /* length in bytes of allocated Q in kernel */
-    u16         unique_cmd_id;  /* unique counter for each comand in SQ     */
-    u32 __iomem *dbs;           /* Door Bell stride                         */
-    struct prp_element  prp;    /* PRP element in CQ                        */
-    u8          contig;         /* Indicates if prp list is contig or not   */
-    struct cmd_track    *cmd_track_list;   /* to track a particular cmd     */
+    void        *vir_kern_addr; /* virtual kernal address using kmalloc    */
+    dma_addr_t  asq_dma_addr;   /* dma mapped address using dma_alloc      */
+    u32         size;           /* len in bytes of allocated Q in kernel   */
+    u16         unique_cmd_id;  /* unique counter for each comand in SQ    */
+    u32 __iomem *dbs;           /* Door Bell stride                        */
+    struct nvme_prps  prp_persist; /* PRP element in CQ */
+    u8          contig;         /* Indicates if prp list is contig or not  */
+    struct list_head cmd_track_list; /* link-list head for cmd_track list  */
 };
 
 /*
