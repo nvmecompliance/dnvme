@@ -61,34 +61,4 @@
 */
 #define AER_CAP_ID             0x1
 
-/**
-* This is a structure that defines all the PCI
-* header information laid out in NVME SPec 1.0b
-* PCI Header section.
-*/
-struct nvme_pci_header {
-    u32 ID;
-    u16 CMD;
-    u16 STS;
-    u8  RID;
-    u32 CC;
-    u8  CLS;
-    u8  MLT;
-    u8  HTYPE;
-    u8  BIST;
-    u32 BAR0;
-    u32 BAR1;
-    u32 BAR2;
-    u32 BAR3;
-    u32 BAR4;
-    u32 BAR5;
-    u32 CCPTR;
-    u32 SS;
-    u32 EPROM;
-    u64 CAP;
-    u16 INTR;
-    u8  MGNT;
-    u8  MLAT;
-};
-
 #endif

@@ -78,7 +78,7 @@ enum {
         struct nvme_acq_gen)
 
 /**
-* @def NVME_IOCTL_CTLR_STATE
+* @def NVME_IOCTL_DEVICE_STATE
 * define a unique value for resetting or enabling controller.  The 'A' value
 * is the group to which this IOCTL type belongs to, generally from (0-255)
 * the second parameter is type within the group defined in the enum. The
@@ -170,6 +170,7 @@ enum {
 * parameter give the size of data and type of data that is passed to this ioctl
 * from user level to kernel level.
 */
-#define NVME_IOCTL_REAP_INQUIRY _IOWR('A', NVME_REAP_INQUIRY, struct nvme_reap_inquiry)
+#define NVME_IOCTL_REAP_INQUIRY _IOWR('A', NVME_REAP_INQUIRY,\
+        struct nvme_reap_inquiry)
 
 #endif

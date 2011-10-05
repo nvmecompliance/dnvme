@@ -119,8 +119,10 @@ extern struct metrics_driver g_metrics_drv;
  * routine works with Add Q's including Admin and IO.
  * Assumes user allocated buffer memory to copy accordingly.
  * @param get_q_metrics
+ * @param pmetrics_device_element
  * @return metrics data if success else failure.
  */
-int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics);
+int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
+        struct nvme_get_q_metrics *get_q_metrics);
 
 #endif

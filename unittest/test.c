@@ -322,16 +322,19 @@ int main(void)
 
     printf("Device File Succesfully Opened = %d\n", file_desc);
 
-    //printf("Calling Contoller State to set to Disable state\n");
-    //ioctl_disable_ctrl(file_desc, ST_DISABLE);
+    printf("Calling Check Device status\n");
+    ioctl_check_device(file_desc);
+
+    printf("Calling Contoller State to set to Disable state\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE);
 
     test_admin(file_desc);
     printf("\n...Test PASS if creation is success.");
     printf("\nPress any key to continue..");
     getchar();
 
-    //printf("Calling Contoller State to set to Enable state\n");
-    //ioctl_enable_ctrl(file_desc);
+    printf("Calling Contoller State to set to Enable state\n");
+    ioctl_enable_ctrl(file_desc);
 
     test_prep_sq(file_desc);
     printf("\n...Test PASS if all Preparation success...");
@@ -346,15 +349,15 @@ int main(void)
     printf("Calling Dump Metrics to tmpfile2\n");
     ioctl_dump(file_desc, tmpfile1);
 
-    //printf("Call Ring Doorbell\n");
-    //tst_ring_dbl(file_desc);
+    printf("Call Ring Doorbell\n");
+    tst_ring_dbl(file_desc);
 
-    //test_admin(file_desc);
-    //printf("\n...Test PASS if creation is not successful.");
-    //printf("\nPress any key to continue..");
-    //getchar();
+    test_admin(file_desc);
+    printf("\n...Test PASS if creation is not successful.");
+    printf("\nPress any key to continue..");
+    getchar();
 
-    //test_metrics(file_desc);
+    test_metrics(file_desc);
     printf("Calling Contoller State to set to Disable state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE);
 

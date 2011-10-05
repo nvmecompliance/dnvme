@@ -72,10 +72,8 @@ struct nvme_dev_char {
 static int NVME_MAJOR;
 static struct class *class_nvme;
 static struct device *nvme_devices;
-struct nvme_dev_entry *nvme_dev;
 struct nvme_dev_char *dev;
 struct device *device;
-LIST_HEAD(nvme_devices_llist);
 LIST_HEAD(metrics_dev_ll);
 int nvme_minor_x;
 module_param(NVME_MAJOR, int, 0);
@@ -184,7 +182,6 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 {
     int retCode = -ENODEV;  /* retCode is set to no devices */
     int bars = 0;           /* initialize bars to 0         */
-    struct nvme_device_entry *nvme_dev_list = NULL;
     u32  BaseAddress0 = 0;
     u32  *bar;
     dev_t devno = 0;
@@ -254,15 +251,6 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     LOG_DBG("Mask for PCI BARS = 0x%x", bars);
     LOG_DBG("PCI Probe Success!. Return Code = 0x%x", retCode);
 
-    /*
-     *  Try Allocating the device memory in the host and check for success.
-     */
-    nvme_dev_list = kzalloc((int)sizeof(struct nvme_device_entry), GFP_KERNEL);
-    if (nvme_dev_list == NULL) {
-        LOG_ERR("allocate Host Memory for Device Failed!!...nvme_dev_list");
-        return -ENOMEM;
-    }
-
     bar = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
     if (bar == NULL) {
         LOG_ERR("allocate Host Memory for Device Failed!!");
@@ -275,20 +263,6 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &BaseAddress0);
     LOG_DBG("PCI BAR 0 = 0x%x", BaseAddress0);
 
-    nvme_dev_list->pdev = pdev;
-    memcpy(&nvme_dev_list->bar, &BaseAddress0, sizeof(u32));
-    nvme_dev_list->bus =  pdev->bus->number;
-    nvme_dev_list->slot = PCI_SLOT(pdev->devfn);
-    nvme_dev_list->func = PCI_FUNC(pdev->devfn);
-    list_add_tail(&nvme_dev_list->list, &nvme_devices_llist);
-
-    /* Allocate mem fo nvme device with kernel memory */
-    nvme_dev = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
-    if (nvme_dev == NULL) {
-        LOG_ERR("Unable to allocate kernel mem in ioctl initialization");
-        return -ENOMEM;
-    }
-
     /* Allocate mem fo nvme device with kernel memory */
     pmetrics_device_list = kmalloc(sizeof(struct metrics_device_list),
             GFP_KERNEL);
@@ -297,7 +271,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
         return -ENOMEM;
     }
 
-    retCode = driver_ioctl_init(nvme_dev, pdev, pmetrics_device_list);
+    retCode = driver_ioctl_init(pdev, pmetrics_device_list);
     if (retCode != SUCCESS) {
         LOG_ERR("Failed driver ioctl initializations!!");
         return -EINVAL;
@@ -325,7 +299,7 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         unsigned int ioctl_num, unsigned long ioctl_param)
 {
     struct nvme_device *pnvme_device = NULL; /* ptr to metrics device        */
-    struct  metrics_device_list *pmetrics_device;  /* Metrics device list    */
+    struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
     int ret_val = -EINVAL;        /* set ret val to invalid, chk for success */
     struct rw_generic *nvme_data; /* Local struct var for nvme rw dat        */
     int *nvme_dev_err_sts;        /* nvme device error status                */
@@ -343,14 +317,15 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
 
     LOG_DBG("Minor No = %d", iminor(inode));
     /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
-        LOG_DBG("Minor Number in the List = %d", pmetrics_device->
+    list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
+            metrics_device_hd) {
+        LOG_DBG("Minor Number in the List = %d", pmetrics_device_element->
                 pnvme_device->minor_no);
-        if (iminor(inode) == pmetrics_device->pnvme_device->minor_no) {
+        if (iminor(inode) == pmetrics_device_element->pnvme_device->minor_no) {
             LOG_DBG("Found device in the metrics list");
             /* Get the device from the linked list */
-            pdev = pmetrics_device->pnvme_device->pdev;
-            pnvme_device = pmetrics_device->pnvme_device;
+            pdev = pmetrics_device_element->pnvme_device->pdev;
+            pnvme_device = pmetrics_device_element->pnvme_device;
             dev_found = 1;
             break;
         } else {
@@ -372,19 +347,19 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
            register. And report errors. */
         nvme_dev_err_sts = (int *)ioctl_param;
         LOG_DBG("Checking device Status");
-        ret_val = device_status_chk(pdev, nvme_dev_err_sts);
+        ret_val = device_status_chk(pmetrics_device_element, nvme_dev_err_sts);
         break;
 
     case NVME_IOCTL_READ_GENERIC:
         LOG_DBG("Invoking User App request to read  the PCI Header Space");
         nvme_data = (struct rw_generic *)ioctl_param;
-        ret_val = driver_generic_read(file, nvme_data, pdev);
+        ret_val = driver_generic_read(nvme_data, pmetrics_device_element);
         break;
 
     case NVME_IOCTL_WRITE_GENERIC:
         LOG_DBG("Invoke IOCTL Generic Write Function");
         nvme_data = (struct rw_generic *)ioctl_param;
-        ret_val = driver_generic_write(file, nvme_data, pdev);
+        ret_val = driver_generic_write(nvme_data, pmetrics_device_element);
         break;
 
     case NVME_IOCTL_CREATE_ADMN_Q:
@@ -394,11 +369,11 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         if (create_admn_q->type == ADMIN_SQ) {
             LOG_DBG("Create Admin SQ");
             /* call driver routine to create admin sq from ll */
-            ret_val = driver_create_asq(create_admn_q, pnvme_device);
+            ret_val = driver_create_asq(create_admn_q, pmetrics_device_element);
         } else if (create_admn_q->type == ADMIN_CQ) {
             LOG_DBG("Create Admin CQ");
             /* call driver routine to create admin cq from ll */
-            ret_val = driver_create_acq(create_admn_q, pnvme_device);
+            ret_val = driver_create_acq(create_admn_q, pmetrics_device_element);
         } else {
             LOG_ERR("Unknown Q type specified..");
             return -EINVAL;
@@ -412,15 +387,15 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         ctrl_new_state = (struct nvme_ctrl_state *)ioctl_param;
         if (ctrl_new_state->new_state == ST_ENABLE) {
             LOG_NRM("Ctrlr is getting ENABLED...");
-            ret_val = nvme_ctrl_enable(pnvme_device);
+            ret_val = nvme_ctrl_enable(pmetrics_device_element);
         } else if ((ctrl_new_state->new_state == ST_DISABLE) ||
                 (ctrl_new_state->new_state == ST_DISABLE_COMPLETELY)) {
             LOG_NRM("Controller is going to DISABLE...");
             /* Waiting for the controller to go idle. */
-            ret_val = nvme_ctrl_disable(pnvme_device);
+            ret_val = nvme_ctrl_disable(pmetrics_device_element);
             if (ret_val == SUCCESS) {
                 /* Clean Up the Data Structures. */
-                deallocate_all_queues(pmetrics_device,
+                deallocate_all_queues(pmetrics_device_element,
                         ctrl_new_state->new_state);
             }
          } else {
@@ -434,7 +409,7 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         /* Assign user passed parameters to q metrics structure. */
         get_q_metrics = (struct nvme_get_q_metrics *)ioctl_param;
         /* Call the Q metrics function and return the data to user. */
-        ret_val = nvme_get_q_metrics(get_q_metrics);
+        ret_val = nvme_get_q_metrics(pmetrics_device_element, get_q_metrics);
         break;
 
     case NVME_IOCTL_PREPARE_SQ_CREATION:
@@ -442,7 +417,7 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         /* Assign user passed parameters to q metrics structure. */
         prep_sq = (struct nvme_prep_sq *)ioctl_param;
         /* Call alloc_sq function to add a node in liked list */
-        ret_val = driver_nvme_prep_sq(prep_sq, pnvme_device);
+        ret_val = driver_nvme_prep_sq(prep_sq, pmetrics_device_element);
         break;
 
     case NVME_IOCTL_PREPARE_CQ_CREATION:
@@ -450,7 +425,7 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         /* Assign user passed parameters to q metrics structure. */
         prep_cq = (struct nvme_prep_cq *)ioctl_param;
         /* Call alloc_sq function to add a node in liked list */
-        ret_val = driver_nvme_prep_cq(prep_cq, pnvme_device);
+        ret_val = driver_nvme_prep_cq(prep_cq, pmetrics_device_element);
         break;
 
     case NVME_IOCTL_RING_SQ_DOORBELL:
@@ -458,14 +433,14 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         /* Assign user passed parameters to q metrics structure. */
         ring_sqx = (struct nvme_ring_sqxtdbl *)ioctl_param;
         /* Call the ring doorbell driver function */
-        ret_val = nvme_ring_sqx_dbl(ring_sqx, pnvme_device);
+        ret_val = nvme_ring_sqx_dbl(ring_sqx, pmetrics_device_element);
         break;
 
     case NVME_IOCTL_SEND_64B_CMD:
         LOG_DBG("IOCTL NVME_IOCTL_SEND_64B_CMD Command");
         /* Assign user passed parameters to local struct pointrs */
         nvme_64b_send = (struct nvme_64b_send *)ioctl_param;
-        ret_val =  driver_send_64b(nvme_dev, nvme_64b_send);
+        //ret_val =  driver_send_64b(nvme_dev, nvme_64b_send);
         /* Display success or fail */
         if (ret_val >= 0) {
             LOG_NRM("PRP Creation Success");
@@ -486,8 +461,8 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         LOG_DBG("Reap Inquiry ioctl:");
         /* Assign user passed parameters to local reap structure */
         reap_inq = (struct nvme_reap_inquiry *)ioctl_param;
-        /* call logging routine */
-        // ret_val = reap_inquiry(reap_inq);
+        /* call reap inquiry driver routine */
+        ret_val = driver_reap_inquiry(pmetrics_device_element, reap_inq);
         break;
 
     default:
@@ -504,15 +479,8 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
 */
 static void __exit dnvme_exit(void)
 {
-    struct nvme_device_entry *pnvme_dev_entry;
     struct pci_dev *pdev;
-    struct  metrics_device_list *pmetrics_device;  /* Metrics device list    */
-
-    /* Get the device from the linked list */
-    list_for_each_entry(pnvme_dev_entry, &nvme_devices_llist, list) {
-        pdev = pnvme_dev_entry->pdev;
-        pci_release_regions(pdev);
-    }
+    struct  metrics_device_list *pmetrics_device_element;  /* Metrics device */
 
     device_del(device);
     class_destroy(class_nvme);
@@ -523,16 +491,18 @@ static void __exit dnvme_exit(void)
     /* Free up the DMA pool */
     /* TODO: Add freeing for all the devices
      * once the new structures are in place */
-    destroy_dma_pool(nvme_dev);
+    //destroy_dma_pool(nvme_dev);
 
     /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
+    list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
+            metrics_device_hd) {
         /* Clean Up the Data Structures. */
-        deallocate_all_queues(pmetrics_device, ST_DISABLE_COMPLETELY);
+        deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
+        pdev = pmetrics_device_element->pnvme_device->pdev;
+        pci_release_regions(pdev);
     }
     /* Free up all the allocated kernel memory before exiting */
     free_allqs();
-
     /* free up the device linked list */
     list_del(&metrics_dev_ll);
 

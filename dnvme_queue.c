@@ -125,9 +125,12 @@ int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
 * flag and this function which call the timer handler and check for the timer
 * expiration. It returns success if the ctrl in rdy before timeout.
 */
-int nvme_ctrl_enable(struct nvme_device *pnvme_dev)
+int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element)
 {
+    struct nvme_device *pnvme_dev;
     u32 ctrl_config;
+
+    pnvme_dev = pmetrics_device_element->pnvme_device;
 
     /* Read Controller Configuration as we can only write 32 bits */
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
@@ -152,10 +155,13 @@ int nvme_ctrl_enable(struct nvme_device *pnvme_dev)
 * CAP.EN flag and this function which call the timer handler and check for
 * the timer expiration. It returns success if the ctrl in rdy before timeout.
 */
-int nvme_ctrl_disable(struct nvme_device *pnvme_dev)
+int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element)
 {
+    struct nvme_device *pnvme_dev;
     u32 ctrl_config;
     u8 rdy_sts = 0xFF;
+
+    pnvme_dev = pmetrics_device_element->pnvme_device;
 
     /* Read Controller Configuration as we can only write 32 bits */
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
@@ -218,6 +224,10 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
         LOG_ERR("Unable to allocate DMA Address for ASQ!!");
         return -ENOMEM;
     }
+
+    /* Zero out all ASQ memory before processing */
+    memset(pmetrics_sq_list->private_sq.vir_kern_addr, 0, asq_depth);
+
     LOG_NRM("Virtual ASQ DMA Address: 0x%llx",
             (u64)pmetrics_sq_list->private_sq.vir_kern_addr);
 
@@ -304,6 +314,9 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
         return -ENOMEM;
     }
 
+    /* Zero out all ACQ memory before processing */
+    memset(pmetrics_cq_list->private_cq.vir_kern_addr, 0, acq_depth);
+
     LOG_NRM("Virtual ACQ DMA Address: 0x%llx",
             (u64)pmetrics_cq_list->private_cq.vir_kern_addr);
     LOG_NRM("ACQ DMA Address: 0x%llx",
@@ -385,6 +398,9 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
             LOG_ERR("Unable to allocate DMA Address for IO SQ!!");
             return -ENOMEM;
         }
+        /* Zero out all IO SQ memory before processing */
+        memset(pmetrics_sq_list->private_sq.vir_kern_addr, 0,
+                pmetrics_sq_list->private_sq.size);
     }
     /* Set Unique Command value to zero for starters. */
     pmetrics_sq_list->private_sq.unique_cmd_id = 0;
@@ -440,6 +456,9 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
             LOG_ERR("Unable to allocate DMA Address for IO CQ!!");
             return -ENOMEM;
         }
+        /* Zero out all IO CQ memory before processing */
+        memset(pmetrics_cq_list->private_cq.vir_kern_addr, 0,
+                pmetrics_cq_list->private_cq.size);
     }
 
     cap_dstrd = (READQ(&pnvme_dev->nvme_ctrl_space->cap) >> 32) & 0xF;
@@ -459,9 +478,12 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 * already in dbs.
 */
 int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
-        struct nvme_device *pnvme_dev)
+        struct  metrics_device_list *pmetrics_device_element)
 {
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
+    struct nvme_device *pnvme_dev;
+
+    pnvme_dev = pmetrics_device_element->pnvme_device;
 
     /* Seek the SQ within metrics device SQ list */
     list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
@@ -663,3 +685,33 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
 
     return SUCCESS;
 }
+
+/*
+ *  driver_reap_inquiry - This function will try to inquire the number of
+ *  commands in the Completion Queue that are waiting to be reaped.
+ */
+int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
+        struct nvme_reap_inquiry *reap_inq)
+{
+    u8 tmp_pbit;
+    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
+    u16 comp_entry_size = 0;
+
+    list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
+        if (reap_inq->q_id == pmetrics_cq_list->public_cq.q_id) {
+            if (reap_inq->q_id == 0) {
+                comp_entry_size = 16;
+            } else {
+                comp_entry_size = (pmetrics_cq_list->private_cq.size) /
+                        (pmetrics_cq_list->public_cq.elements);
+            }
+            tmp_pbit = pmetrics_cq_list->public_cq.pbit_new_entry;
+            LOG_DBG("Reap Inquiry CQ_ID:pbit=%d:%d", pmetrics_cq_list->
+                    public_cq.q_id, tmp_pbit);
+            return SUCCESS;
+        }
+    }
+    LOG_ERR("CQ ID = %d is not in list", reap_inq->q_id);
+    return -EINVAL;
+}
+

@@ -75,6 +75,9 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L2"elements = %d", pmetrics_cq_list->
                         public_cq.elements);
                 vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L2"pbit_new_entry = %d", pmetrics_cq_list->
+                        public_cq.pbit_new_entry);
+                vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L1"pmetrics_cq_list->private_cq[%d]", i++);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"vir_kern_addr = 0x%llX",

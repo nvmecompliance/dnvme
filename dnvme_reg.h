@@ -38,38 +38,21 @@ struct nvme_dev_entry {
 };
 
 /**
-* nvme_space specifies the bar remapped value.
-*/
-struct nvme_space {
-    struct nvme_ctrl_reg __iomem *bar_dev;
-};
-
-/**
 * read_nvme_reg_generic function is a generic function which
 * reads data from the controller registers of the nvme with
 * user specified offset and bytes. Copies data back to udata
 * pointer which points to user space buffer.
+*
 */
-int read_nvme_reg_generic(
-    struct nvme_space nvme_ctrl_reg_space,
-    u8 *udata,
-    int nbytes,
-    int offset,
-    enum nvme_acc_type acc_type
-);
-
+int read_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space,
+        u8 *udata, int nbytes, int offset, enum nvme_acc_type acc_type);
 
 /**
 * write_nvme_reg_generic function is a generic function which
 * writes data to the controller registers of the nvme with
 * user specified offset and bytes.
 */
-int write_nvme_reg_generic(
-    struct nvme_space nvme_ctrl_reg_space,
-    u8 *u8data,
-    int nbytes,
-    int offset,
-    enum nvme_acc_type acc_type
-);
+int write_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space,
+        u8 *u8data, int nbytes, int offset, enum nvme_acc_type acc_type);
 
 #endif

@@ -123,6 +123,7 @@ struct nvme_gen_cq {
     uint16_t    tail_ptr;    /* The value calculated for respective tail_ptr */
     uint16_t    head_ptr;    /* Actual value in CQxTDBL for this q_id        */
     uint16_t    elements;    /* pass the actual elements in this q           */
+    uint8_t     pbit_new_entry; /* Indicates if a new entry is in CQ         */
 };
 
 /**
