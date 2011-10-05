@@ -49,9 +49,4 @@ int submit_command(struct nvme_device *nvme_dev, __u16 q_id,
  */
 void destroy_dma_pool(struct nvme_device *nvme_dev);
 
-#if 0
-void free_nvme_prps(struct nvme_device *pnvme_device, __u8 write,
-    unsigned long buf_addr, __u32 buf_len, struct scatterlist *sg,
-    struct nvme_prps prps);
-#endif
 #endif

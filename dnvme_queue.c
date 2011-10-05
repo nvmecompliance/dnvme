@@ -486,7 +486,8 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
     pnvme_dev = pmetrics_device_element->pnvme_device;
 
     /* Seek the SQ within metrics device SQ list */
-    list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
+    list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
+            metrics_sq_list, sq_list_hd) {
         /* Check if the Q Id matches */
         if (ring_sqx->sq_id == pmetrics_sq_list->public_sq.sq_id) {
             LOG_ERR("SQ_ID= %d found in the linked list.",
@@ -646,12 +647,13 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
     if (new_state == ST_DISABLE) {
         exclude_admin = 1;
     }
+
     /* Loop through the devices available in the metrics list */
     list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
         dev = &pmetrics_device->pnvme_device->pdev->dev;
         /* Loop for each sq node */
         list_for_each_entry_safe(pmetrics_sq_list, pmetrics_sq_next,
-                &metrics_sq_ll, sq_list_hd) {
+                &pmetrics_device->metrics_sq_list, sq_list_hd) {
             /* Check if Admin Q is excluded or not */
             if ((exclude_admin == 1) &&
                     (pmetrics_sq_list->public_sq.sq_id == 0)) {
@@ -665,7 +667,7 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
         } /* list loop for sq list */
         /* Loop for each cq node */
         list_for_each_entry_safe(pmetrics_cq_list, pmetrics_cq_next,
-                &metrics_cq_ll, cq_list_hd) {
+                &pmetrics_device->metrics_cq_list, cq_list_hd) {
             /* Check if Admin Q is excluded or not */
             if ((exclude_admin == 1) && pmetrics_cq_list->public_cq.q_id == 0) {
                 LOG_DBG("Retaining Admin CQ from deallocation");
@@ -703,7 +705,8 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
     u16 comp_entry_size = 0;
 
-    list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
+    list_for_each_entry(pmetrics_cq_list, &pmetrics_device->metrics_cq_list,
+            cq_list_hd) {
         if (reap_inq->q_id == pmetrics_cq_list->public_cq.q_id) {
             if (reap_inq->q_id == 0) {
                 comp_entry_size = 16;

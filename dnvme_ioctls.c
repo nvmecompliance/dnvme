@@ -19,11 +19,6 @@
 #include "dnvme_cmds.h"
 #include "dnvme_ds.h"
 
-/* initialize the linked list headers */
-LIST_HEAD(metrics_sq_ll);
-LIST_HEAD(metrics_cq_ll);
-
-
 /*
 *  device_status_chk  - Generic error checking function
 *  which checks error registers and set kernel
@@ -411,7 +406,8 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
 
     /* Search if admin sq already exists. */
     LOG_NRM("Searching for Node in the sq_list_hd...");
-    list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
+    list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
+            metrics_sq_list, sq_list_hd) {
         if (admn_id == pmetrics_sq_list->public_sq.sq_id) {
             LOG_DBG("ASQ already exists");
             return -EINVAL;
@@ -445,14 +441,9 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
 
     LOG_NRM("Adding node for Admin SQ to the list.");
     /* Add an element to the end of the list */
-    list_add_tail(&pmetrics_sq_list->sq_list_hd, &metrics_sq_ll);
-    /*
-     * Set the pointer in metrics device to point to this element
-     * for this_device.
-     */
-    if (!pmetrics_device_list->metrics_sq_list) {
-        pmetrics_device_list->metrics_sq_list = pmetrics_sq_list;
-    }
+    list_add_tail(&pmetrics_sq_list->sq_list_hd,
+            &pmetrics_device_element->metrics_sq_list);
+
     return ret_code;
 }
 
@@ -472,7 +463,8 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     /* Search if admin sq already exists. */
     LOG_NRM("Searching for Node in the cq_list_hd");
     /* Get the device from the linked list */
-    list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
+    list_for_each_entry(pmetrics_cq_list, &pmetrics_device_element->
+            metrics_cq_list, cq_list_hd) {
         if (admn_id == pmetrics_cq_list->public_cq.q_id) {
             LOG_DBG("ACQ already exists");
             return -EINVAL;
@@ -504,14 +496,9 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     pmetrics_cq_list->public_cq.pbit_new_entry = 1;
 
     /* Add an element to the end of the list */
-    list_add_tail(&pmetrics_cq_list->cq_list_hd, &metrics_cq_ll);
-    /*
-     * Set the pointer in metrics device to point to this element
-     * for this_device.
-     */
-    if (!pmetrics_device_list->metrics_cq_list) {
-        pmetrics_device_list->metrics_cq_list = pmetrics_cq_list;
-    }
+    list_add_tail(&pmetrics_cq_list->cq_list_hd,
+            &pmetrics_device_element->metrics_cq_list);
+
     LOG_DBG("Admin CQ successfully created and added to linked list...");
     return ret_code;
 }
@@ -532,6 +519,10 @@ int driver_ioctl_init(struct pci_dev *pdev,
         LOG_ERR("failed mem allocation for device.");
         return -ENOMEM;
     }
+    /* Init Submission Q linked list for this device. */
+    INIT_LIST_HEAD(&(pmetrics_device_list->metrics_sq_list));
+    /* Init Completion Q linked list for this device. */
+    INIT_LIST_HEAD(&(pmetrics_device_list->metrics_cq_list));
 
     /* Populate Metrics device list with this device */
     pmetrics_device_list->pnvme_device->pdev = pdev;
@@ -628,7 +619,8 @@ int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
             LOG_DBG("IO SQ Metrics...");
         }
         /* Get the device from the linked list */
-        list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
+        list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
+                metrics_sq_list, sq_list_hd) {
             /* Check if the Q Id matches */
             if (q_id == pmetrics_sq_list->public_sq.sq_id) {
                 LOG_NRM("SQ_ID = %d is found in the list...",
@@ -660,7 +652,8 @@ int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
             LOG_DBG("IO CQ Metrics...");
         }
         /* Get the device from the linked list */
-        list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
+        list_for_each_entry(pmetrics_cq_list, &pmetrics_device_element->
+                metrics_cq_list, cq_list_hd) {
             /* check if a q id matches in the list */
             if (q_id == pmetrics_cq_list->public_cq.q_id) {
                 LOG_DBG("CQ_ID = %d is found in the list...",
@@ -696,7 +689,8 @@ int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
  * in the linked list. If present then it will return error. If its not in
  * the list this returns success.
  */
-int identify_unique(u16 q_id, enum metrics_type type)
+int identify_unique(u16 q_id, enum metrics_type type,
+        struct  metrics_device_list *pmetrics_device_element)
 {
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
@@ -704,7 +698,8 @@ int identify_unique(u16 q_id, enum metrics_type type)
     /* Determine the type of Q for which the metrics was needed */
     if (type == METRICS_SQ) {
         /* Get the device from the linked list */
-        list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
+        list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
+                metrics_sq_list, sq_list_hd) {
             /* Check if the Q Id matches */
             if (q_id == pmetrics_sq_list->public_sq.sq_id) {
                 LOG_ERR("SQ ID is not unique. SQ_ID = %d already created.",
@@ -713,7 +708,8 @@ int identify_unique(u16 q_id, enum metrics_type type)
             }
         }
     } else if (type == METRICS_CQ) {
-        list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
+        list_for_each_entry(pmetrics_cq_list, &pmetrics_device_element->
+                metrics_cq_list, cq_list_hd) {
             /* check if a q id matches in the list */
             if (q_id == pmetrics_cq_list->public_cq.q_id) {
                 LOG_DBG("CQ ID is not unique. CQ_ID = %d already created.",
@@ -740,7 +736,8 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
 
     pnvme_dev = pmetrics_device_element->pnvme_device;
 
-    ret_code = identify_unique(prep_sq->sq_id, METRICS_SQ);
+    ret_code = identify_unique(prep_sq->sq_id, METRICS_SQ,
+            pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("SQ ID is not unique.");
         return ret_code;
@@ -752,11 +749,6 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
         LOG_ERR("failed allocating kernel memory in SQ allocation.");
         return -ENOMEM;
     }
-    /* Set the pointer in metrics device to point to this element */
-    if (!pmetrics_device_list->metrics_sq_list) {
-        pmetrics_device_list->metrics_sq_list = pmetrics_sq_list;
-    }
-
     /* Reset the data for this node */
     memset(pmetrics_sq_list, 0, sizeof(struct metrics_sq));
 
@@ -795,7 +787,8 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
 #endif
 
     /* Add this element to the end of the list */
-    list_add_tail(&pmetrics_sq_list->sq_list_hd, &metrics_sq_ll);
+    list_add_tail(&pmetrics_sq_list->sq_list_hd,
+            &pmetrics_device_element->metrics_sq_list);
     return ret_code;
 }
 
@@ -814,7 +807,8 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
 
     pnvme_dev = pmetrics_device_element->pnvme_device;
 
-    ret_code = identify_unique(prep_cq->cq_id, METRICS_CQ);
+    ret_code = identify_unique(prep_cq->cq_id, METRICS_CQ,
+            pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("CQ ID is not unique.");
         return ret_code;
@@ -826,11 +820,6 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
         LOG_ERR("failed allocating kernel memory in CQ allocation.");
         return -ENOMEM;
     }
-    /* Set the pointer in metrics device to point to this element */
-    if (!pmetrics_device_list->metrics_cq_list) {
-        pmetrics_device_list->metrics_cq_list = pmetrics_cq_list;
-    }
-
     /* Reset the data for this node */
     memset(pmetrics_cq_list, 0, sizeof(struct metrics_cq));
 
@@ -866,29 +855,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
 #endif
 
     /* Add this element to the end of the list */
-    list_add_tail(&pmetrics_cq_list->cq_list_hd, &metrics_cq_ll);
+    list_add_tail(&pmetrics_cq_list->cq_list_hd,
+            &pmetrics_device_element->metrics_cq_list);
     return ret_code;
-}
-
-/*
- * free_allqs - This will clear the allocated linked list for the SQs
- * and CQs including the admin Q's
- */
-void free_allqs(void)
-{
-    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
-    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
-#if DEBUG
-    /* Get the device from the linked list and release */
-    list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
-        LOG_DBG("SQ_ID = %d", pmetrics_sq_list->public_sq.sq_id);
-    }
-    /* Get the device from the linked list and release */
-    list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
-        LOG_DBG("CQ_ID = %d", pmetrics_cq_list->public_cq.q_id);
-    }
-#endif
-    LOG_DBG("Deleting SQ and CQ linked lists");
-    list_del(&metrics_sq_ll);
-    list_del(&metrics_cq_ll);
 }

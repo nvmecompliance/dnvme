@@ -399,48 +399,6 @@ error:
     return err;
 }
 
-#if 0
-/*
- * free_nvme_prps:
- * Unmaps mapped DMA pages and frees the pinned down pages. free nvme_prps
- * allocated for this device.
- */
-void free_nvme_prps(struct nvme_device *pnvme_device, __u8 write,
-    unsigned long buf_addr, __u32 buf_len, struct scatterlist *sg,
-    struct nvme_prps prps)
-{
-    int i, count;
-    const int last_prp = PAGE_SIZE / PRP_Size - 1;
-    dma_addr_t prp_dma, next_prp_dma = 0;
-    __le64 *prp_vlist;
-
-    count = DIV_ROUND_UP(offset_in_page(buf_addr) + buf_len, PAGE_SIZE);
-    dma_unmap_sg(&pnvme_device->pdev->dev, sg, count,
-        write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-
-    for (i = 0; i < count; i++) {
-        put_page(sg_page(&sg[i]));
-    }
-    kfree(sg);
-
-    if (!prps) {
-        return;
-    }
-    if (prps->type == (PRP1 | PRP_List) || prps->type == (PRP2 | PRP_List)) {
-        prp_dma = prps->first_dma;
-
-        for (i = 0; i < npages; i++) {
-            prp_vlist = prps->vir_prp_list[i];
-            if (i < (npages - 1)) {
-                next_prp_dma = le64_to_cpu(prp_vlist[last_prp]);
-            }
-            dma_pool_free(dev->prp_page_pool, prp_vlist, prp_dma);
-            prp_dma = next_prp_dma;
-        }
-        kfree(prps->vir_prp_list);
-    }
-}
-#endif
 /*
  * free_prp_pool:
  * Free's PRP List and virtual List

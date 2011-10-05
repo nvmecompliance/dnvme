@@ -62,8 +62,6 @@ enum {
 };
 
 /* To use the linked list in queues. */
-extern struct list_head metrics_sq_ll;
-extern struct list_head metrics_cq_ll;
 extern struct list_head metrics_dev_ll;
 
 /**
@@ -121,9 +119,11 @@ int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element);
 * return fail.
 * @param q_id
 * @param type
+* @param pmetrics_device_element
 * @return SUCCESS or FAIL
 */
-int identify_unique(u16 q_id, enum metrics_type type);
+int identify_unique(u16 q_id, enum metrics_type type,
+        struct  metrics_device_list *pmetrics_device_element);
 
 /**
 * nvme_prepare_sq - NVME controller prepare sq function. This will check

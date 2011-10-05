@@ -48,6 +48,7 @@ int driver_log(struct nvme_file *n_file)
     oldfs = get_fs();
     set_fs(KERNEL_DS);
     file = filp_open(filename, O_WRONLY|O_CREAT, 0644);
+
     if (file) {
         /* Loop through the devices */
         list_for_each_entry(pmetrics_device, &metrics_dev_ll,
@@ -59,7 +60,8 @@ int driver_log(struct nvme_file *n_file)
                     minor_no);
             vfs_write(file, data1, strlen(data1), &pos);
             /* Looping through the available CQ list */
-            list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
+            list_for_each_entry(pmetrics_cq_list, &pmetrics_device->
+                    metrics_cq_list, cq_list_hd) {
                 /* Get the variable from CQ strucute and write to file */
                 sprintf(data1, IDNT_L1"pmetrics_cq_list->public_cq[%d]", i);
                 vfs_write(file, data1, strlen(data1), &pos);
@@ -114,7 +116,8 @@ int driver_log(struct nvme_file *n_file)
             /* Reset Q cnt */
             i = 0;
             /* looping through available sq list */
-            list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
+            list_for_each_entry(pmetrics_sq_list, &pmetrics_device->
+                    metrics_sq_list, sq_list_hd) {
                 /* Get each member of SQ structure and write to file */
                 sprintf(data1, IDNT_L1"pmetrics_sq_list->public_sq[%d]", i);
                 vfs_write(file, data1, strlen(data1), &pos);

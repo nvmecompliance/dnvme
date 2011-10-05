@@ -150,12 +150,6 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
         struct  metrics_device_list *pmetrics_device_element);
 
 /**
- * free_allqs - Q deallocation routine for freeing up the kernel
- * memory.
- */
-void free_allqs(void);
-
-/**
 * driver_send_64b - Routine for sending 64 bytes command into
 * admin/IO SQ/CQ's
 * @param pmetrics_device_element

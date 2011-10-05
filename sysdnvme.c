@@ -492,9 +492,12 @@ static void __exit dnvme_exit(void)
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
         pdev = pmetrics_device_element->pnvme_device->pdev;
         pci_release_regions(pdev);
+        /* free up the cq linked list */
+        list_del(&pmetrics_device_element->metrics_cq_list);
+        /* free up the cq linked list */
+        list_del(&pmetrics_device_element->metrics_sq_list);
     }
-    /* Free up all the allocated kernel memory before exiting */
-    free_allqs();
+
     /* free up the device linked list */
     list_del(&metrics_dev_ll);
 

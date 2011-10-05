@@ -95,8 +95,8 @@ struct nvme_device {
  */
 struct metrics_device_list {
     struct  list_head   metrics_device_hd; /* metrics linked list head    */
-    struct  metrics_cq  *metrics_cq_list;  /* CQ linked list              */
-    struct  metrics_sq  *metrics_sq_list;  /* SQ linked list              */
+    struct  list_head   metrics_cq_list;   /* CQ linked list              */
+    struct  list_head   metrics_sq_list;  /* SQ linked list              */
     struct  nvme_device *pnvme_device;     /* Pointer to this nvme device */
 };
 
