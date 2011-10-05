@@ -28,10 +28,6 @@
 #define    DRV_NAME            "dnvme"
 #define    NVME_DEVICE_NAME    "qnvme"
 #define    DRV_VERSION         "1.0"
-#define    NVME_N_DEVICES       1
-#define    _CLASSIC_            1
-#define    NVME_BLOCK_SIZE      512
-#define    NVME_BUFFER_SIZE     1024
 
 /*
 * Define the PCI storage express as
@@ -60,19 +56,10 @@ static const struct file_operations dnvme_fops_f = {
     .ioctl = dnvme_ioctl_device,
 };
 
-/*
-*   struct nvme_dev_char will be basic structure for list
-*   of nvme devices
-*/
-struct nvme_dev_char {
-    struct cdev cdev;
-};
-
-/* local parameters */
+/* char device specific parameters */
 static int NVME_MAJOR;
 static struct class *class_nvme;
-static struct device *nvme_devices;
-struct nvme_dev_char *dev;
+struct cdev *char_dev;
 struct device *device;
 LIST_HEAD(metrics_dev_ll);
 int nvme_minor_x;
@@ -88,53 +75,18 @@ module_param(NVME_MAJOR, int, 0);
 static int dnvme_init(void)
 {
     int retCode = -ENODEV;
-    int nvme_major = -EBUSY;
     int err = -EINVAL;
-    dev_t nvme_dev_c = 0;
-    int nvme_ndevices = NVME_N_DEVICES;
 
     LOG_NRM("version: %d.%d", VER_MAJOR, VER_MINOR);
     LOG_DBG("Init module - dnvme init");
 
-    if (!_CLASSIC_) {
-        nvme_major = register_blkdev(NVME_MAJOR, DRV_NAME);
-        if (nvme_major < 0) {
-            /*Unable to register the PCI device */
-            LOG_ERR("NVME Blk Registration failed");
-            return nvme_major;
-        } else {
-
-            NVME_MAJOR = nvme_major;
-            LOG_DBG("Major Number = 0x%x", NVME_MAJOR);
-        }
-    }
-
-    /*
-     *  Unable to register block device for the moment in QEMU
-     *  using it as char dev instead
-     */
     /* This is classic way to register a char device */
-    if (_CLASSIC_ == 1) {
-        nvme_major = register_chrdev(NVME_MAJOR, NVME_DEVICE_NAME,
-            &dnvme_fops_f);
-        if (nvme_major < 0) {
-            LOG_ERR("NVME Char Registration failed");
-            return -ENODEV;
-        }
-        LOG_DBG("NVME Char type registered..");
-    } else {
-        err = alloc_chrdev_region(&nvme_dev_c, 0, nvme_ndevices,
-            NVME_DEVICE_NAME);
-        if (err < 0) {
-            LOG_ERR("Allocation region failed and stopping");
-            return err;
-        }
-        /* Get the Major number for all the NVME devices */
-        nvme_major = MAJOR(nvme_dev_c);
+    NVME_MAJOR = register_chrdev(NVME_MAJOR, NVME_DEVICE_NAME, &dnvme_fops_f);
+    if (NVME_MAJOR < 0) {
+        LOG_ERR("NVME Char Registration failed");
+        return -ENODEV;
     }
-
-   /* Allocate Major and create class */
-   NVME_MAJOR = nvme_major;
+    LOG_DBG("NVME Char type registered..");
 
    class_nvme = class_create(THIS_MODULE, NVME_DEVICE_NAME);
 
@@ -145,23 +97,8 @@ static int dnvme_init(void)
         return err;
     }
 
-    /* Allocate kernel mem for each of the device using one now */
-    nvme_devices = kzalloc(nvme_ndevices * sizeof(struct device),
-        GFP_KERNEL);
-
-    if (nvme_devices == NULL) {
-        LOG_ERR("Allocation failed in nvme_device");
-        err = -ENOMEM;
-        return err;
-    }
-
-    /* Allocate kernel mem for each of the device using one now */
-    dev = kzalloc(nvme_ndevices * sizeof(struct nvme_dev_char),
-        GFP_KERNEL);
-
     /* Register this device as pci device */
     retCode = pci_register_driver(&dnvme_pci_driver);
-
     if (retCode < 0) {
         /*Unable to register the PCI device */
         LOG_ERR("PCI Driver Registration unsuccessful");
@@ -212,16 +149,22 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     LOG_DBG("Dev Func = 0x%x, Class = 0x%x", PCI_FUNC(pdev->devfn),
             pdev->class);
 
+    /* Allocate kernel mem for each of the device using one now */
+    char_dev = kzalloc(sizeof(struct cdev), GFP_KERNEL);
+    if (char_dev == NULL) {
+        LOG_ERR("Allocation for char device failed!!");
+        return -ENOMEM;
+    }
     /* Make device with nvme major and minor number */
     devno = MKDEV(NVME_MAJOR, nvme_minor_x);
     /* initialize the device and char device */
-    cdev_init(&dev->cdev, &dnvme_fops_f);
+    cdev_init(char_dev, &dnvme_fops_f);
     /* Set the owner */
-    dev->cdev.owner = THIS_MODULE;
+    char_dev->owner = THIS_MODULE;
     /* assign the fops to char device */
-    dev->cdev.ops = &dnvme_fops_f;
+    char_dev->ops = &dnvme_fops_f;
     /* Add this char device to kernel */
-    err = cdev_add(&dev->cdev, devno, 1);
+    err = cdev_add(char_dev, devno, 1);
     if (err) {
         LOG_ERR("Adding device to kernel failed");
         return err;
@@ -479,7 +422,7 @@ static void __exit dnvme_exit(void)
 
     device_del(device);
     class_destroy(class_nvme);
-    cdev_del(&dev->cdev);
+    cdev_del(char_dev);
     unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
     pci_unregister_driver(&dnvme_pci_driver);
 

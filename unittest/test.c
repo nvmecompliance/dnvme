@@ -331,8 +331,8 @@ int main(void)
 
     printf("Device File Succesfully Opened = %d\n", file_desc);
 
-    printf("Calling Check Device status\n");
-    ioctl_check_device(file_desc);
+    //printf("Calling Check Device status\n");
+    //ioctl_check_device(file_desc);
 
     printf("Calling Contoller State to set to Disable state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE);
