@@ -130,6 +130,7 @@ int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element)
     struct nvme_device *pnvme_dev;
     u32 ctrl_config;
 
+    /* get the device from the list */
     pnvme_dev = pmetrics_device_element->pnvme_device;
 
     /* Read Controller Configuration as we can only write 32 bits */
@@ -160,7 +161,7 @@ int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element)
     struct nvme_device *pnvme_dev;
     u32 ctrl_config;
     u8 rdy_sts = 0xFF;
-
+    /* get the device from the list */
     pnvme_dev = pmetrics_device_element->pnvme_device;
 
     /* Read Controller Configuration as we can only write 32 bits */
@@ -483,6 +484,7 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
     struct nvme_device *pnvme_dev;
 
+    /* get the device from the list */
     pnvme_dev = pmetrics_device_element->pnvme_device;
 
     /* Seek the SQ within metrics device SQ list */

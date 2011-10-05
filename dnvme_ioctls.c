@@ -37,6 +37,7 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
     */
     int __user *datap = (int __user *)status;
 
+    /* get the device from the list */
     pdev = pmetrics_device_element->pnvme_device->pdev;
     /*
     * Read a word (16bit value) from the configuration register
@@ -107,6 +108,8 @@ int driver_generic_read(struct rw_generic *nvme_data,
     unsigned char __user *datap = (unsigned char __user *)nvme_data->buffer;
 
     LOG_DBG("Inside Generic Read Function of the IOCTLs");
+
+    /* get the device from the list */
     pdev = pmetrics_device_element->pnvme_device->pdev;
     nvme_dev = pmetrics_device_element->pnvme_device;
 
@@ -266,6 +269,8 @@ int driver_generic_write(struct rw_generic *nvme_data,
     unsigned char __user *datap = (unsigned char __user *)nvme_data->buffer;
 
     LOG_DBG("Inside Generic write Funtion of the IOCTLs");
+
+    /* get the device from the list */
     pdev = pmetrics_device_element->pnvme_device->pdev;
     nvme_dev = pmetrics_device_element->pnvme_device;
 
@@ -402,6 +407,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list   */
     struct nvme_device *pnvme_dev;
 
+    /* get the device from the list */
     pnvme_dev = pmetrics_device_element->pnvme_device;
 
     /* Search if admin sq already exists. */
@@ -459,6 +465,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
     struct nvme_device *pnvme_dev;
 
+    /* get the device from the list */
     pnvme_dev = pmetrics_device_element->pnvme_device;
     /* Search if admin sq already exists. */
     LOG_NRM("Searching for Node in the cq_list_hd");
@@ -571,6 +578,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device_element,
     int ret_code = -EINVAL;
     struct nvme_device *nvme_dev;
 
+    /* get the device from the list */
     nvme_dev = pmetrics_device_element->pnvme_device;
 
     /* TODO: make the function more generic while implementing complete IOCTL */
@@ -734,6 +742,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     struct nvme_device *pnvme_dev;
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
 
+    /* get the device from the list */
     pnvme_dev = pmetrics_device_element->pnvme_device;
 
     ret_code = identify_unique(prep_sq->sq_id, METRICS_SQ,
@@ -805,6 +814,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
     struct nvme_device *pnvme_dev;
 
+    /* get the device from the list */
     pnvme_dev = pmetrics_device_element->pnvme_device;
 
     ret_code = identify_unique(prep_cq->cq_id, METRICS_CQ,
