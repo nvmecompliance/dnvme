@@ -124,11 +124,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     dev_t devno = 0;
     int err;
 
-    /*
-     *    Following the Iniitalization steps from LDD 3 and pci.txt.
-     *    Before touching any device registers, the driver needs to enable
-     *    the PCI device by calling pci_enable_device().
-     */
+    /* Following the Iniitalization steps from LDD 3 */
     LOG_DBG("Start probing for NVME PCI Express Device");
     if ((retCode == pci_enable_device(pdev)) < 0) {
         LOG_ERR("PciEnable not successful");
@@ -200,9 +196,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
         return -EINVAL;
     }
 
-    /*
-     * Only debug because the above remap should give BAR's
-     */
+    /* Only debug because the above remap should give BAR's  */
     pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &BaseAddress0);
     LOG_DBG("PCI BAR 0 = 0x%x", BaseAddress0);
 
@@ -213,7 +207,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
         LOG_ERR("failed mem allocation for device in device list.");
         return -ENOMEM;
     }
-
+    /* Initialize the current device found */
     retCode = driver_ioctl_init(pdev, pmetrics_device_list);
     if (retCode != SUCCESS) {
         LOG_ERR("Failed driver ioctl initializations!!");
@@ -223,7 +217,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     pmetrics_device_list->pnvme_device->minor_no = nvme_minor_x;
     /* update the device minor number */
     nvme_minor_x = nvme_minor_x + 1;
-
+    /* Add the device to the linked list */
     list_add_tail(&pmetrics_device_list->metrics_device_hd, &metrics_dev_ll);
     return retCode;
 }
