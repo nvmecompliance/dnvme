@@ -378,7 +378,7 @@ int main(void)
     
     printf("Calling Contoller State to set to Disable state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE);
-
+    
     ioctl_dump(file_desc, tmpfile3);
 
     printf("Calling Contoller State to set to ST_DISABLE_COMPLETELY state\n");

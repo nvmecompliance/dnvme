@@ -13,7 +13,7 @@ enum {
 /* Enum specifying PRP1,PRP2 or List */
 enum prp_type {
     NO_PRP = 0,
-	PRP1 = 1,
+    PRP1 = 1,
     PRP2 = 2,
     PRP_List = 4,
     PRP_Size = 8,
