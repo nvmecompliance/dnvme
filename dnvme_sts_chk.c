@@ -64,14 +64,14 @@ int nvme_controller_status(struct pci_dev *pdev)
     int status;
     u32 u32data;
     u32 tmp;
-    struct nvme_space nvme_ctrl_reg_space;
+    struct nvme_ctrl_reg __iomem *nvme_ctrl_reg_space;
 
     LOG_NRM("Checking the NVME Controller Status (CSTS)...");
 
-    nvme_ctrl_reg_space.bar_dev = ioremap(pci_resource_start(pdev, 0),
+    nvme_ctrl_reg_space = ioremap(pci_resource_start(pdev, 0),
         pci_resource_len(pdev, 0));
 
-    u32data = readl(&nvme_ctrl_reg_space.bar_dev->csts);
+    u32data = readl(&nvme_ctrl_reg_space->csts);
     tmp = u32data;
 
     LOG_NRM("NVME Controller Status CSTS = 0x%X", u32data);

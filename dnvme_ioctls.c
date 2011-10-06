@@ -19,28 +19,26 @@
 #include "dnvme_cmds.h"
 #include "dnvme_ds.h"
 
-/* initialize the linked list headers */
-LIST_HEAD(metrics_sq_ll);
-LIST_HEAD(metrics_cq_ll);
-
-
-
 /*
 *  device_status_chk  - Generic error checking function
 *  which checks error registers and set kernel
 *  alert if a error is detected.
 */
-int device_status_chk(struct pci_dev *pdev, int *status)
+int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
+        int *status)
 {
     /* Local variable declaration. */
     u16 data; /* Unsigned 16 bit data. */
     int ret_code = -EINVAL; /* initialize ret code to invalid */
+    struct pci_dev *pdev;
     /*
     * Pointer for user data to be copied to user space from
     * kernel space. Initialize with user passed data pointer.
     */
     int __user *datap = (int __user *)status;
 
+    /* get the device from the list */
+    pdev = pmetrics_device_element->pnvme_device->pdev;
     /*
     * Read a word (16bit value) from the configuration register
     * and pass it to user.
@@ -99,23 +97,21 @@ int device_status_chk(struct pci_dev *pdev, int *status)
 *   driver_genric_read - Generic Read functionality for reading
 *   NVME PCIe registers and memory mapped address
 */
-int driver_generic_read(struct file *file, struct rw_generic *nvme_data,
-   struct pci_dev *pdev)
+int driver_generic_read(struct rw_generic *nvme_data,
+    struct  metrics_device_list *pmetrics_device_element)
 {
     /* Local variable declaration. */
     u16 index; /* index for looping till the end. */
     int ret_code = -EINVAL; /* to verify if return code is success. */
-    struct nvme_space nvme_ctrl_reg_space;
-    struct nvme_dev_entry *nvme = NULL;
+    struct pci_dev *pdev;
+    struct nvme_device *nvme_dev;
     unsigned char __user *datap = (unsigned char __user *)nvme_data->buffer;
 
     LOG_DBG("Inside Generic Read Function of the IOCTLs");
 
-    nvme = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
-    if (nvme == NULL) {
-        LOG_ERR("Unable to allocate kernel mem in generic read");
-        return -ENOMEM;
-    }
+    /* get the device from the list */
+    pdev = pmetrics_device_element->pnvme_device->pdev;
+    nvme_dev = pmetrics_device_element->pnvme_device;
 
     /*
     *  Switch based on the user passed read type using the
@@ -223,25 +219,9 @@ int driver_generic_read(struct file *file, struct rw_generic *nvme_data,
             return -EINVAL;
         }
 
-        /* Remap io mem for this device. */
-        nvme->bar0mapped = ioremap(pci_resource_start(pdev, 0),
-                               pci_resource_len(pdev, 0));
-
-        /* Check if remap was success */
-        if (!nvme->bar0mapped) {
-            LOG_ERR("Unable to map io region nvme..exit");
-            return -EINVAL;
-        }
-
-        LOG_NRM("Using Bar0 address: 0x%llx, length 0x%x",
-            (uint64_t)nvme->bar0mapped, (int) pci_resource_len(pdev, 0));
-
-        /* Assign the BAR remapped into nvme space control register */
-        nvme_ctrl_reg_space.bar_dev = (void __iomem *)nvme->bar0mapped;
-
         /* Read NVME register space. */
         ret_code = read_nvme_reg_generic(
-                              nvme_ctrl_reg_space, datap, nvme_data->nBytes,
+                nvme_dev->nvme_ctrl_space, datap, nvme_data->nBytes,
                          nvme_data->offset, nvme_data->acc_type);
 
         if (ret_code < 0) {
@@ -275,15 +255,13 @@ int driver_generic_read(struct file *file, struct rw_generic *nvme_data,
 *   driver_generic_write - Generic write function for
 *   NVME PCIe registers and memory mapped address
 */
-int driver_generic_write(struct file *file, struct rw_generic *nvme_data,
-    struct pci_dev *pdev)
+int driver_generic_write(struct rw_generic *nvme_data,
+        struct  metrics_device_list *pmetrics_device_element)
 {
     u16 index = 0; /* Index to loop */
     int ret_code = -EINVAL; /* return code to verify if written success. */
-
-    struct nvme_space l_ctrl_reg_space;
-    struct nvme_dev_entry *nvme_dev = NULL;
-
+    struct pci_dev *pdev;
+    struct nvme_device *nvme_dev;
     /*
     * Pointer for user data to be copied to user space from
     * kernel space. Initialize with user passed data pointer.
@@ -292,16 +270,12 @@ int driver_generic_write(struct file *file, struct rw_generic *nvme_data,
 
     LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
-    nvme_dev = kzalloc(sizeof(struct nvme_dev_entry), GFP_KERNEL);
-    if (nvme_dev == NULL) {
-        LOG_ERR("Unable to allocate kernel mem in generic read");
-        LOG_ERR("Exiting from here...");
-        return -ENOMEM;
-    }
+    /* get the device from the list */
+    pdev = pmetrics_device_element->pnvme_device->pdev;
+    nvme_dev = pmetrics_device_element->pnvme_device;
 
     /* allocate kernel memory to datap that is requested from user app */
     datap = kzalloc((nvme_data->nBytes * sizeof(u8)) , GFP_KERNEL);
-
     /*
     * Check if allocation of memory is not null else return
     * no memory.
@@ -310,7 +284,6 @@ int driver_generic_write(struct file *file, struct rw_generic *nvme_data,
         LOG_ERR("Unable to allocate kernel memory in driver generic write");
         return -ENOMEM;
     }
-
     /*
     * copy from user data buffer to kernel data buffer at single place
     * using copy_from_user for efficiency.
@@ -404,28 +377,13 @@ int driver_generic_write(struct file *file, struct rw_generic *nvme_data,
                 return -EINVAL;
             }
 
-        /* Remap io mem for this device. */
-        nvme_dev->bar0mapped = ioremap(pci_resource_start(pdev, 0),
-            pci_resource_len(pdev, 0));
-
-        /* Check if remap was success */
-        if (!nvme_dev->bar0mapped) {
-            LOG_ERR("Unable to map io region nvme..exit");
-            return -EINVAL;
-        }
-
-        LOG_NRM("Using Bar0 address: 0x%llx, length 0x%x",
-            (uint64_t)nvme_dev->bar0mapped, (int) pci_resource_len(pdev, 0));
-
-        /* Assign the BAR remapped into nvme space control register */
-        l_ctrl_reg_space.bar_dev = (void __iomem *)nvme_dev->bar0mapped;
-
         /*
          * Write NVME register space with datap from offset until
          * nBytes are written.
          */
-        ret_code = write_nvme_reg_generic(l_ctrl_reg_space, (u8 *)datap,
-            nvme_data->nBytes, nvme_data->offset, nvme_data->acc_type);
+        ret_code = write_nvme_reg_generic(nvme_dev->nvme_ctrl_space,
+                (u8 *)datap, nvme_data->nBytes, nvme_data->offset,
+                nvme_data->acc_type);
 
         /* done with nvme space writing break from this case .*/
         break;
@@ -442,17 +400,20 @@ int driver_generic_write(struct file *file, struct rw_generic *nvme_data,
 *   from Q create ioctl.
 */
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
-        struct nvme_device *pnvme_dev)
+        struct  metrics_device_list *pmetrics_device_element)
 {
     int ret_code = -EINVAL; /* Set return value to error        */
     u8 admn_id = 0;         /* Always admin ID is 0             */
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list   */
+    struct nvme_device *pnvme_dev;
 
-    /*
-     * Search if admin sq already exists.
-     */
+    /* get the device from the list */
+    pnvme_dev = pmetrics_device_element->pnvme_device;
+
+    /* Search if admin sq already exists. */
     LOG_NRM("Searching for Node in the sq_list_hd...");
-    list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
+    list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
+            metrics_sq_list, sq_list_hd) {
         if (admn_id == pmetrics_sq_list->public_sq.sq_id) {
             LOG_DBG("ASQ already exists");
             return -EINVAL;
@@ -486,14 +447,9 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
 
     LOG_NRM("Adding node for Admin SQ to the list.");
     /* Add an element to the end of the list */
-    list_add_tail(&pmetrics_sq_list->sq_list_hd, &metrics_sq_ll);
-    /*
-     * Set the pointer in metrics device to point to this element
-     * for this_device.
-     */
-    if (!pmetrics_device_list->metrics_sq_list) {
-        pmetrics_device_list->metrics_sq_list = pmetrics_sq_list;
-    }
+    list_add_tail(&pmetrics_sq_list->sq_list_hd,
+            &pmetrics_device_element->metrics_sq_list);
+
     return ret_code;
 }
 
@@ -502,18 +458,20 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
 *  from Q create ioctl.
 */
 int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
-        struct nvme_device *pnvme_dev)
+        struct  metrics_device_list *pmetrics_device_element)
 {
     int ret_code = -EINVAL; /* return value is invalid        */
     u8 admn_id = 0;         /* Always Admin ID is zero.       */
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
+    struct nvme_device *pnvme_dev;
 
-    /*
-     * Search if admin sq already exists.
-     */
+    /* get the device from the list */
+    pnvme_dev = pmetrics_device_element->pnvme_device;
+    /* Search if admin sq already exists. */
     LOG_NRM("Searching for Node in the cq_list_hd");
     /* Get the device from the linked list */
-    list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
+    list_for_each_entry(pmetrics_cq_list, &pmetrics_device_element->
+            metrics_cq_list, cq_list_hd) {
         if (admn_id == pmetrics_cq_list->public_cq.q_id) {
             LOG_DBG("ACQ already exists");
             return -EINVAL;
@@ -536,20 +494,18 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     /* Call dma allocation, creation of contiguous memory for ACQ */
     ret_code = create_admn_cq(pnvme_dev, pmetrics_cq_list->public_cq.elements,
             pmetrics_cq_list);
-
     if (ret_code != SUCCESS) {
         LOG_ERR("Admin CQ creation failed!!");
         return -EINVAL;
     }
+
+    /* Set the pbit_new_entry value */
+    pmetrics_cq_list->public_cq.pbit_new_entry = 1;
+
     /* Add an element to the end of the list */
-    list_add_tail(&pmetrics_cq_list->cq_list_hd, &metrics_cq_ll);
-    /*
-     * Set the pointer in metrics device to point to this element
-     * for this_device.
-     */
-    if (!pmetrics_device_list->metrics_cq_list) {
-        pmetrics_device_list->metrics_cq_list = pmetrics_cq_list;
-    }
+    list_add_tail(&pmetrics_cq_list->cq_list_hd,
+            &pmetrics_device_element->metrics_cq_list);
+
     LOG_DBG("Admin CQ successfully created and added to linked list...");
     return ret_code;
 }
@@ -557,30 +513,11 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
 *  driver_iotcl_init - Driver Initialization routine before starting to
 *  issue  ioctls.
 */
-int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
+int driver_ioctl_init(struct pci_dev *pdev,
         struct metrics_device_list *pmetrics_device_list)
 {
-
     LOG_DBG("Inside driver IOCTL init function");
     LOG_NRM("Initializing the BAR01 and NVME Controller Space");
-
-    /* Remap io mem for this device. */
-    nvme_dev->bar0mapped = ioremap(pci_resource_start(pdev, 0),
-                          pci_resource_len(pdev, 0));
-    /* Check if remap was success */
-    if (!nvme_dev->bar0mapped) {
-        LOG_ERR("IOCTL init failed");
-        return -EINVAL;
-    }
-
-    /* Assign the 64bit address mapped to controller space in nvme_dev */
-    nvme_dev->nvme_ctrl_space = (void __iomem *)nvme_dev->bar0mapped;
-
-    /* Set the init flag to initialization done flag. */
-    nvme_dev->init_flag = NVME_DEV_INIT;
-
-    /* Set the pci device of the nvme_dev to point to pdev from ioctl */
-    nvme_dev->pdev = pdev;
 
     /* Allocate mem fo nvme device with kernel memory */
     pmetrics_device_list->pnvme_device = kmalloc(sizeof(struct nvme_device),
@@ -589,15 +526,30 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
         LOG_ERR("failed mem allocation for device.");
         return -ENOMEM;
     }
+    /* Init Submission Q linked list for this device. */
+    INIT_LIST_HEAD(&(pmetrics_device_list->metrics_sq_list));
+    /* Init Completion Q linked list for this device. */
+    INIT_LIST_HEAD(&(pmetrics_device_list->metrics_cq_list));
 
     /* Populate Metrics device list with this device */
     pmetrics_device_list->pnvme_device->pdev = pdev;
-    pmetrics_device_list->pnvme_device->bar_0_mapped =
-            nvme_dev->bar0mapped;
+    pmetrics_device_list->pnvme_device->bar_0_mapped = ioremap(
+            pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
+    /* Check if remap was success */
+    if (!pmetrics_device_list->pnvme_device->bar_0_mapped) {
+        LOG_ERR("IOCTL init failed");
+        return -EINVAL;
+    }
+
     pmetrics_device_list->pnvme_device->nvme_ctrl_space =
-            (void __iomem *)nvme_dev->bar0mapped;
+            (void __iomem *)pmetrics_device_list->pnvme_device->bar_0_mapped;
     pmetrics_device_list->pnvme_device->dmadev =
-            &nvme_dev->pdev->dev;
+            &pmetrics_device_list->pnvme_device->pdev->dev;
+
+    /* Used to create Coherent DMA mapping for PRP List */
+    pmetrics_device_list->pnvme_device->prp_page_pool = dma_pool_create
+            ("prp page", &pmetrics_device_list->pnvme_device->pdev->dev,
+                    PAGE_SIZE, PAGE_SIZE, 0);
 
     /* Used to create Coherent DMA mapping for PRP List */
     pmetrics_device_list->pnvme_device->prp_page_pool =
@@ -610,7 +562,7 @@ int driver_ioctl_init(struct nvme_dev_entry *nvme_dev, struct pci_dev *pdev,
      }
 
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
-        (uint64_t)nvme_dev->nvme_ctrl_space);
+        (uint64_t)pmetrics_device_list->pnvme_device->nvme_ctrl_space);
 
     return SUCCESS;
 }
@@ -631,7 +583,6 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     return ret_code;
 }
 
-
 /*
 * driver_default_ioctl - Default if none of the switch
 * in ioctl gets called.
@@ -648,7 +599,8 @@ int driver_default_ioctl(struct file *file, unsigned long buffer,
  * This function also returns error when kernel cannot allocate for
  * at-least one element memory of public_sq or public_cq.
  */
-int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
+int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
+        struct nvme_get_q_metrics *get_q_metrics)
 {
     int ret_code = SUCCESS;
     u16 q_id;               /* tmp variable for q id          */
@@ -671,7 +623,8 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
             LOG_DBG("IO SQ Metrics...");
         }
         /* Get the device from the linked list */
-        list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
+        list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
+                metrics_sq_list, sq_list_hd) {
             /* Check if the Q Id matches */
             if (q_id == pmetrics_sq_list->public_sq.sq_id) {
                 LOG_NRM("SQ_ID = %d is found in the list...",
@@ -703,7 +656,8 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
             LOG_DBG("IO CQ Metrics...");
         }
         /* Get the device from the linked list */
-        list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
+        list_for_each_entry(pmetrics_cq_list, &pmetrics_device_element->
+                metrics_cq_list, cq_list_hd) {
             /* check if a q id matches in the list */
             if (q_id == pmetrics_cq_list->public_cq.q_id) {
                 LOG_DBG("CQ_ID = %d is found in the list...",
@@ -739,7 +693,8 @@ int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics)
  * in the linked list. If present then it will return error. If its not in
  * the list this returns success.
  */
-int identify_unique(u16 q_id, enum metrics_type type)
+int identify_unique(u16 q_id, enum metrics_type type,
+        struct  metrics_device_list *pmetrics_device_element)
 {
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
@@ -747,7 +702,8 @@ int identify_unique(u16 q_id, enum metrics_type type)
     /* Determine the type of Q for which the metrics was needed */
     if (type == METRICS_SQ) {
         /* Get the device from the linked list */
-        list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
+        list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
+                metrics_sq_list, sq_list_hd) {
             /* Check if the Q Id matches */
             if (q_id == pmetrics_sq_list->public_sq.sq_id) {
                 LOG_ERR("SQ ID is not unique. SQ_ID = %d already created.",
@@ -756,7 +712,8 @@ int identify_unique(u16 q_id, enum metrics_type type)
             }
         }
     } else if (type == METRICS_CQ) {
-        list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
+        list_for_each_entry(pmetrics_cq_list, &pmetrics_device_element->
+                metrics_cq_list, cq_list_hd) {
             /* check if a q id matches in the list */
             if (q_id == pmetrics_cq_list->public_cq.q_id) {
                 LOG_DBG("CQ ID is not unique. CQ_ID = %d already created.",
@@ -775,12 +732,17 @@ int identify_unique(u16 q_id, enum metrics_type type)
  * available then fail and return NOMEM error code.
  */
 int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
-        struct nvme_device *pnvme_dev)
+        struct  metrics_device_list *pmetrics_device_element)
 {
     int ret_code = SUCCESS;
+    struct nvme_device *pnvme_dev;
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
 
-    ret_code = identify_unique(prep_sq->sq_id, METRICS_SQ);
+    /* get the device from the list */
+    pnvme_dev = pmetrics_device_element->pnvme_device;
+
+    ret_code = identify_unique(prep_sq->sq_id, METRICS_SQ,
+            pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("SQ ID is not unique.");
         return ret_code;
@@ -792,11 +754,6 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
         LOG_ERR("failed allocating kernel memory in SQ allocation.");
         return -ENOMEM;
     }
-    /* Set the pointer in metrics device to point to this element */
-    if (!pmetrics_device_list->metrics_sq_list) {
-        pmetrics_device_list->metrics_sq_list = pmetrics_sq_list;
-    }
-
     /* Reset the data for this node */
     memset(pmetrics_sq_list, 0, sizeof(struct metrics_sq));
 
@@ -835,7 +792,8 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
 #endif
 
     /* Add this element to the end of the list */
-    list_add_tail(&pmetrics_sq_list->sq_list_hd, &metrics_sq_ll);
+    list_add_tail(&pmetrics_sq_list->sq_list_hd,
+            &pmetrics_device_element->metrics_sq_list);
     return ret_code;
 }
 
@@ -846,12 +804,17 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
  * available then fail and return NOMEM error code.
  */
 int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
-        struct nvme_device *pnvme_dev)
+        struct  metrics_device_list *pmetrics_device_element)
 {
     int ret_code = SUCCESS;
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
+    struct nvme_device *pnvme_dev;
 
-    ret_code = identify_unique(prep_cq->cq_id, METRICS_CQ);
+    /* get the device from the list */
+    pnvme_dev = pmetrics_device_element->pnvme_device;
+
+    ret_code = identify_unique(prep_cq->cq_id, METRICS_CQ,
+            pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("CQ ID is not unique.");
         return ret_code;
@@ -863,11 +826,6 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
         LOG_ERR("failed allocating kernel memory in CQ allocation.");
         return -ENOMEM;
     }
-    /* Set the pointer in metrics device to point to this element */
-    if (!pmetrics_device_list->metrics_cq_list) {
-        pmetrics_device_list->metrics_cq_list = pmetrics_cq_list;
-    }
-
     /* Reset the data for this node */
     memset(pmetrics_cq_list, 0, sizeof(struct metrics_cq));
 
@@ -877,11 +835,13 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     pmetrics_cq_list->private_cq.contig = prep_cq->contig;
 
     ret_code = nvme_prepare_cq(pmetrics_cq_list, pnvme_dev);
-
     if (ret_code < 0) {
         LOG_ERR("Failed nvme_prep_cq call!!");
         return ret_code;
     }
+
+    /* Set the pbit_new_entry for IO CQ here. */
+    pmetrics_cq_list->public_cq.pbit_new_entry = 1;
 
 #ifdef DEBUG
     LOG_NRM("Printing IO CQ Details After Success:");
@@ -890,6 +850,8 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     LOG_NRM("\telements = %d", pmetrics_cq_list->public_cq.elements);
     LOG_NRM("\tHead Ptr = %d", pmetrics_cq_list->public_cq.head_ptr);
     LOG_NRM("\tTail Ptr = %d", pmetrics_cq_list->public_cq.tail_ptr);
+    LOG_NRM("\tpbit_new_entry = %d", pmetrics_cq_list->public_cq.
+            pbit_new_entry);
     LOG_NRM("Private Elements:");
     LOG_NRM("\tvir_kern_addr = 0x%llx",
             (u64)pmetrics_cq_list->private_cq.vir_kern_addr);
@@ -899,30 +861,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
 #endif
 
     /* Add this element to the end of the list */
-    list_add_tail(&pmetrics_cq_list->cq_list_hd, &metrics_cq_ll);
+    list_add_tail(&pmetrics_cq_list->cq_list_hd,
+            &pmetrics_device_element->metrics_cq_list);
     return ret_code;
 }
-
-/*
- * free_allqs - This will clear the allocated linked list for the SQs
- * and CQs including the admin Q's
- */
-void free_allqs(void)
-{
-    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
-    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
-#if DEBUG
-    /* Get the device from the linked list and release */
-    list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
-        LOG_DBG("SQ_ID = %d", pmetrics_sq_list->public_sq.sq_id);
-    }
-    /* Get the device from the linked list and release */
-    list_for_each_entry(pmetrics_cq_list, &metrics_cq_ll, cq_list_hd) {
-        LOG_DBG("CQ_ID = %d", pmetrics_cq_list->public_cq.q_id);
-    }
-#endif
-    LOG_DBG("Deleting SQ and CQ linked lists");
-    list_del(&metrics_sq_ll);
-    list_del(&metrics_cq_ll);
-}
-

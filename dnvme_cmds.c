@@ -36,7 +36,7 @@ int submit_command(struct  metrics_device_list *pmetrics_device, __u16 q_id,
     struct nvme_prps prps; /* Pointer to PRP List */
     unsigned long addr; /* Buf Addr typecasted to unsigned long */
     struct nvme_device *nvme_dev = pmetrics_device->pnvme_device;
-    struct  metrics_sq  *pmetrics_sq_list;  /* Element of SQ linked list */
+    struct  metrics_sq  *pmetrics_sq_element;  /* Element of SQ linked list */
 
 #ifdef TEST_PRP_DEBUG
     int last_prp, i, j;
@@ -112,13 +112,15 @@ int submit_command(struct  metrics_device_list *pmetrics_device, __u16 q_id,
      TODO remove the last function arg
     free_prp_pool(nvme_dev, &prps, prps.npages);*/
 
-    list_for_each_entry(pmetrics_sq_list, &pmetrics_device->metrics_sq_list, sq_list_hd) {
-        if (pmetrics_sq_list->public_sq.sq_id == 0) {
-            add_cmd_track_node(pmetrics_device->metrics_sq_list, 0,
+#ifdef TEST_PRP_DEBUG
+    list_for_each_entry(pmetrics_sq_element,
+        &pmetrics_device->metrics_sq_list, sq_list_hd) {
+        if (pmetrics_sq_element->public_sq.sq_id == 0) {
+            add_cmd_track_node(pmetrics_sq_element, 0,
                 CMD_ADMIN, &prps, 0x01, 1);
         }
     }
-
+#endif
     return 0;
 }
 
@@ -252,16 +254,24 @@ static int pages_to_sg(struct page **pages,
  * unmap_user_pg_to_dma:
  * Unmaps mapped DMA pages and frees the pinned down pages
  */
-static void unmap_user_pg_to_dma(struct nvme_device *dev, struct nvme_prps *prps)
+static void unmap_user_pg_to_dma(struct nvme_device *dev,
+    struct nvme_prps *prps)
 {
     int i;
-    dma_unmap_sg(&dev->pdev->dev, prps->sg, prps->dma_mapped_pgs,
-        prps->data_dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
-    for (i = 0; i < prps->dma_mapped_pgs; i++) {
-        put_page(sg_page(&prps->sg[i]));
+    if (!prps) {
+        return;
     }
-    kfree(prps->sg);
+
+    if (prps->type != NO_PRP) {
+        dma_unmap_sg(&dev->pdev->dev, prps->sg, prps->dma_mapped_pgs,
+            prps->data_dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+
+        for (i = 0; i < prps->dma_mapped_pgs; i++) {
+            put_page(sg_page(&prps->sg[i]));
+        }
+        kfree(prps->sg);
+    }
 }
 
 /*
@@ -485,30 +495,33 @@ static int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
  * Delete command track list completley per SQ
  */
 
-void empty_cmd_track_list(struct  metrics_device_list *pmetrics_device, __u16 q_id)
+void empty_cmd_track_list(struct  metrics_device_list *pmetrics_device,
+    __u16 q_id)
 {
     /* pointer to one element of cmd track linked list */
-    struct cmd_track  *pcmd_track_list;
+    struct cmd_track  *pcmd_track_element;
     /* pointer to one element of sq linked list */
-    struct metrics_sq *pmetrics_sq_list;
+    struct metrics_sq *pmetrics_sq_element;
     /* parameters required for list_for_each_safe */
     struct list_head *pos, *temp;
 
     /* Get the required queue for the device */
-    list_for_each_entry(pmetrics_sq_list, &pmetrics_device->metrics_sq_list, sq_list_hd) {
-        if (pmetrics_sq_list->public_sq.sq_id == q_id) {
+    list_for_each_entry(pmetrics_sq_element,
+        &pmetrics_device->metrics_sq_list, sq_list_hd) {
+        if (pmetrics_sq_element->public_sq.sq_id == q_id) {
             /* Loop through the cmd track list */
             list_for_each_safe(pos, temp,
-                &pmetrics_sq_list.private_sq.cmd_track_list) {
-                pcmd_track_list = list_entry(pos, struct cmd_track, cmd_list_hd);
+                &pmetrics_sq_element->private_sq.cmd_track_list) {
+                pcmd_track_element =
+                    list_entry(pos, struct cmd_track, cmd_list_hd);
                 /* Unampping PRP's and User pages */
                 unmap_user_pg_to_dma(pmetrics_device->pnvme_device,
-                    &pcmd_track_list->prp_nonpersist);
+                    &pcmd_track_element->prp_nonpersist);
                 free_prp_pool(pmetrics_device->pnvme_device,
-                    &pcmd_track_list->prp_nonpersist,
-                        pcmd_track_list->prp_nonpersist.npages);
+                    &pcmd_track_element->prp_nonpersist,
+                    pcmd_track_element->prp_nonpersist.npages);
                 list_del(pos);
-                kfree(pcmd_track_list);
+                kfree(pcmd_track_element);
             } /* End of cmd_track_list */
             break;
         } /* End of specific queue condition */

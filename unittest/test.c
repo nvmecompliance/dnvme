@@ -153,12 +153,12 @@ void ioctl_enable_ctrl(int file_desc)
         printf("enable SUCCESS\n");
 }
 
-void ioctl_disable_ctrl(int file_desc)
+void ioctl_disable_ctrl(int file_desc, enum nvme_state new_state)
 {
     int ret_val = -1;
     struct nvme_ctrl_state ctrl_data;
 
-    ctrl_data.new_state = ST_DISABLE;
+    ctrl_data.new_state = new_state;
 
     printf("User Call to Disable Ctrlr:\n");
 
@@ -315,6 +315,8 @@ int main(void)
     int file_desc;
     char *tmpfile1 = "/tmp/file_name1.txt";
     char *tmpfile2 = "/tmp/file_name2.txt";
+    char *tmpfile3 = "/tmp/file_name3.txt";
+    char *tmpfile4 = "/tmp/file_name4.txt";
 
     printf("\n*****\t Demo \t*****\n");
 
@@ -330,11 +332,11 @@ int main(void)
 
     printf("Device File Succesfully Opened = %d\n", file_desc);
 
-    printf("Dumping data to tmpfile1\n");
-    ioctl_dump(file_desc, tmpfile1);
+    //printf("Calling Check Device status\n");
+    //ioctl_check_device(file_desc);
 
     printf("Calling Contoller State to set to Disable state\n");
-    ioctl_disable_ctrl(file_desc);
+    ioctl_disable_ctrl(file_desc, ST_DISABLE);
 
     test_admin(file_desc);
     printf("\n...Test PASS if creation is success.");
@@ -354,8 +356,8 @@ int main(void)
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("Calling Dump Metrics to tmpfile2\n");
-    ioctl_dump(file_desc, tmpfile2);
+    printf("Calling Dump Metrics to tmpfile1\n");
+    ioctl_dump(file_desc, tmpfile1);
 
 
     printf("Call Ring Doorbell\n");
@@ -367,8 +369,25 @@ int main(void)
     getchar();
 
     test_metrics(file_desc);
+
+
     printf("Executing PRP Test Cases\n");
     test_prp(file_desc);
+
+    ioctl_dump(file_desc, tmpfile2);
+    
+    printf("Calling Contoller State to set to Disable state\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE);
+
+    ioctl_dump(file_desc, tmpfile3);
+
+    printf("Calling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+
+    ioctl_dump(file_desc, tmpfile4);
+
+    //printf("Executing PRP Test Cases\n");
+    //test_prp(file_desc);
 
     close(file_desc);
     printf("\nEnd of Testing...");

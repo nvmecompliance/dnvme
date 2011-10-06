@@ -5,7 +5,7 @@
 #include <linux/list.h>
 #include "dnvme_interface.h"
 
-#define    NVME_DS_VERSION    1.7
+#define    NVME_DS_VERSION    1.9
 
 /*
  * Strucutre used to define all the essential parameters
@@ -60,14 +60,14 @@ struct cmd_track {
  * structure definition for SQ tracking parameters.
  */
 struct nvme_trk_sq {
-    void        *vir_kern_addr; /* virtual kernal address using kmalloc */
-    dma_addr_t  asq_dma_addr; /* dma mapped address using dma_alloc */
-    u32         size; /* length in bytes of allocated Q in kernel */
-    u16         unique_cmd_id; /* unique counter for each comand in SQ */
-    u32 __iomem *dbs; /* Door Bell stride */
+    void        *vir_kern_addr; /* virtual kernal address using kmalloc    */
+    dma_addr_t  asq_dma_addr;   /* dma mapped address using dma_alloc      */
+    u32         size;           /* len in bytes of allocated Q in kernel   */
+    u16         unique_cmd_id;  /* unique counter for each comand in SQ    */
+    u32 __iomem *dbs;           /* Door Bell stride                        */
     struct nvme_prps  prp_persist; /* PRP element in CQ */
-    u8          contig; /* Indicates if prp list is contig or not */
-    struct list_head cmd_track_list; /* link-list head for cmd_track list */
+    u8          contig;         /* Indicates if prp list is contig or not  */
+    struct list_head cmd_track_list; /* link-list head for cmd_track list  */
 };
 
 /*
@@ -105,8 +105,8 @@ struct nvme_device {
  */
 struct metrics_device_list {
     struct  list_head   metrics_device_hd; /* metrics linked list head    */
-    struct  metrics_cq  *metrics_cq_list;  /* CQ linked list              */
-    struct  metrics_sq  *metrics_sq_list;  /* SQ linked list              */
+    struct  list_head   metrics_cq_list;   /* CQ linked list              */
+    struct  list_head   metrics_sq_list;   /* SQ linked list              */
     struct  nvme_device *pnvme_device;     /* Pointer to this nvme device */
 };
 
@@ -119,8 +119,10 @@ extern struct metrics_driver g_metrics_drv;
  * routine works with Add Q's including Admin and IO.
  * Assumes user allocated buffer memory to copy accordingly.
  * @param get_q_metrics
+ * @param pmetrics_device_element
  * @return metrics data if success else failure.
  */
-int nvme_get_q_metrics(struct nvme_get_q_metrics *get_q_metrics);
+int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
+        struct nvme_get_q_metrics *get_q_metrics);
 
 #endif

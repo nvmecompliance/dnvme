@@ -124,6 +124,7 @@ struct nvme_gen_cq {
     uint16_t    tail_ptr;    /* The value calculated for respective tail_ptr */
     uint16_t    head_ptr;    /* Actual value in CQxTDBL for this q_id        */
     uint16_t    elements;    /* pass the actual elements in this q           */
+    uint8_t     pbit_new_entry; /* Indicates if a new entry is in CQ         */
 };
 
 /**
@@ -171,7 +172,7 @@ struct nvme_create_admn_q {
     uint16_t    elements;               /* No. of elements of size 64 B */
 };
 
-/*
+/**
  * Interface structure for allocating SQ memory. The elements are 1 based
  * values and the CC.IOSQES is 2^n based.
  */
@@ -182,7 +183,7 @@ struct nvme_prep_sq {
     uint8_t     contig;     /* Indicates if SQ is contig or not, 1 = contig */
 };
 
-/*
+/**
  * Interface structure for allocating CQ memory. The elements are 1 based
  * values and the CC.IOSQES is 2^n based.
  */
@@ -192,7 +193,7 @@ struct nvme_prep_cq {
     uint8_t     contig;     /* Indicates if SQ is contig or not, 1 = contig */
 };
 
-/*
+/**
  * Interface structure for Ring Submission Q doorbell. The id passed is for SQ
  * to ring its doorbell.
  */
@@ -200,12 +201,26 @@ struct nvme_ring_sqxtdbl {
     uint16_t    sq_id;  /* The SQ ID of the SQ to ring doorbell */
 };
 
+/**
+ * Interface structure for getting the metrics structure into a user file.
+ * The filename and location are specified thought file_name parameter.
+ */
 struct nvme_file {
     uint16_t    flen; /* Length of file name, it is not the total bytes */
     uint8_t     *file_name; /* location and file name to copy metrics   */
 };
 
-/*
+/**
+ * Interface structure for reap inquiry ioctl. It works well for both admin
+ * and IO Q's.
+ */
+struct nvme_reap_inquiry {
+    uint16_t    q_id;           /* CQ ID to reap commands for             */
+    uint16_t    num_remaining;  /* return no of cmds waiting to be reaped */
+};
+
+
+/**
  * Format of general purpose nvme command
  */
 struct nvme_general_command {
@@ -220,7 +235,7 @@ struct nvme_general_command {
     uint32_t  rsvd10[6];
 };
 
-/*
+/**
  * Specific structure for Create CQ command
  */
 struct nvme_create_cq {
@@ -237,7 +252,7 @@ struct nvme_create_cq {
     uint32_t  rsvd12[4];
 };
 
-/*
+/**
  * Format of nvme command
  */
 struct nvme_command {
@@ -246,4 +261,5 @@ struct nvme_command {
         struct nvme_create_cq create_cq_cmd;
     };
 };
+
 #endif

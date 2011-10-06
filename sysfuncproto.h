@@ -72,96 +72,87 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
 * driver IOCTL when user want to read data from the
 * NVME card. The read parameter like offset and length
 * etc are specified from the struct rw_generic
-* @param file Pass the file descriptor of the device opened.
-* @param data_usr Structure with different user required parameters.
-* @param pdev pointer to the device opened.
+* @param nvme_data pointer to the device opened.
+* @param pmetrics_device_element
 * @return read success or failure.
 */
-int driver_generic_read(struct file *file, struct rw_generic *data_usr,
-    struct pci_dev *pdev);
-
+int driver_generic_read(struct rw_generic *nvme_data,
+    struct  metrics_device_list *pmetrics_device_element);
 /**
 * driver_generic_write is a function that is called from
 * driver IOCTL when user want to write data to the
 * NVME card. The write parameters offset and length
 * etc are specified from the struct nvme_write_generic
-* @param file Pass the file descriptor of the device opened.
-* @param data_usr Structure with different user required parameters.
-* @param pdev pointer to the device opened.
-* @return read success or failure.
+* @param nvme_data pointer to the device opened.
+* @param pmetrics_device_element
+* @return write success or failure.
 */
-int driver_generic_write(struct file *file,
-    struct rw_generic *data_usr, struct pci_dev *pdev);
+int driver_generic_write(struct rw_generic *nvme_data,
+        struct  metrics_device_list *pmetrics_device_element);
 
 /**
 * device_status_chk  - Generic error checking function
 * which checks error registers and set kernel
 * alert if a error is detected.
-* @param pdev
+* @param pmetrics_device_element
 * @param status
+* @return device status fail or success.
 */
-int device_status_chk(struct pci_dev *pdev, int *status);
-
+int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
+        int *status);
 
 /**
 * driver_create_asq - Driver Admin Submission Queue creation routine
 * @param create_admn_q
-* @param nvme_dev
+* @param pmetrics_device_element
 * @return ASQ creation SUCCESS or FAIL
 */
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
-        struct nvme_device *nvme_dev);
+        struct  metrics_device_list *pmetrics_device_element);
 
 /*
 * driver_iotcl_init - Driver Initialization routine before starting to
 * issue  ioctls.
-* @param nvme_dev
 * @param pdev
 * @param pmetrics_device_list
 * @return init SUCCESS or FAIL
 */
-int driver_ioctl_init(struct nvme_dev_entry *nvme_dev,
-    struct pci_dev *pdev, struct metrics_device_list *pmetrics_device_list);
+int driver_ioctl_init(struct pci_dev *pdev, struct metrics_device_list
+        *pmetrics_device_list);
 
 /**
 * driver_create_acq - Driver Admin completion  Queue creation routine
 * @param create_admn_q
-* @param pnvme_dev
+* @param pmetrics_device_list
 * @return ACQ creation SUCCESS or FAIL
 */
 int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
-        struct nvme_device *pnvme_dev);
+        struct metrics_device_list *pmetrics_device_list);
 
 /**
 * driver_nvme_prep_sq - Driver routine to set up user parameters into metrics
 * for prepating the IO SQ.
 * @param prep_sq
-* @param pnvme_dev
+* @param pmetrics_device_element
 * @return allocation of contig mem SUCCESS or FAIL.
 */
 int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
-        struct nvme_device *pnvme_dev);
+        struct  metrics_device_list *pmetrics_device_element);
 
 /**
 * driver_nvme_prep_cq - Driver routine to set up user parameters into metrics
 * for prepating the IO CQ.
 * @param prep_cq
-* @param pnvme_dev
+* @param pmetrics_device_element
 * @return allocation of contig mem SUCCESS or FAIL.
 */
 int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
-        struct nvme_device *pnvme_dev);
-
-/**
- * free_allqs - Q deallocation routine for freeing up the kernel
- * memory.
- */
-void free_allqs(void);
+        struct  metrics_device_list *pmetrics_device_element);
 
 /**
 * driver_send_64b - Routine for sending 64 bytes command into
 * admin/IO SQ/CQ's
-* @param nvme_dev
+* @param pmetrics_device_element
 * @param nvme_64b_send
 * @return Error Codes
 */
@@ -174,5 +165,30 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 * @return allocation of contig mem SUCCESS or FAIL.
 */
 int driver_log(struct nvme_file *n_file);
+
+/**
+ * deallocate_all_queues - This function will start freeing up the memory for
+ * the queues (SQ and CQ) allocated during the prepare queues. This function
+ * takes a parameter, ST_DISABLE or ST_DISABLE_COMPLETELY, which identifies if
+ * you need to clear Admin or not. Also while driver exit call this function
+ * with ST_DISABLE_COMPLETELY.
+ * @param pmetrics_device
+ * @param nstate
+ * @return success or failure based on deallocation.
+ */
+int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
+        enum nvme_state nstate);
+
+/**
+ * driver_reap_inquiry - This function will traverse the metrics device list
+ * for the given cq_id and return the number of commands that are to be reaped.
+ * This is only function apart from initializations, that will modify tail_ptr
+ * for the corresponding CQ.
+ * @param pmetrics_device
+ * @param reap_inq
+ * @return success or failure based on reap_inquiry
+ */
+int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
+        struct nvme_reap_inquiry *reap_inq);
 
 #endif

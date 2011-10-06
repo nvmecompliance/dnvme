@@ -10,6 +10,7 @@
 #include "dnvme_reg.h"
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
+#include "dnvme_cmds.h"
 
 /* device metrics linked list */
 struct metrics_device_list *pmetrics_device_list;
@@ -125,9 +126,13 @@ int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
 * flag and this function which call the timer handler and check for the timer
 * expiration. It returns success if the ctrl in rdy before timeout.
 */
-int nvme_ctrl_enable(struct nvme_device *pnvme_dev)
+int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element)
 {
+    struct nvme_device *pnvme_dev;
     u32 ctrl_config;
+
+    /* get the device from the list */
+    pnvme_dev = pmetrics_device_element->pnvme_device;
 
     /* Read Controller Configuration as we can only write 32 bits */
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
@@ -152,10 +157,13 @@ int nvme_ctrl_enable(struct nvme_device *pnvme_dev)
 * CAP.EN flag and this function which call the timer handler and check for
 * the timer expiration. It returns success if the ctrl in rdy before timeout.
 */
-int nvme_ctrl_disable(struct nvme_device *pnvme_dev)
+int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element)
 {
+    struct nvme_device *pnvme_dev;
     u32 ctrl_config;
     u8 rdy_sts = 0xFF;
+    /* get the device from the list */
+    pnvme_dev = pmetrics_device_element->pnvme_device;
 
     /* Read Controller Configuration as we can only write 32 bits */
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
@@ -218,6 +226,10 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
         LOG_ERR("Unable to allocate DMA Address for ASQ!!");
         return -ENOMEM;
     }
+
+    /* Zero out all ASQ memory before processing */
+    memset(pmetrics_sq_list->private_sq.vir_kern_addr, 0, asq_depth);
+
     LOG_NRM("Virtual ASQ DMA Address: 0x%llx",
             (u64)pmetrics_sq_list->private_sq.vir_kern_addr);
 
@@ -304,6 +316,9 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
         return -ENOMEM;
     }
 
+    /* Zero out all ACQ memory before processing */
+    memset(pmetrics_cq_list->private_cq.vir_kern_addr, 0, acq_depth);
+
     LOG_NRM("Virtual ACQ DMA Address: 0x%llx",
             (u64)pmetrics_cq_list->private_cq.vir_kern_addr);
     LOG_NRM("ACQ DMA Address: 0x%llx",
@@ -385,6 +400,9 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
             LOG_ERR("Unable to allocate DMA Address for IO SQ!!");
             return -ENOMEM;
         }
+        /* Zero out all IO SQ memory before processing */
+        memset(pmetrics_sq_list->private_sq.vir_kern_addr, 0,
+                pmetrics_sq_list->private_sq.size);
     }
     /* Set Unique Command value to zero for starters. */
     pmetrics_sq_list->private_sq.unique_cmd_id = 0;
@@ -440,6 +458,9 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
             LOG_ERR("Unable to allocate DMA Address for IO CQ!!");
             return -ENOMEM;
         }
+        /* Zero out all IO CQ memory before processing */
+        memset(pmetrics_cq_list->private_cq.vir_kern_addr, 0,
+                pmetrics_cq_list->private_cq.size);
     }
 
     cap_dstrd = (READQ(&pnvme_dev->nvme_ctrl_space->cap) >> 32) & 0xF;
@@ -459,12 +480,17 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 * already in dbs.
 */
 int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
-        struct nvme_device *pnvme_dev)
+        struct  metrics_device_list *pmetrics_device_element)
 {
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
+    struct nvme_device *pnvme_dev;
+
+    /* get the device from the list */
+    pnvme_dev = pmetrics_device_element->pnvme_device;
 
     /* Seek the SQ within metrics device SQ list */
-    list_for_each_entry(pmetrics_sq_list, &metrics_sq_ll, sq_list_hd) {
+    list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
+            metrics_sq_list, sq_list_hd) {
         /* Check if the Q Id matches */
         if (ring_sqx->sq_id == pmetrics_sq_list->public_sq.sq_id) {
             LOG_ERR("SQ_ID= %d found in the linked list.",
@@ -496,3 +522,185 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
     /* If it falls here no SQ ID is found */
     return -EINVAL;
 }
+
+/*
+ * Deallocate function is called when we want to free up the kernel or prp
+ * memory based on the contig flag. The kernel memory is given back, nodes
+ * from the cq list are deleted.
+ */
+int deallocate_metrics_cq(struct device *dev,
+        struct  metrics_cq  *pmetrics_cq_list)
+{
+    /* Delete memory for all metrics_cq for current id here */
+    if (pmetrics_cq_list->private_cq.contig == 0) {
+        /* free prp list pointed by this non contig cq */
+    } else {
+        /* Contiguous CQ, so free the DMA memory */
+        dma_free_coherent(dev, pmetrics_cq_list->private_cq.size,
+                 (void *)pmetrics_cq_list->private_cq.vir_kern_addr,
+                 pmetrics_cq_list->private_cq.acq_dma_addr);
+
+    }
+    /* Delete the current cq entry from the list */
+    list_del_init(&pmetrics_cq_list->cq_list_hd);
+    /* free the node from the ll */
+    kfree(pmetrics_cq_list);
+
+    return SUCCESS;
+}
+
+/*
+ * Deallocate function is called when we want to free up the kernel or prp
+ * memory based on the contig flag. The kernel memory is given back, nodes
+ * from the sq list are deleted. The cmds tracked are dropped and nodes in
+ * command list are deleted.
+ */
+int deallocate_metrics_sq(struct device *dev,
+        struct  metrics_sq  *pmetrics_sq_list,
+        struct  metrics_device_list *pmetrics_device)
+{
+    empty_cmd_track_list(pmetrics_device, pmetrics_sq_list->
+            public_sq.sq_id);
+    /* Clean up memory for all metrics_sq for current id here */
+    if (pmetrics_sq_list->private_sq.contig == 0) {
+        /* TODO: free the prp pool pointed by this non contig sq. */
+        LOG_DBG("DMA Free for non-contig sq id = %d", pmetrics_sq_list->
+                public_sq.sq_id);
+    } else {
+        LOG_DBG("DMA Free for contig sq id = %d", pmetrics_sq_list->
+                public_sq.sq_id);
+        /* Contiguous SQ, so free the DMA memory */
+        dma_free_coherent(dev, pmetrics_sq_list->private_sq.size,
+                (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
+                pmetrics_sq_list->private_sq.asq_dma_addr);
+    }
+    /* Delete the current sq entry from the list */
+    list_del_init(&pmetrics_sq_list->sq_list_hd);
+    kfree(pmetrics_sq_list);
+    return SUCCESS;
+}
+
+/*
+ * Reinitialize the admin completion queue's public parameters, when
+ * a controller is not completely diabled
+ */
+int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
+{
+    pmetrics_cq_list->public_cq.head_ptr = 0;
+    pmetrics_cq_list->public_cq.tail_ptr = 0;
+    return SUCCESS;
+}
+
+/*
+ * Reinitialize the admin Submission queue's public parameters, when
+ * a controller is not completely diabled
+ */
+int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
+    struct  metrics_device_list *pmetrics_device)
+{
+    empty_cmd_track_list(pmetrics_device, 0);
+
+    pmetrics_sq_list->public_sq.head_ptr = 0;
+    pmetrics_sq_list->public_sq.tail_ptr = 0;
+    pmetrics_sq_list->public_sq.tail_ptr_virt = 0;
+    pmetrics_sq_list->private_sq.unique_cmd_id = 0;
+
+    return SUCCESS;
+}
+/*
+ *  deallocate_all_queues - This function will start freeing up the memory for
+ * the queues (SQ and CQ) allocated during the prepare queues. The parameter
+ * 'new_state', ST_DISABLE or ST_DISABLE_COMPLETELY, identifies if you need to
+ * clear Admin Q as well along with other Q's.
+ */
+int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
+        enum nvme_state new_state)
+{
+    s16 exclude_admin = -1;
+    struct  metrics_sq  *pmetrics_sq_list;
+    struct  metrics_sq  *pmetrics_sq_next;
+    struct  metrics_cq  *pmetrics_cq_list;
+    struct  metrics_cq  *pmetrics_cq_next;
+    struct device *dev;
+
+    /* Check the desired state of the controller */
+    if (new_state == ST_DISABLE) {
+        exclude_admin = 1;
+    }
+
+    /* Loop through the devices available in the metrics list */
+    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
+        dev = &pmetrics_device->pnvme_device->pdev->dev;
+        /* Loop for each sq node */
+        list_for_each_entry_safe(pmetrics_sq_list, pmetrics_sq_next,
+                &pmetrics_device->metrics_sq_list, sq_list_hd) {
+            /* Check if Admin Q is excluded or not */
+            if ((exclude_admin == 1) &&
+                    (pmetrics_sq_list->public_sq.sq_id == 0)) {
+                LOG_DBG("Retaining Admin SQ from deallocation");
+                /* drop sq cmds and set to zero the public metrics of asq */
+                reinit_admn_sq(pmetrics_sq_list, pmetrics_device);
+            } else {
+                /* Call the generic deallocate sq function */
+                deallocate_metrics_sq(dev, pmetrics_sq_list, pmetrics_device);
+            }
+        } /* list loop for sq list */
+        /* Loop for each cq node */
+        list_for_each_entry_safe(pmetrics_cq_list, pmetrics_cq_next,
+                &pmetrics_device->metrics_cq_list, cq_list_hd) {
+            /* Check if Admin Q is excluded or not */
+            if ((exclude_admin == 1) && pmetrics_cq_list->public_cq.q_id == 0) {
+                LOG_DBG("Retaining Admin CQ from deallocation");
+                /* set to zero the public metrics of acq */
+                reinit_admn_cq(pmetrics_cq_list);
+            } else {
+                /* Call the generic deallocate cq function */
+                deallocate_metrics_cq(dev, pmetrics_cq_list);
+            }
+        } /* list loop for cq list */
+
+        /* if complete disable then reset the controller admin registers. */
+        if (new_state == ST_DISABLE_COMPLETELY) {
+            /* Set the Registers to default values. */
+            /* Write 0 to AQA */
+            writel(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->aqa);
+            /* Write 0 to the DMA address into ASQ base address */
+            WRITEQ(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->asq);
+            /* Write 0 to the DMA address into ACQ base address */
+            WRITEQ(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->acq);
+        }
+    } /* list loop list of devices */
+
+    return SUCCESS;
+}
+
+/*
+ *  driver_reap_inquiry - This function will try to inquire the number of
+ *  commands in the Completion Queue that are waiting to be reaped.
+ */
+int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
+        struct nvme_reap_inquiry *reap_inq)
+{
+    u8 tmp_pbit;
+    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
+    u16 comp_entry_size = 0;
+
+    list_for_each_entry(pmetrics_cq_list, &pmetrics_device->metrics_cq_list,
+            cq_list_hd) {
+        if (reap_inq->q_id == pmetrics_cq_list->public_cq.q_id) {
+            if (reap_inq->q_id == 0) {
+                comp_entry_size = 16;
+            } else {
+                comp_entry_size = (pmetrics_cq_list->private_cq.size) /
+                        (pmetrics_cq_list->public_cq.elements);
+            }
+            tmp_pbit = pmetrics_cq_list->public_cq.pbit_new_entry;
+            LOG_DBG("Reap Inquiry CQ_ID:pbit=%d:%d", pmetrics_cq_list->
+                    public_cq.q_id, tmp_pbit);
+            return SUCCESS;
+        }
+    }
+    LOG_ERR("CQ ID = %d is not in list", reap_inq->q_id);
+    return -EINVAL;
+}
+

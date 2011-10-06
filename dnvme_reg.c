@@ -49,12 +49,12 @@ static inline __u64 READQ(const volatile void __iomem *addr)
 #endif
 
 /*
-* read_nvme_reg_generic  - Function to read the controller registers
-* located in the MLBAR/MUBAR (PCI BAR 0 and 1) that are mapped to
-* memory area which supports in-order access.
+* read_nvme_reg_generic  - Function to read the controller registers located in
+* the MLBAR/MUBAR (PCI BAR 0 and 1) that are mapped to memory area which
+* supports in-order access.
 */
-int read_nvme_reg_generic(struct nvme_space nvme_ctrl_reg_space,
-    u8 *udata, int nbytes, int offset, enum nvme_acc_type acc_type)
+int read_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space, u8 *udata,
+        int nbytes, int offset, enum nvme_acc_type acc_type)
 {
     int index = 0; /* index to loop for total bytes in count of 4 */
     u32 u32data;   /* temp data buffer for readl call.            */
@@ -68,7 +68,7 @@ int read_nvme_reg_generic(struct nvme_space nvme_ctrl_reg_space,
      * Assign base address of the Controller Register to bar as the
      * starting point.
      */
-    bar = (unsigned int *)&nvme_ctrl_reg_space.bar_dev->cap;
+    bar = (unsigned int *)&nvme_ctrl_reg_space->cap;
 
     /* Compute the offset requested by user */
     bar = bar + (offset/sizeof(unsigned int));
@@ -157,8 +157,8 @@ int read_nvme_reg_generic(struct nvme_space nvme_ctrl_reg_space,
 * located in the MLBAR/MUBAR (PCI BAR 0 and 1) that are mapped to
 * memory area which supports in-order access.
 */
-int write_nvme_reg_generic(struct nvme_space nvme_ctrl_reg_space, u8 *u8data,
-    int nbytes, int offset, enum nvme_acc_type acc_type)
+int write_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space,
+        u8 *u8data, int nbytes, int offset, enum nvme_acc_type acc_type)
 {
     int index = 0; /* index to loop for total bytes in count of 4 */
     unsigned int *bar; /* base address for nvme space from cap */
@@ -171,7 +171,7 @@ int write_nvme_reg_generic(struct nvme_space nvme_ctrl_reg_space, u8 *u8data,
     * Assign base address of the Controller Register to bar as the
     * starting point.
     */
-    bar = (unsigned int *)&nvme_ctrl_reg_space.bar_dev->cap;
+    bar = (unsigned int *)&nvme_ctrl_reg_space->cap;
 
     /* Compute the offset requested by user */
     bar = bar + offset/(sizeof(unsigned int));

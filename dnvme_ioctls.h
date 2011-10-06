@@ -11,14 +11,15 @@ enum {
     NVME_ERR_CHK,          /** < enum Generic device status check func  */
     NVME_CREATE_ADMN_SQ,   /** < enum to invoke admin sq creation       */
     NVME_CREATE_ADMN_CQ,   /** < enum to invoke admin cq creation       */
-    NVME_DEVICE_STATE,       /** < enum to enable and disable ctlr        */
-    NVME_SEND_64B_CMD,     /** < enum Send 64B command. */
+    NVME_DEVICE_STATE,     /** < enum to enable and disable ctlr        */
+    NVME_SEND_64B_CMD,     /** < enum Send 64B command.                 */
     NVME_GET_Q_METRICS,    /** < enum to get the q metrics              */
     NVME_CREATE_ADMN_Q,    /** < enum to invoke creation of admin q's   */
     NVME_PREPARE_SQ_CREATION, /** <enum Allocate SQ contig memory       */
     NVME_PREPARE_CQ_CREATION, /** <enum Allocate SQ contig memory       */
     NVME_RING_SQ_DOORBELL, /** <enum Ring SQ Tail doorbell              */
     NVME_DUMP_METRICS,     /** <enum Log data from Metrics structure    */
+    NVME_REAP_INQUIRY,     /** <enum Invoke Reap inquiry                */
 };
 
 /**
@@ -77,7 +78,7 @@ enum {
         struct nvme_acq_gen)
 
 /**
-* @def NVME_IOCTL_CTLR_STATE
+* @def NVME_IOCTL_DEVICE_STATE
 * define a unique value for resetting or enabling controller.  The 'A' value
 * is the group to which this IOCTL type belongs to, generally from (0-255)
 * the second parameter is type within the group defined in the enum. The
@@ -160,5 +161,16 @@ enum {
 * from user level to kernel level.
 */
 #define NVME_IOCTL_DUMP_METRICS _IOWR('A', NVME_DUMP_METRICS, struct nvme_file)
+
+/**
+* @def NVME_IOCTL_REAP_INQUIRY
+* define a unique value to reap inquiry ioctl. The 'A' value
+* is the group to which this IOCTL type belongs to,generally from (0-255)the
+* second parameter is type within the group defined in the enum. The third
+* parameter give the size of data and type of data that is passed to this ioctl
+* from user level to kernel level.
+*/
+#define NVME_IOCTL_REAP_INQUIRY _IOWR('A', NVME_REAP_INQUIRY,\
+        struct nvme_reap_inquiry)
 
 #endif

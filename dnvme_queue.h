@@ -62,8 +62,6 @@ enum {
 };
 
 /* To use the linked list in queues. */
-extern struct list_head metrics_sq_ll;
-extern struct list_head metrics_cq_ll;
 extern struct list_head metrics_dev_ll;
 
 /**
@@ -102,28 +100,30 @@ void jit_timer_fn(unsigned long arg);
 * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
 * flag and this function which call the timer handler and check for the timer
 * expiration. It returns success if the ctrl in rdy before timeout.
-* @param pnvme_dev
+* @param  pmetrics_device_element
 * @return SUCCESS or FAIL
 */
-int nvme_ctrl_enable(struct nvme_device *pnvme_dev);
+int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element);
 
 /**
 * nvme_ctrl_disable - NVME controller disable function.This will reset the
 * CAP.EN flag and this function which call the timer handler and check for
 * the timer expiration. It returns success if the ctrl in rdy before timeout.
-* @param pnvme_dev
+* @param pmetrics_device_element
 * @return SUCCESS or FAIL
 */
-int nvme_ctrl_disable(struct nvme_device *pnvme_dev);
+int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element);
 
 /**
 * identify_unique - verify if the q_id specified is unique. If not unique then
 * return fail.
 * @param q_id
 * @param type
+* @param pmetrics_device_element
 * @return SUCCESS or FAIL
 */
-int identify_unique(u16 q_id, enum metrics_type type);
+int identify_unique(u16 q_id, enum metrics_type type,
+        struct  metrics_device_list *pmetrics_device_element);
 
 /**
 * nvme_prepare_sq - NVME controller prepare sq function. This will check
@@ -149,10 +149,10 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 * nvme_ring_sqx_dbl - NVME controller function to ring the appropriate
 * SQ doorbell.
 * @param ring_sqx
-* @param pnvme_dev
+* @param pmetrics_device_element
 * @return SUCCESS or FAIL
 */
 int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
-        struct nvme_device *pnvme_dev);
+        struct  metrics_device_list *pmetrics_device_element);
 
 #endif
