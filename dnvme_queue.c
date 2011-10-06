@@ -626,6 +626,7 @@ int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list)
     pmetrics_sq_list->public_sq.head_ptr = 0;
     pmetrics_sq_list->public_sq.tail_ptr = 0;
     pmetrics_sq_list->public_sq.tail_ptr_virt = 0;
+    pmetrics_sq_list->private_sq.unique_cmd_id = 0;
 
     return SUCCESS;
 }
