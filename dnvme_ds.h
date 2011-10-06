@@ -20,6 +20,16 @@ struct nvme_prps {
     __le64 prp2; /* Physical address in PRP2 of command */
     /* TODO: Will be removed once complete IOCTL is working */
     dma_addr_t first_dma; /* First entry in PRP List */
+    u8 data_dir; /* Flow of Data to/from device 1/0 */
+    /* Address of data buffer for the specific command */
+    unsigned long data_buf_addr;
+    /* Size of data buffer for the specific command */
+    u32 data_buf_size;
+    /* Pointer to SG list generated */
+    struct scatterlist *sg;
+    /* Number of pages mapped to DMA area */
+    __u32 dma_mapped_pgs;
+
 };
 
 /*

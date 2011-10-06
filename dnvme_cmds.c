@@ -13,15 +13,13 @@
 static int pages_to_sg(struct page **,
     __u32, __u32, __u32, struct scatterlist **);
 static int map_user_pg_to_dma(struct nvme_device *, __u8,
-    unsigned long, __u32, struct scatterlist **);
-static void unmap_user_pg_to_dma(struct nvme_device *, __u8,
-    unsigned long, __u32, struct scatterlist *);
+    unsigned long, __u32, struct scatterlist **, struct nvme_prps *);
+static void unmap_user_pg_to_dma(struct nvme_device *, struct nvme_prps *);
 static int setup_prps(struct nvme_device *, struct scatterlist *,
     __s32, struct nvme_prps *, __u8);
 static void free_prp_pool(struct nvme_device *, struct nvme_prps *, __u32);
 static int add_cmd_track_node(struct  metrics_sq  *, __u16, enum nvme_cmds,
-    struct nvme_prps, __u8, __u16);
-static void del_cmd_track_node(struct  metrics_sq  *);
+    struct nvme_prps *, __u8, __u16);
 
 /*
  * submit_command:
@@ -30,13 +28,15 @@ static void del_cmd_track_node(struct  metrics_sq  *);
  * Add the implementation logic of complete ioctl and update the
  * function arguments accordingly
  */
-int submit_command(struct nvme_device *nvme_dev, __u16 q_id,
+int submit_command(struct  metrics_device_list *pmetrics_device, __u16 q_id,
     __u8 *buf_addr, __u32 buf_len)
 {
     int err; /* Error code return values */
     struct scatterlist *sg; /* Pointer to SG List */
     struct nvme_prps prps; /* Pointer to PRP List */
     unsigned long addr; /* Buf Addr typecasted to unsigned long */
+    struct nvme_device *nvme_dev = pmetrics_device->pnvme_device;
+    struct  metrics_sq  *pmetrics_sq_list;  /* Element of SQ linked list */
 
 #ifdef TEST_PRP_DEBUG
     int last_prp, i, j;
@@ -53,8 +53,11 @@ int submit_command(struct nvme_device *nvme_dev, __u16 q_id,
         return -EINVAL;
     }
 
+    /* Initialize PRP Type to NO_PRP */
+    prps.type = NO_PRP;
+
     /* Mapping user pages to dma memory */
-    err = map_user_pg_to_dma(nvme_dev, WRITE_DEV, addr, buf_len, &sg);
+    err = map_user_pg_to_dma(nvme_dev, WRITE_DEV, addr, buf_len, &sg, &prps);
     if (err < 0) {
         return err;
     }
@@ -64,7 +67,7 @@ int submit_command(struct nvme_device *nvme_dev, __u16 q_id,
     err = setup_prps(nvme_dev, sg, buf_len, &prps, DISCONTG_IO_Q);
     if (err < 0) {
         /* Unampping PRP's and User pages */
-        unmap_user_pg_to_dma(nvme_dev, WRITE_DEV, addr, buf_len, sg);
+        unmap_user_pg_to_dma(nvme_dev, &prps);
         return err;
     }
 
@@ -104,11 +107,18 @@ int submit_command(struct nvme_device *nvme_dev, __u16 q_id,
     }
 #endif
 
-    /* Unampping PRP's and User pages */
-    unmap_user_pg_to_dma(nvme_dev, WRITE_DEV, addr, buf_len, sg);
-    /* TODO remove the last function arg */
-    free_prp_pool(nvme_dev, &prps, prps.npages);
-    /* TODO free up the cmd track list */
+/*     Unampping PRP's and User pages
+    unmap_user_pg_to_dma(nvme_dev, &prps);
+     TODO remove the last function arg
+    free_prp_pool(nvme_dev, &prps, prps.npages);*/
+
+    list_for_each_entry(pmetrics_sq_list, &pmetrics_device->metrics_sq_list, sq_list_hd) {
+        if (pmetrics_sq_list->public_sq.sq_id == 0) {
+            add_cmd_track_node(pmetrics_device->metrics_sq_list, 0,
+                CMD_ADMIN, &prps, 0x01, 1);
+        }
+    }
+
     return 0;
 }
 
@@ -129,7 +139,8 @@ void destroy_dma_pool(struct nvme_device *nvme_dev)
  * Returns Error codes or number of physical segments mapped
  */
 static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
-    unsigned long buf_addr, __u32 buf_len, struct scatterlist **sgp)
+    unsigned long buf_addr, __u32 buf_len, struct scatterlist **sgp,
+        struct nvme_prps *prps)
 {
     __u32 offset, count; /* Offset inside Page, No. of pages */
     struct page **pages; /* List of pointers to user space pages */
@@ -185,6 +196,12 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
         goto error;
     }
     kfree(pages);
+    /* Fill in nvme_prps */
+    prps->data_dir = write;
+    prps->data_buf_addr = buf_addr;
+    prps->data_buf_size = buf_len;
+    prps->sg = *sgp;
+    prps->dma_mapped_pgs = count;
     return err;
 
 error:
@@ -235,18 +252,16 @@ static int pages_to_sg(struct page **pages,
  * unmap_user_pg_to_dma:
  * Unmaps mapped DMA pages and frees the pinned down pages
  */
-static void unmap_user_pg_to_dma(struct nvme_device *dev, __u8 write,
-    unsigned long buf_addr, __u32 buf_len, struct scatterlist *sg)
+static void unmap_user_pg_to_dma(struct nvme_device *dev, struct nvme_prps *prps)
 {
-    int i, count;
-    count = DIV_ROUND_UP(offset_in_page(buf_addr) + buf_len, PAGE_SIZE);
-    dma_unmap_sg(&dev->pdev->dev, sg, count,
-        write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+    int i;
+    dma_unmap_sg(&dev->pdev->dev, prps->sg, prps->dma_mapped_pgs,
+        prps->data_dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
-    for (i = 0; i < count; i++) {
-        put_page(sg_page(&sg[i]));
+    for (i = 0; i < prps->dma_mapped_pgs; i++) {
+        put_page(sg_page(&prps->sg[i]));
     }
-    kfree(sg);
+    kfree(prps->sg);
 }
 
 /*
@@ -436,7 +451,7 @@ static void free_prp_pool(struct nvme_device *dev,
  *
  */
 static int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
-    __u16 persist_q_id, enum nvme_cmds cmd_type, struct nvme_prps prps,
+    __u16 persist_q_id, enum nvme_cmds cmd_type, struct nvme_prps *prps,
         __u8 opcode, __u16 unique_cnt)
 {
     /* pointer to cmd track linked list node */
@@ -455,8 +470,7 @@ static int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     pcmd_track_list->persist_q_id = persist_q_id;
     pcmd_track_list->opcode = opcode;
     pcmd_track_list->cmd_set = cmd_type;
-    /* xxx Check for local memory of &prps */
-    memcpy(&pcmd_track_list->prp_nonpersist, &prps, sizeof(struct nvme_prps));
+    memcpy(&pcmd_track_list->prp_nonpersist, prps, sizeof(struct nvme_prps));
 
 
     /* Add an element to the end of the list */
@@ -467,26 +481,37 @@ static int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
 }
 
 /*
- * del_cmd_track_node:
- * Delete the node inside command track list
- * Note:- Should be called after
- * unmap_user_pg_to_dma and free_prp_pool functions
+ * empty_cmd_track_list:
+ * Delete command track list completley per SQ
  */
 
-static void del_cmd_track_node(struct  metrics_sq  *pmetrics_sq)
+void empty_cmd_track_list(struct  metrics_device_list *pmetrics_device, __u16 q_id)
 {
-
-    /* pointer to cmd track linked list node */
+    /* pointer to one element of cmd track linked list */
     struct cmd_track  *pcmd_track_list;
+    /* pointer to one element of sq linked list */
+    struct metrics_sq *pmetrics_sq_list;
     /* parameters required for list_for_each_safe */
     struct list_head *pos, *temp;
 
-    /* Loop through the cmd track list */
-    list_for_each_safe(pos, temp,
-        &pmetrics_sq->private_sq.cmd_track_list) {
-        pcmd_track_list = list_entry(pos, struct cmd_track, cmd_list_hd);
-        list_del(pos);
-        kfree(pcmd_track_list);
-    }
+    /* Get the required queue for the device */
+    list_for_each_entry(pmetrics_sq_list, &pmetrics_device->metrics_sq_list, sq_list_hd) {
+        if (pmetrics_sq_list->public_sq.sq_id == q_id) {
+            /* Loop through the cmd track list */
+            list_for_each_safe(pos, temp,
+                &pmetrics_sq_list.private_sq.cmd_track_list) {
+                pcmd_track_list = list_entry(pos, struct cmd_track, cmd_list_hd);
+                /* Unampping PRP's and User pages */
+                unmap_user_pg_to_dma(pmetrics_device->pnvme_device,
+                    &pcmd_track_list->prp_nonpersist);
+                free_prp_pool(pmetrics_device->pnvme_device,
+                    &pcmd_track_list->prp_nonpersist,
+                        pcmd_track_list->prp_nonpersist.npages);
+                list_del(pos);
+                kfree(pcmd_track_list);
+            } /* End of cmd_track_list */
+            break;
+        } /* End of specific queue condition */
+    } /* End of loop for queues inside a device */
 
 }

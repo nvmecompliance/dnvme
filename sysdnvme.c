@@ -563,7 +563,7 @@ int dnvme_ioctl_device(struct inode *inode,    /* see include/linux/fs.h */
         LOG_DBG("IOCTL NVME_IOCTL_SEND_64B_CMD Command");
         /* Assign user passed parameters to local struct pointrs */
         nvme_64b_send = (struct nvme_64b_send *)ioctl_param;
-        ret_val =  driver_send_64b(pnvme_device, nvme_64b_send);
+        ret_val =  driver_send_64b(pmetrics_device, nvme_64b_send);
         /* Display success or fail */
         if (ret_val >= 0) {
             LOG_NRM("PRP Creation Success");

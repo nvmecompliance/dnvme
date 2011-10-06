@@ -100,6 +100,7 @@ struct nvme_64b_send {
     u_int8_t *cmd_buf_ptr; /* Virtual Address pointer to 64B command */
     enum nvme_cmds cmd_set; /* Command set for the cmd_buf command */
     u_int16_t meta_buf_size; /* Size of Meta Buffer */
+    u_int8_t data_dir; /* Direction of DMA mapped memory 1/0 to/from device */
 };
 
 /**
