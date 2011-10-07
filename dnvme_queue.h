@@ -61,6 +61,19 @@ enum {
     NVME_CSTS_SHST_CMPLT  = 2 << 2,
 };
 
+/*
+ * completion q entry structure.
+ */
+struct cq_completion {
+    u32 cmd_specifc;       /* DW 0 all 32 bits     */
+    u32 reserved;          /* DW 1 all 32 bits     */
+    u16 sq_head_ptr;       /* DW 2 lower 16 bits   */
+    u16 sq_identifier;     /* DW 2 higher 16 bits  */
+    u16 cmd_identifier;    /* Cmd identifier       */
+    u8  phase_bit:1;       /* Phase bit            */
+    u16 status_field:15;   /* Status field         */
+};
+
 /* To use the linked list in queues. */
 extern struct list_head metrics_dev_ll;
 

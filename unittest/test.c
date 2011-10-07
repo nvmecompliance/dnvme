@@ -310,13 +310,26 @@ int test_prp(int file_desc)
     return 0;
 }
 
+void test_reap_inquiry(int file_desc)
+{
+    printf("Reap inquiry on Admin CQ...\n");
+    ioctl_reap_inquiry(file_desc, 0);
+    printf("Reap inquiry on CQ = 1...\n");
+    ioctl_reap_inquiry(file_desc, 1);
+    printf("Reap inquiry on CQ = 2...\n");
+    ioctl_reap_inquiry(file_desc, 2);
+    printf("Reap inquiry on CQ = 3...\n");
+    ioctl_reap_inquiry(file_desc, 3);
+
+}
+
 int main(void)
 {
     int file_desc;
     char *tmpfile1 = "/tmp/file_name1.txt";
-    char *tmpfile2 = "/tmp/file_name2.txt";
-    char *tmpfile3 = "/tmp/file_name3.txt";
-    char *tmpfile4 = "/tmp/file_name4.txt";
+    //char *tmpfile2 = "/tmp/file_name2.txt";
+    //char *tmpfile3 = "/tmp/file_name3.txt";
+    //char *tmpfile4 = "/tmp/file_name4.txt";
 
     printf("\n*****\t Demo \t*****\n");
 
@@ -346,45 +359,49 @@ int main(void)
     printf("Calling Contoller State to set to Enable state\n");
     ioctl_enable_ctrl(file_desc);
 
-    test_prep_sq(file_desc);
-    printf("\n...Test PASS if all Preparation success...");
-    printf("\nPress any key to continue..");
-    getchar();
+    //test_prep_sq(file_desc);
+    //printf("\n...Test PASS if all Preparation success...");
+    //printf("\nPress any key to continue..");
+    //getchar();
 
     test_prep_cq(file_desc);
     printf("\n...Test PASS if all Preparation success...");
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("Calling Dump Metrics to tmpfile1\n");
-    ioctl_dump(file_desc, tmpfile1);
+    //printf("Calling Dump Metrics to tmpfile1\n");
+    //ioctl_dump(file_desc, tmpfile1);
 
+    printf("Testing Reap Inquiry...\n");
+    test_reap_inquiry(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
 
     printf("Call Ring Doorbell\n");
     tst_ring_dbl(file_desc);
 
-    test_admin(file_desc);
-    printf("\n...Test PASS if creation is not successful.");
-    printf("\nPress any key to continue..");
-    getchar();
+    //test_admin(file_desc);
+    //printf("\n...Test PASS if creation is not successful.");
+    //printf("\nPress any key to continue..");
+    //getchar();
 
-    test_metrics(file_desc);
+    //test_metrics(file_desc);
 
 
-    printf("Executing PRP Test Cases\n");
-    test_prp(file_desc);
+    //printf("Executing PRP Test Cases\n");
+    //test_prp(file_desc);
 
-    ioctl_dump(file_desc, tmpfile2);
+    //ioctl_dump(file_desc, tmpfile2);
     
-    printf("Calling Contoller State to set to Disable state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE);
+    //printf("Calling Contoller State to set to Disable state\n");
+    //ioctl_disable_ctrl(file_desc, ST_DISABLE);
     
-    ioctl_dump(file_desc, tmpfile3);
+    //ioctl_dump(file_desc, tmpfile2);
 
-    printf("Calling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+    //printf("Calling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
+    //ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
 
-    ioctl_dump(file_desc, tmpfile4);
+    //ioctl_dump(file_desc, tmpfile3);
 
     //printf("Executing PRP Test Cases\n");
     //test_prp(file_desc);

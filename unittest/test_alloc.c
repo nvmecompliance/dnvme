@@ -63,3 +63,20 @@ void ioctl_prep_cq(int file_desc, uint16_t cq_id, uint16_t elem, uint8_t contig)
         printf("\tSQ ID = %d Preparation success\n", prep_cq.cq_id);
     }
 }
+
+void ioctl_reap_inquiry(int file_desc, int cq_id)
+{
+    int ret_val = -1;
+    struct nvme_reap_inquiry rp_inq;
+
+    rp_inq.q_id = cq_id;
+
+    ret_val = ioctl(file_desc, NVME_IOCTL_REAP_INQUIRY, &rp_inq);
+    if(ret_val < 0) {
+        printf("reap inquiry failed!\n");
+    }
+    else {
+        printf("Reaped Cq = %d Successfully, num_remaining = %d\n",
+                rp_inq.q_id, rp_inq.num_remaining);
+    }
+}

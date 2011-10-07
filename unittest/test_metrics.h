@@ -18,3 +18,4 @@ void ioctl_create_prp_more_than_two_page(int file_desc);
 void ioctl_create_list_of_prp(int file_desc);
 void ioctl_create_fill_list_of_prp(int file_desc);
 
+void ioctl_reap_inquiry(int file_desc, int cq_id);

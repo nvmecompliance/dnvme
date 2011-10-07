@@ -4,6 +4,8 @@
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
+#include <linux/uaccess.h>
+#include <linux/errno.h>
 
 #include "definitions.h"
 #include "sysdnvme.h"
@@ -717,26 +719,67 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
 int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         struct nvme_reap_inquiry *reap_inq)
 {
-    u8 tmp_pbit;
-    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
-    u16 comp_entry_size = 0;
+    u8 tmp_pbit;                            /* Local phase bit      */
+    struct metrics_cq  *pmetrics_cq_node;   /* ptr to sq node       */
+    u16 comp_entry_size = 16;               /* acq entry size       */
+    struct cq_completion cq_entry;          /* cq entry format      */
+    u8 *q_head_ptr;                         /* head ptr in cq       */
+    u16 __user num_remaining = (u16 __user)reap_inq->num_remaining;
+                                            /* user buffer ptr      */
 
-    list_for_each_entry(pmetrics_cq_list, &pmetrics_device->metrics_cq_list,
+    /* Lookup the CQ for which the reap inquiry is requested */
+    list_for_each_entry(pmetrics_cq_node, &pmetrics_device->metrics_cq_list,
             cq_list_hd) {
-        if (reap_inq->q_id == pmetrics_cq_list->public_cq.q_id) {
-            if (reap_inq->q_id == 0) {
-                comp_entry_size = 16;
-            } else {
-                comp_entry_size = (pmetrics_cq_list->private_cq.size) /
-                        (pmetrics_cq_list->public_cq.elements);
+        /* check if admin and set the entry size accordingly */
+        if (reap_inq->q_id == pmetrics_cq_node->public_cq.q_id) {
+            if (reap_inq->q_id != 0) {
+                /* Calculate the entry size */
+                comp_entry_size = (pmetrics_cq_node->private_cq.size) /
+                        (pmetrics_cq_node->public_cq.elements);
+                if(comp_entry_size != 16) {
+                    LOG_NRM("CQ entry size is different than std 16!");
+                }
             }
-            tmp_pbit = pmetrics_cq_list->public_cq.pbit_new_entry;
-            LOG_DBG("Reap Inquiry CQ_ID:pbit=%d:%d", pmetrics_cq_list->
+            /* local tmp phase bit */
+            tmp_pbit = pmetrics_cq_node->public_cq.pbit_new_entry;
+            LOG_DBG("Reap Inquiry on CQ_ID:PBIT = %d:%d", pmetrics_cq_node->
                     public_cq.q_id, tmp_pbit);
+            /* point the head ptr to corresponding head ptr */
+            q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr +
+                    (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr);
+            /* loop through the entries in the cq */
+            while (1) {
+                memcpy(&cq_entry, q_head_ptr, sizeof(cq_entry));
+                if(cq_entry.phase_bit == tmp_pbit) {
+                    pmetrics_cq_node->public_cq.tail_ptr += 1;
+                    q_head_ptr += comp_entry_size;
+                    num_remaining += 1;
+                    /* Q wrapped around */
+                    if (q_head_ptr >=
+                            (pmetrics_cq_node->private_cq.vir_kern_addr +
+                                    pmetrics_cq_node->private_cq.size)) {
+                        tmp_pbit = !tmp_pbit;
+                        q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr;
+                    }
+                }
+                /* Check if we reached stale element */
+                if (tmp_pbit != cq_entry.phase_bit) {
+                    break;
+                }
+            } /* end of while loop */
+            LOG_DBG("Number of elements remaining = %d", num_remaining);
+            /* Copy to user the reamining elements in this q */
+            if (copy_to_user(&reap_inq->num_remaining, &num_remaining,
+                    sizeof(u16)) < 0) {
+                LOG_ERR("Error copying to user buffer returning");
+                return -EAGAIN;
+            }
+            /* done for this q return from here */
             return SUCCESS;
-        }
-    }
-    LOG_ERR("CQ ID = %d is not in list", reap_inq->q_id);
-    return -EINVAL;
-}
+        } /* if cq id */
+    } /* list for q's */
 
+    /* if the control comes here it implies q id not in list */
+    LOG_ERR("CQ ID = %d is not in list", reap_inq->q_id);
+    return -EBADSLT;
+}
