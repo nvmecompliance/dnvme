@@ -11,6 +11,16 @@
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
 
+/* Static function for queue deallocation */
+static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
+        struct  metrics_device_list *pmetrics_device);
+static int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list);
+static int deallocate_metrics_cq(struct device *dev,
+        struct  metrics_cq  *pmetrics_cq_list);
+static int deallocate_metrics_sq(struct device *dev,
+        struct  metrics_sq  *pmetrics_sq_list,
+        struct  metrics_device_list *pmetrics_device);
+
 /* device metrics linked list */
 struct metrics_device_list *pmetrics_device_list;
 struct metrics_driver g_metrics_drv;
@@ -365,8 +375,10 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
 {
     int ret_code = SUCCESS;
     u32 ctrl_config = 0;
-    u16 u16cap_mqes = 0;
     u8  cap_dstrd;
+#ifdef DEBUG
+    u16 u16cap_mqes = 0;
+#endif
 
     /*Read Controller Configuration CC register at offset 0x14h. */
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
@@ -375,6 +387,8 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
     LOG_NRM("CC.IOSQES = 0x%x, 2^x = %d", ctrl_config, (1 << ctrl_config));
     pmetrics_sq_list->private_sq.size = pmetrics_sq_list->public_sq.elements *
             (1 << ctrl_config);
+
+#ifdef DEBUG
     /* Check to see if the entries exceed the Max Q entries supported */
     u16cap_mqes = readl(&pnvme_dev->nvme_ctrl_space->cap) & 0xFFFF;
     LOG_NRM("Max Q:Actual Q elements = 0x%x:0x%x", u16cap_mqes,
@@ -384,6 +398,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
         LOG_ERR("The IO SQ id = %d exceeds maximum elements allowed!",
                 pmetrics_sq_list->public_sq.sq_id);
     }
+#endif
     /*
      * call dma_alloc_coherent or SQ which gets DMA mapped address from
      * the kernel virtual address.
@@ -423,8 +438,10 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 {
     int ret_code = SUCCESS;
     u32 ctrl_config = 0;
-    u16 u16cap_mqes = 0;
     u8  cap_dstrd;
+#ifdef DEBUG
+    u16 u16cap_mqes = 0;
+#endif
 
     /*Read Controller Configuration CC register at offset 0x14h. */
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
@@ -433,6 +450,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
     LOG_NRM("CC.IOCQES = 0x%x, 2^x = %d", ctrl_config, (1 << ctrl_config));
     pmetrics_cq_list->private_cq.size = pmetrics_cq_list->public_cq.elements *
             (1 << ctrl_config);
+#ifdef DEBUG
     /* Check to see if the entries exceed the Max Q entries supported */
     u16cap_mqes = readl(&pnvme_dev->nvme_ctrl_space->cap) & 0xFFFF;
     LOG_NRM("Max CQ:Actual CQ elements = 0x%x:0x%x", u16cap_mqes,
@@ -442,6 +460,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
         LOG_ERR("The IO CQ id = %d exceeds maximum elements allowed!",
                 pmetrics_cq_list->public_cq.q_id);
     }
+#endif
     /*
      * call dma_alloc_coherent for CQ which gets DMA mapped address from
      * the kernel virtual address only for contiguous CQ case.
@@ -527,12 +546,12 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
  * memory based on the contig flag. The kernel memory is given back, nodes
  * from the cq list are deleted.
  */
-int deallocate_metrics_cq(struct device *dev,
+static int deallocate_metrics_cq(struct device *dev,
         struct  metrics_cq  *pmetrics_cq_list)
 {
     /* Delete memory for all metrics_cq for current id here */
     if (pmetrics_cq_list->private_cq.contig == 0) {
-        /* free prp list pointed by this non contig cq */
+        /* TODO: free prp list pointed by this non contig cq */
     } else {
         /* Contiguous CQ, so free the DMA memory */
         dma_free_coherent(dev, pmetrics_cq_list->private_cq.size,
@@ -554,8 +573,9 @@ int deallocate_metrics_cq(struct device *dev,
  * from the sq list are deleted. The cmds tracked are dropped and nodes in
  * command list are deleted.
  */
-int deallocate_metrics_sq(struct device *dev,
-        struct  metrics_sq  *pmetrics_sq_list)
+static int deallocate_metrics_sq(struct device *dev,
+        struct  metrics_sq  *pmetrics_sq_list,
+        struct  metrics_device_list *pmetrics_device)
 {
 #if 0
     struct cmd_track *pcmd_track_list;   /* to track a particular cmd     */
@@ -575,7 +595,7 @@ int deallocate_metrics_sq(struct device *dev,
 
     /* Clean up memory for all metrics_sq for current id here */
     if (pmetrics_sq_list->private_sq.contig == 0) {
-        /* free the prp pool pointed by this non contig sq. */
+        /* TODO: free the prp pool pointed by this non contig sq. */
         LOG_DBG("DMA Free for non-contig sq id = %d", pmetrics_sq_list->
                 public_sq.sq_id);
     } else {
@@ -596,7 +616,7 @@ int deallocate_metrics_sq(struct device *dev,
  * Reinitialize the admin completion queue's public parameters, when
  * a controller is not completely diabled
  */
-int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
+static int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
 {
     pmetrics_cq_list->public_cq.head_ptr = 0;
     pmetrics_cq_list->public_cq.tail_ptr = 0;
@@ -607,7 +627,8 @@ int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
  * Reinitialize the admin Submission queue's public parameters, when
  * a controller is not completely diabled
  */
-int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list)
+static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
+        struct  metrics_device_list *pmetrics_device)
 {
 #if 0
     struct cmd_track *pcmd_track_list;   /* to track a particular cmd     */
@@ -662,10 +683,10 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
                     (pmetrics_sq_list->public_sq.sq_id == 0)) {
                 LOG_DBG("Retaining Admin SQ from deallocation");
                 /* drop sq cmds and set to zero the public metrics of asq */
-                reinit_admn_sq(pmetrics_sq_list);
+                reinit_admn_sq(pmetrics_sq_list, pmetrics_device);
             } else {
                 /* Call the generic deallocate sq function */
-                deallocate_metrics_sq(dev, pmetrics_sq_list);
+                deallocate_metrics_sq(dev, pmetrics_sq_list, pmetrics_device);
             }
         } /* list loop for sq list */
         /* Loop for each cq node */
