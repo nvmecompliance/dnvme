@@ -194,6 +194,19 @@ int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element)
     }
     return SUCCESS;
 }
+
+u8 get_enable_bit(struct nvme_device *pnvme_dev)
+{
+    u32 ctrl_config;
+    /* Read Controller Configuration from offset 0x14h */
+    ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc) & NVME_CC_ENABLE;
+
+    if (ctrl_config == NVME_CC_ENABLE) {
+        LOG_DBG("Controller enable bit is set");
+    }
+    return ((u8)ctrl_config);
+}
+
 /*
 * create_admn_sq - This routine is called when the driver invokes the ioctl for
 * admn sq creation. It returns success if the submission q creation is success
@@ -554,6 +567,9 @@ static int deallocate_metrics_cq(struct device *dev,
 {
     /* Delete memory for all metrics_cq for current id here */
     if (pmetrics_cq_list->private_cq.contig == 0) {
+        /* First unmap the dma */
+        unmap_user_pg_to_dma(pmetrics_device->pnvme_device,
+                &pmetrics_cq_list->private_cq.prp_persist);
         /* free prp list pointed by this non contig cq */
         free_prp_pool(pmetrics_device->pnvme_device,
                 &pmetrics_cq_list->private_cq.prp_persist,
@@ -591,6 +607,9 @@ static int deallocate_metrics_sq(struct device *dev,
         /* free the prp pool pointed by this non contig sq. */
         LOG_DBG("DMA Free for non-contig sq id = %d", pmetrics_sq_list->
                 public_sq.sq_id);
+        /* First unmap the dma */
+        unmap_user_pg_to_dma(pmetrics_device->pnvme_device,
+                &pmetrics_sq_list->private_sq.prp_persist);
         /* free prp list pointed by this non contig cq */
         free_prp_pool(pmetrics_device->pnvme_device,
                 &pmetrics_sq_list->private_sq.prp_persist,

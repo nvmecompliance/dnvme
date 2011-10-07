@@ -14,7 +14,6 @@ static int pages_to_sg(struct page **,
     __u32, __u32, __u32, struct scatterlist **);
 static int map_user_pg_to_dma(struct nvme_device *, __u8,
     unsigned long, __u32, struct scatterlist **, struct nvme_prps *);
-static void unmap_user_pg_to_dma(struct nvme_device *, struct nvme_prps *);
 static int setup_prps(struct nvme_device *, struct scatterlist *,
     __s32, struct nvme_prps *, __u8);
 static int add_cmd_track_node(struct  metrics_sq  *, __u16, enum nvme_cmds,
@@ -253,7 +252,7 @@ static int pages_to_sg(struct page **pages,
  * unmap_user_pg_to_dma:
  * Unmaps mapped DMA pages and frees the pinned down pages
  */
-static void unmap_user_pg_to_dma(struct nvme_device *dev,
+void unmap_user_pg_to_dma(struct nvme_device *dev,
     struct nvme_prps *prps)
 {
     int i;

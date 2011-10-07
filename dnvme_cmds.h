@@ -63,10 +63,21 @@ void empty_cmd_track_list(struct  metrics_device_list *pmetrics_device,
 /**
  * free_prp_pool:
  * Frees the PRP pool for a SQ or CQ node for this device.
- * @param nvme_device
- * @param nvme_prps
+ * @param dev
+ * @param prps
+ * @return npages
+ */
+void free_prp_pool(struct nvme_device *dev,
+    struct nvme_prps *prps, __u32 npages);
+
+/**
+ * unmap_user_pg_to_dma:
+ * Unmaps the dma memory for this device with given prps.
+ * @param dev
+ * @param prps
  * @return void
  */
-void free_prp_pool(struct nvme_device *, struct nvme_prps *, __u32);
+void unmap_user_pg_to_dma(struct nvme_device *dev,
+    struct nvme_prps *prps);
 
 #endif
