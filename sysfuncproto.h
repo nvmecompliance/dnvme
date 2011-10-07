@@ -152,7 +152,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
 /**
 * driver_send_64b - Routine for sending 64 bytes command into
 * admin/IO SQ/CQ's
-* @param pmetrics_device_element
+* @param pmetrics_device
 * @param nvme_64b_send
 * @return Error Codes
 */

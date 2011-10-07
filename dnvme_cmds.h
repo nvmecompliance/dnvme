@@ -30,7 +30,7 @@ enum data_buf_type {
 * Entry point for Submitting 64Bytes Command which handles
 * mapping user pages to memory, creating SG Lists and
 * creating PRP Lists
-* @param nvme_dev
+* @param pmetrics_device
 * @param q_id
 * @param buf_addr
 * @param buf_len
@@ -65,7 +65,8 @@ void empty_cmd_track_list(struct  nvme_device *pnvme_device,
  * Frees the PRP pool for a SQ or CQ node for this device.
  * @param dev
  * @param prps
- * @return npages
+ * @param npages
+ * @return void
  */
 void free_prp_pool(struct nvme_device *dev,
     struct nvme_prps *prps, __u32 npages);
