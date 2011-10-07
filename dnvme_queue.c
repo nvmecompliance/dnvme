@@ -195,18 +195,6 @@ int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element)
     return SUCCESS;
 }
 
-u8 get_enable_bit(struct nvme_device *pnvme_dev)
-{
-    u32 ctrl_config;
-    /* Read Controller Configuration from offset 0x14h */
-    ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc) & NVME_CC_ENABLE;
-
-    if (ctrl_config == NVME_CC_ENABLE) {
-        LOG_DBG("Controller enable bit is set");
-    }
-    return ((u8)ctrl_config);
-}
-
 /*
 * create_admn_sq - This routine is called when the driver invokes the ioctl for
 * admn sq creation. It returns success if the submission q creation is success
@@ -600,8 +588,9 @@ static int deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device)
 {
-    empty_cmd_track_list(pmetrics_device, pmetrics_sq_list->
-            public_sq.sq_id);
+    /* Clean the Cmd track list */
+    empty_cmd_track_list(pmetrics_device->pnvme_device, pmetrics_sq_list);
+
     /* Clean up memory for all metrics_sq for current id here */
     if (pmetrics_sq_list->private_sq.contig == 0) {
         /* free the prp pool pointed by this non contig sq. */
@@ -634,6 +623,7 @@ static int deallocate_metrics_sq(struct device *dev,
  */
 static int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
 {
+    /* reinit required params in admin node */
     pmetrics_cq_list->public_cq.head_ptr = 0;
     pmetrics_cq_list->public_cq.tail_ptr = 0;
     return SUCCESS;
@@ -646,8 +636,10 @@ static int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
 static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device)
 {
-    empty_cmd_track_list(pmetrics_device, 0);
+    /* Free command track list for admin */
+    empty_cmd_track_list(pmetrics_device->pnvme_device, pmetrics_sq_list);
 
+    /* reinit required params in admin node */
     pmetrics_sq_list->public_sq.head_ptr = 0;
     pmetrics_sq_list->public_sq.tail_ptr = 0;
     pmetrics_sq_list->public_sq.tail_ptr_virt = 0;
@@ -676,49 +668,45 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
         exclude_admin = 1;
     }
 
-    /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
-        dev = &pmetrics_device->pnvme_device->pdev->dev;
-        /* Loop for each sq node */
-        list_for_each_entry_safe(pmetrics_sq_list, pmetrics_sq_next,
-                &pmetrics_device->metrics_sq_list, sq_list_hd) {
-            /* Check if Admin Q is excluded or not */
-            if ((exclude_admin == 1) &&
-                    (pmetrics_sq_list->public_sq.sq_id == 0)) {
-                LOG_DBG("Retaining Admin SQ from deallocation");
-                /* drop sq cmds and set to zero the public metrics of asq */
-                reinit_admn_sq(pmetrics_sq_list, pmetrics_device);
-            } else {
-                /* Call the generic deallocate sq function */
-                deallocate_metrics_sq(dev, pmetrics_sq_list, pmetrics_device);
-            }
-        } /* list loop for sq list */
-        /* Loop for each cq node */
-        list_for_each_entry_safe(pmetrics_cq_list, pmetrics_cq_next,
-                &pmetrics_device->metrics_cq_list, cq_list_hd) {
-            /* Check if Admin Q is excluded or not */
-            if ((exclude_admin == 1) && pmetrics_cq_list->public_cq.q_id == 0) {
-                LOG_DBG("Retaining Admin CQ from deallocation");
-                /* set to zero the public metrics of acq */
-                reinit_admn_cq(pmetrics_cq_list);
-            } else {
-                /* Call the generic deallocate cq function */
-                deallocate_metrics_cq(dev, pmetrics_cq_list, pmetrics_device);
-            }
-        } /* list loop for cq list */
-
-        /* if complete disable then reset the controller admin registers. */
-        if (new_state == ST_DISABLE_COMPLETELY) {
-            /* Set the Registers to default values. */
-            /* Write 0 to AQA */
-            writel(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->aqa);
-            /* Write 0 to the DMA address into ASQ base address */
-            WRITEQ(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->asq);
-            /* Write 0 to the DMA address into ACQ base address */
-            WRITEQ(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->acq);
+    dev = &pmetrics_device->pnvme_device->pdev->dev;
+    /* Loop for each sq node */
+    list_for_each_entry_safe(pmetrics_sq_list, pmetrics_sq_next,
+            &pmetrics_device->metrics_sq_list, sq_list_hd) {
+        /* Check if Admin Q is excluded or not */
+        if ((exclude_admin == 1) && (pmetrics_sq_list->public_sq.sq_id == 0)) {
+            LOG_DBG("Retaining Admin SQ from deallocation");
+            /* drop sq cmds and set to zero the public metrics of asq */
+            reinit_admn_sq(pmetrics_sq_list, pmetrics_device);
+        } else {
+            /* Call the generic deallocate sq function */
+            deallocate_metrics_sq(dev, pmetrics_sq_list, pmetrics_device);
         }
-    } /* list loop list of devices */
+    } /* list loop for sq list */
 
+    /* Loop for each cq node */
+    list_for_each_entry_safe(pmetrics_cq_list, pmetrics_cq_next,
+            &pmetrics_device->metrics_cq_list, cq_list_hd) {
+        /* Check if Admin Q is excluded or not */
+        if ((exclude_admin == 1) && pmetrics_cq_list->public_cq.q_id == 0) {
+            LOG_DBG("Retaining Admin CQ from deallocation");
+            /* set to zero the public metrics of acq */
+            reinit_admn_cq(pmetrics_cq_list);
+        } else {
+            /* Call the generic deallocate cq function */
+            deallocate_metrics_cq(dev, pmetrics_cq_list, pmetrics_device);
+        }
+    } /* list loop for cq list */
+
+    /* if complete disable then reset the controller admin registers. */
+    if (new_state == ST_DISABLE_COMPLETELY) {
+        /* Set the Registers to default values. */
+        /* Write 0 to AQA */
+        writel(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->aqa);
+        /* Write 0 to the DMA address into ASQ base address */
+        WRITEQ(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->asq);
+        /* Write 0 to the DMA address into ACQ base address */
+        WRITEQ(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->acq);
+    }
     return SUCCESS;
 }
 

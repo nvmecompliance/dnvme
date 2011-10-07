@@ -155,11 +155,4 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
         struct  metrics_device_list *pmetrics_device_element);
 
-/**
-* get_enable_bit - read the device enable bit from controller config register.
-* @param pnvme_dev
-* @return enable bit value
-*/
-u8 get_enable_bit(struct nvme_device *pnvme_dev);
-
 #endif

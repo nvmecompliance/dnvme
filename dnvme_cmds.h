@@ -53,12 +53,12 @@ void destroy_dma_pool(struct nvme_device *nvme_dev);
 /**
  * empty_cmd_track_list:
  * Delete command track list completley per SQ
- * @param pmetrics_device
- * @param q_id
+ * @param pnvme_device
+ * @param pmetrics_sq
  * @return void
  */
-void empty_cmd_track_list(struct  metrics_device_list *pmetrics_device,
-    __u16 q_id);
+void empty_cmd_track_list(struct  nvme_device *pnvme_device,
+    struct  metrics_sq  *pmetrics_sq);
 
 /**
  * free_prp_pool:

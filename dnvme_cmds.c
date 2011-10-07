@@ -492,37 +492,31 @@ static int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
  * empty_cmd_track_list:
  * Delete command track list completley per SQ
  */
-
-void empty_cmd_track_list(struct  metrics_device_list *pmetrics_device,
-    __u16 q_id)
+/*
+ * empty_cmd_track_list:
+ * Delete command track list completley per SQ
+ */
+void empty_cmd_track_list(struct  nvme_device *pnvme_device,
+    struct  metrics_sq  *pmetrics_sq)
 {
     /* pointer to one element of cmd track linked list */
     struct cmd_track  *pcmd_track_element;
-    /* pointer to one element of sq linked list */
-    struct metrics_sq *pmetrics_sq_element;
     /* parameters required for list_for_each_safe */
     struct list_head *pos, *temp;
 
-    /* Get the required queue for the device */
-    list_for_each_entry(pmetrics_sq_element,
-        &pmetrics_device->metrics_sq_list, sq_list_hd) {
-        if (pmetrics_sq_element->public_sq.sq_id == q_id) {
-            /* Loop through the cmd track list */
-            list_for_each_safe(pos, temp,
-                &pmetrics_sq_element->private_sq.cmd_track_list) {
-                pcmd_track_element =
-                    list_entry(pos, struct cmd_track, cmd_list_hd);
-                /* Unampping PRP's and User pages */
-                unmap_user_pg_to_dma(pmetrics_device->pnvme_device,
-                    &pcmd_track_element->prp_nonpersist);
-                free_prp_pool(pmetrics_device->pnvme_device,
-                    &pcmd_track_element->prp_nonpersist,
-                    pcmd_track_element->prp_nonpersist.npages);
-                list_del(pos);
-                kfree(pcmd_track_element);
-            } /* End of cmd_track_list */
-            break;
-        } /* End of specific queue condition */
-    } /* End of loop for queues inside a device */
+    /* Loop through the cmd track list */
+    list_for_each_safe(pos, temp,
+        &pmetrics_sq->private_sq.cmd_track_list) {
+        pcmd_track_element =
+            list_entry(pos, struct cmd_track, cmd_list_hd);
+        /* Unampping PRP's and User pages */
+        unmap_user_pg_to_dma(pnvme_device,
+            &pcmd_track_element->prp_nonpersist);
+        free_prp_pool(pnvme_device,
+            &pcmd_track_element->prp_nonpersist,
+                pcmd_track_element->prp_nonpersist.npages);
+        list_del(pos);
+        kfree(pcmd_track_element);
+    } /* End of cmd_track_list */
 
 }

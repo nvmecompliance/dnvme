@@ -406,14 +406,11 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     u8 admn_id = 0;         /* Always admin ID is 0             */
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list   */
     struct nvme_device *pnvme_dev;
-    u8 enable_bit = 0;
 
     /* get the device from the list */
     pnvme_dev = pmetrics_device_element->pnvme_device;
 
-    /* Check if the device is enabled already. CC.EN = 1 */
-    enable_bit = get_enable_bit(pnvme_dev);
-    if (enable_bit == NVME_CC_ENABLE) {
+    if (readl(&pnvme_dev->nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
         LOG_ERR("Device enable bit is set already!!");
         return -EINVAL;
     }
@@ -472,14 +469,11 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     u8 admn_id = 0;         /* Always Admin ID is zero.       */
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
     struct nvme_device *pnvme_dev;
-    u8 enable_bit = 0;
 
     /* get the device from the list */
     pnvme_dev = pmetrics_device_element->pnvme_device;
 
-    /* Check if the device is enabled already. CC.EN = 1 */
-    enable_bit = get_enable_bit(pnvme_dev);
-    if (enable_bit == NVME_CC_ENABLE) {
+    if (readl(&pnvme_dev->nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
         LOG_ERR("Device enable bit is set already!!");
         return -EINVAL;
     }
