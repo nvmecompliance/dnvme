@@ -316,6 +316,7 @@ int main(void)
     char *tmpfile1 = "/tmp/file_name1.txt";
     char *tmpfile2 = "/tmp/file_name2.txt";
     char *tmpfile3 = "/tmp/file_name3.txt";
+    char *tmpfile4 = "/tmp/file_name4.txt";
 
     printf("\n*****\t Demo \t*****\n");
 
@@ -355,7 +356,7 @@ int main(void)
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("Calling Dump Metrics to tmpfile2\n");
+    printf("Calling Dump Metrics to tmpfile1\n");
     ioctl_dump(file_desc, tmpfile1);
 
 
@@ -369,18 +370,24 @@ int main(void)
 
     test_metrics(file_desc);
 
-    printf("Calling Contoller State to set to Disable state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE);
+
+    printf("Executing PRP Test Cases\n");
+    test_prp(file_desc);
 
     ioctl_dump(file_desc, tmpfile2);
+    
+    printf("Calling Contoller State to set to Disable state\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE);
+    
+    ioctl_dump(file_desc, tmpfile3);
 
     printf("Calling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
 
-    ioctl_dump(file_desc, tmpfile3);
+    ioctl_dump(file_desc, tmpfile4);
 
-    printf("Executing PRP Test Cases\n");
-    test_prp(file_desc);
+    //printf("Executing PRP Test Cases\n");
+    //test_prp(file_desc);
 
     close(file_desc);
     printf("\nEnd of Testing...");

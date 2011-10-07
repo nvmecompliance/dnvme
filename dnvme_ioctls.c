@@ -571,18 +571,14 @@ int driver_ioctl_init(struct pci_dev *pdev,
 *  driver_send_64b - Routine for sending 64 bytes command into
 *  admin/IO SQ/CQ's
 */
-int driver_send_64b(struct  metrics_device_list *pmetrics_device_element,
+int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     struct nvme_64b_send *nvme_64b_send)
 {
     /* ret code to verify status of sending 64 bytes command */
     int ret_code = -EINVAL;
-    struct nvme_device *nvme_dev;
-
-    /* get the device from the list */
-    nvme_dev = pmetrics_device_element->pnvme_device;
 
     /* TODO: make the function more generic while implementing complete IOCTL */
-    ret_code = submit_command(nvme_dev, nvme_64b_send->queue_id,
+    ret_code = submit_command(pmetrics_device, nvme_64b_send->queue_id,
         nvme_64b_send->data_buf_ptr, nvme_64b_send->data_buf_size);
     return ret_code;
 }

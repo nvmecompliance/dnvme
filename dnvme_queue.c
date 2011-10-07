@@ -10,13 +10,15 @@
 #include "dnvme_reg.h"
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
+#include "dnvme_cmds.h"
 
 /* Static function for queue deallocation */
 static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device);
 static int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list);
 static int deallocate_metrics_cq(struct device *dev,
-        struct  metrics_cq  *pmetrics_cq_list);
+        struct  metrics_cq  *pmetrics_cq_list,
+        struct  metrics_device_list *pmetrics_device);
 static int deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device);
@@ -547,11 +549,15 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
  * from the cq list are deleted.
  */
 static int deallocate_metrics_cq(struct device *dev,
-        struct  metrics_cq  *pmetrics_cq_list)
+        struct  metrics_cq  *pmetrics_cq_list,
+        struct  metrics_device_list *pmetrics_device)
 {
     /* Delete memory for all metrics_cq for current id here */
     if (pmetrics_cq_list->private_cq.contig == 0) {
-        /* TODO: free prp list pointed by this non contig cq */
+        /* free prp list pointed by this non contig cq */
+        free_prp_pool(pmetrics_device->pnvme_device,
+                &pmetrics_cq_list->private_cq.prp_persist,
+                pmetrics_cq_list->private_cq.prp_persist.npages);
     } else {
         /* Contiguous CQ, so free the DMA memory */
         dma_free_coherent(dev, pmetrics_cq_list->private_cq.size,
@@ -573,31 +579,22 @@ static int deallocate_metrics_cq(struct device *dev,
  * from the sq list are deleted. The cmds tracked are dropped and nodes in
  * command list are deleted.
  */
+
 static int deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device)
 {
-#if 0
-    struct cmd_track *pcmd_track_list;   /* to track a particular cmd     */
-    struct cmd_track *pcmd_track_next;   /* to track a particular cmd     */
-
-    /* drop all outstanding cmds for this SQ on the floor. */
-    /* TODO */
-    list_for_each_entry_safe(pcmd_track_list, pcmd_track_next, &sq_cmd_ll,
-            cmd_list_hd) {
-        /* Free prp list pointed by this tracked cmd. */
-        LOG_DBG("Delete->cmd_id:sd_id = %d:%d", pcmd_track_list->unique_id,
-                pmetrics_sq_list->public_sq.sq_id);
-        /* Delete the current sq entry from the list */
-        list_del_init(&pcmd_track_list->cmd_list_hd);
-    }
-#endif
-
+    empty_cmd_track_list(pmetrics_device, pmetrics_sq_list->
+            public_sq.sq_id);
     /* Clean up memory for all metrics_sq for current id here */
     if (pmetrics_sq_list->private_sq.contig == 0) {
-        /* TODO: free the prp pool pointed by this non contig sq. */
+        /* free the prp pool pointed by this non contig sq. */
         LOG_DBG("DMA Free for non-contig sq id = %d", pmetrics_sq_list->
                 public_sq.sq_id);
+        /* free prp list pointed by this non contig cq */
+        free_prp_pool(pmetrics_device->pnvme_device,
+                &pmetrics_sq_list->private_sq.prp_persist,
+                pmetrics_sq_list->private_sq.prp_persist.npages);
     } else {
         LOG_DBG("DMA Free for contig sq id = %d", pmetrics_sq_list->
                 public_sq.sq_id);
@@ -630,19 +627,7 @@ static int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
 static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device)
 {
-#if 0
-    struct cmd_track *pcmd_track_list;   /* to track a particular cmd     */
-    struct cmd_track *pcmd_track_next;   /* to track a particular cmd     */
-
-    /* Wipe all outstanding cmds for this ASQ. */
-    list_for_each_entry_safe(pcmd_track_list, pcmd_track_next, &sq_cmd_ll,
-            cmd_list_hd) {
-        LOG_DBG("Cmd Free for sq id = %d", pmetrics_sq_list->public_sq.sq_id);
-        /* TODO Free the prp list described by cmd_track[j].prp_non_persist */
-        list_del_init(&pcmd_track_list->cmd_list_hd);
-        kfree(pcmd_track_list);
-    }
-#endif
+    empty_cmd_track_list(pmetrics_device, 0);
 
     pmetrics_sq_list->public_sq.head_ptr = 0;
     pmetrics_sq_list->public_sq.tail_ptr = 0;
@@ -699,7 +684,7 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
                 reinit_admn_cq(pmetrics_cq_list);
             } else {
                 /* Call the generic deallocate cq function */
-                deallocate_metrics_cq(dev, pmetrics_cq_list);
+                deallocate_metrics_cq(dev, pmetrics_cq_list, pmetrics_device);
             }
         } /* list loop for cq list */
 

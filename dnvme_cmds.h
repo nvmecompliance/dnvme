@@ -12,6 +12,7 @@ enum {
 
 /* Enum specifying PRP1,PRP2 or List */
 enum prp_type {
+    NO_PRP = 0,
     PRP1 = 1,
     PRP2 = 2,
     PRP_List = 4,
@@ -38,7 +39,7 @@ enum data_buf_type {
 * Add the implementation logic of complete ioctl and update the
 * function arguments accordingly
 */
-int submit_command(struct nvme_device *nvme_dev, __u16 q_id,
+int submit_command(struct  metrics_device_list *pmetrics_device, __u16 q_id,
     __u8 *buf_addr, __u32 buf_len);
 
 /**
@@ -48,5 +49,24 @@ int submit_command(struct nvme_device *nvme_dev, __u16 q_id,
  * @return void
  */
 void destroy_dma_pool(struct nvme_device *nvme_dev);
+
+/**
+ * empty_cmd_track_list:
+ * Delete command track list completley per SQ
+ * @param pmetrics_device
+ * @param q_id
+ * @return void
+ */
+void empty_cmd_track_list(struct  metrics_device_list *pmetrics_device,
+    __u16 q_id);
+
+/**
+ * free_prp_pool:
+ * Frees the PRP pool for a device.
+ * @param nvme_device
+ * @param nvme_prps
+ * @return void
+ */
+void free_prp_pool(struct nvme_device *, struct nvme_prps *, __u32);
 
 #endif

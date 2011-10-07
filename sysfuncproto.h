@@ -156,7 +156,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
 * @param nvme_64b_send
 * @return Error Codes
 */
-int driver_send_64b(struct  metrics_device_list *pmetrics_device_element,
+int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     struct nvme_64b_send *nvme_64b_send);
 
 /**
