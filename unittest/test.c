@@ -65,20 +65,17 @@ void ioctl_write_data(int file_desc)
     struct rw_generic test_data;
 
     test_data.type = NVMEIO_BAR01;
-    test_data.offset = 0x8;
+    test_data.offset = 0x14;
     test_data.nBytes = 4;
     test_data.acc_type = DWORD_LEN;
-    test_data.buffer[0] = 0xaa;
-    test_data.buffer[1] = 0xbb;
-    test_data.buffer[2] = 0xcc;
-    test_data.buffer[3] = 0xdd;
-    test_data.buffer[4] = 0xee;
-    test_data.buffer[5] = 0xbb;
-    test_data.buffer[6] = 0xcc;
-    test_data.buffer[7] = 0xdd;
 
+    test_data.buffer = malloc(sizeof(char) * test_data.nBytes);
+    test_data.buffer[0] = 0x01;
+    test_data.buffer[1] = 0x00;
+    test_data.buffer[2] = 0x44;
+    test_data.buffer[3] = 0x00;
 
-    printf("writing Test Application...\n");
+    printf("\nwriting Test Application...\n");
     ret_val = ioctl(file_desc, NVME_IOCTL_WRITE_GENERIC, &test_data);
 
     if (ret_val < 0) {
@@ -215,24 +212,51 @@ void test_prep_cq(int file_desc)
     printf("\nTEST 5: Preparing CQ's with different sizes...\n");
     printf("\nTEST 5: Contiguous CQ Case...\n");
     printf("\n\tCQ ID = 1\n");
-    ioctl_prep_cq(file_desc, 1, 20, 1);
-    printf("\nPress any key to continue..");
-    getchar();
-    printf("\n\tCQ ID = 3\n");
-    ioctl_prep_cq(file_desc, 3, 200, 1);
+    ioctl_prep_cq(file_desc, 1, 100, 1);
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("\nTEST 6: Preparing CQ 1 to 3 with different sizes...\n");
-    printf("\nTEST 6: Non Contiguous SQ Case...\n");
-    printf("\n\tCQ ID = 6\n");
-    ioctl_prep_cq(file_desc, 6, 10, 0);
+    printf("\n\tCQ ID = 2\n");
+    ioctl_prep_cq(file_desc, 2, 100, 1);
     printf("\nPress any key to continue..");
     getchar();
+
+    printf("\n\tCQ ID = 3\n");
+    ioctl_prep_cq(file_desc, 3, 100, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    printf("\n\tCQ ID = 4\n");
+    ioctl_prep_cq(file_desc, 4, 100, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+
     printf("\n\tCQ ID = 5\n");
-    ioctl_prep_cq(file_desc, 5, 15, 0);
+    ioctl_prep_cq(file_desc, 5, 100, 1);
     printf("\nPress any key to continue..");
     getchar();
+
+    printf("\n\tCQ ID = 6\n");
+    ioctl_prep_cq(file_desc, 6, 100, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    printf("\nTEST 6: Preparing CQ with different sizes...\n");
+    printf("\nTEST 6: Non Contiguous SQ Case...\n");
+    printf("\n\tCQ ID = 16\n");
+    ioctl_prep_cq(file_desc, 16, 10, 0);
+    printf("\nPress any key to continue..");
+    getchar();
+    printf("\n\tCQ ID = 15\n");
+    ioctl_prep_cq(file_desc, 15, 15, 0);
+    printf("\nPress any key to continue..");
+    getchar();
+}
+
+void ioctl_ut_reap_inq(int file_desc)
+{
+    uint16_t tmp;
+    ioctl(file_desc, UNIT_TEST_REAP_INQ, &tmp);
 }
 
 void test_metrics(int file_desc)
@@ -320,15 +344,20 @@ void test_reap_inquiry(int file_desc)
     ioctl_reap_inquiry(file_desc, 2);
     printf("Reap inquiry on CQ = 3...\n");
     ioctl_reap_inquiry(file_desc, 3);
-
+    printf("Reap inquiry on CQ = 4...\n");
+    ioctl_reap_inquiry(file_desc, 4);
+    printf("Reap inquiry on CQ = 5...\n");
+    ioctl_reap_inquiry(file_desc, 5);
+    printf("Reap inquiry on CQ = 6...\n");
+    ioctl_reap_inquiry(file_desc, 6);
 }
 
 int main(void)
 {
     int file_desc;
     char *tmpfile1 = "/tmp/file_name1.txt";
-    //char *tmpfile2 = "/tmp/file_name2.txt";
-    //char *tmpfile3 = "/tmp/file_name3.txt";
+    char *tmpfile2 = "/tmp/file_name2.txt";
+    char *tmpfile3 = "/tmp/file_name3.txt";
     //char *tmpfile4 = "/tmp/file_name4.txt";
 
     printf("\n*****\t Demo \t*****\n");
@@ -356,23 +385,31 @@ int main(void)
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("Calling Contoller State to set to Enable state\n");
+    printf("\nCalling Contoller State to set to Enable state\n");
     ioctl_enable_ctrl(file_desc);
 
-    //test_prep_sq(file_desc);
-    //printf("\n...Test PASS if all Preparation success...");
-    //printf("\nPress any key to continue..");
-    //getchar();
+    printf("\nSet IO Q Size before proceeding....\n");
+    ioctl_write_data(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    test_prep_sq(file_desc);
+    printf("\n...Test PASS if all Preparation success...");
+    printf("\nPress any key to continue..");
+    getchar();
 
     test_prep_cq(file_desc);
     printf("\n...Test PASS if all Preparation success...");
     printf("\nPress any key to continue..");
     getchar();
 
-    //printf("Calling Dump Metrics to tmpfile1\n");
-    //ioctl_dump(file_desc, tmpfile1);
+    printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
+    ioctl_ut_reap_inq(file_desc);
 
-    printf("Testing Reap Inquiry...\n");
+    printf("Calling Dump Metrics to tmpfile1\n");
+    ioctl_dump(file_desc, tmpfile1);
+
+    printf("\nTesting Reap Inquiry...\n");
     test_reap_inquiry(file_desc);
     printf("\nPress any key to continue..");
     getchar();
@@ -380,31 +417,22 @@ int main(void)
     printf("Call Ring Doorbell\n");
     tst_ring_dbl(file_desc);
 
-    //test_admin(file_desc);
-    //printf("\n...Test PASS if creation is not successful.");
-    //printf("\nPress any key to continue..");
-    //getchar();
-
-    //test_metrics(file_desc);
-
-
-    //printf("Executing PRP Test Cases\n");
-    //test_prp(file_desc);
-
-    //ioctl_dump(file_desc, tmpfile2);
-    
-    //printf("Calling Contoller State to set to Disable state\n");
-    //ioctl_disable_ctrl(file_desc, ST_DISABLE);
-    
-    //ioctl_dump(file_desc, tmpfile2);
-
-    //printf("Calling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
-    //ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
-
-    //ioctl_dump(file_desc, tmpfile3);
-
-    //printf("Executing PRP Test Cases\n");
-    //test_prp(file_desc);
+    test_admin(file_desc);
+    printf("\n...Test PASS if creation is not successful.");
+    printf("\nPress any key to continue..");
+    getchar();
+    test_metrics(file_desc);
+    printf("Executing PRP Test Cases\n");
+    test_prp(file_desc);
+    ioctl_dump(file_desc, tmpfile2);
+    printf("Calling Contoller State to set to Disable state\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE);
+    ioctl_dump(file_desc, tmpfile2);
+    printf("Calling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+    ioctl_dump(file_desc, tmpfile3);
+    printf("Executing PRP Test Cases\n");
+    test_prp(file_desc);
 
     close(file_desc);
     printf("\nEnd of Testing...");

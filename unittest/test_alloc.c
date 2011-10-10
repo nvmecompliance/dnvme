@@ -58,9 +58,9 @@ void ioctl_prep_cq(int file_desc, uint16_t cq_id, uint16_t elem, uint8_t contig)
     ret_val = ioctl(file_desc, NVME_IOCTL_PREPARE_CQ_CREATION, &prep_cq);
 
     if(ret_val < 0) {
-        printf("\tSQ ID = %d Preparation failed!\n", prep_cq.cq_id);
+        printf("\tCQ ID = %d Preparation failed!\n", prep_cq.cq_id);
     } else {
-        printf("\tSQ ID = %d Preparation success\n", prep_cq.cq_id);
+        printf("\tCQ ID = %d Preparation success\n", prep_cq.cq_id);
     }
 }
 

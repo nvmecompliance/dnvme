@@ -24,6 +24,7 @@
 #include "dnvme_ds.h"
 #include "version.h"
 #include "dnvme_cmds.h"
+#include "ut_reap_inq.h"
 
 #define    DRV_NAME            "dnvme"
 #define    NVME_DEVICE_NAME    "qnvme"
@@ -395,6 +396,11 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         reap_inq = (struct nvme_reap_inquiry *)ioctl_param;
         /* call reap inquiry driver routine */
         ret_val = driver_reap_inquiry(pmetrics_device_element, reap_inq);
+        break;
+
+    case UNIT_TEST_REAP_INQ:
+        LOG_DBG("UT Reap Inquiry ioctl:");
+        unit_test_reap_inq(pmetrics_device_element);
         break;
 
     default:

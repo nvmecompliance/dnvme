@@ -389,6 +389,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
     /* Extract the IOSQES from CC */
     ctrl_config = (ctrl_config >> 16) & 0xF;
+
     LOG_NRM("CC.IOSQES = 0x%x, 2^x = %d", ctrl_config, (1 << ctrl_config));
     pmetrics_sq_list->private_sq.size = pmetrics_sq_list->public_sq.elements *
             (1 << ctrl_config);
@@ -452,6 +453,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
     /* Extract the IOCQES from CC */
     ctrl_config = (ctrl_config >> 20) & 0xF;
+
     LOG_NRM("CC.IOCQES = 0x%x, 2^x = %d", ctrl_config, (1 << ctrl_config));
     pmetrics_cq_list->private_cq.size = pmetrics_cq_list->public_cq.elements *
             (1 << ctrl_config);
@@ -720,10 +722,10 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         struct nvme_reap_inquiry *reap_inq)
 {
     u8 tmp_pbit;                            /* Local phase bit      */
-    struct metrics_cq  *pmetrics_cq_node;   /* ptr to sq node       */
+    struct metrics_cq  *pmetrics_cq_node;   /* ptr to cq node       */
     u16 comp_entry_size = 16;               /* acq entry size       */
-    struct cq_completion cq_entry;          /* cq entry format      */
-    u8 *q_head_ptr;                         /* head ptr in cq       */
+    struct cq_completion *cq_entry;         /* cq entry format      */
+    u8 *q_head_ptr;                         /* mem head ptr in cq   */
     u16 __user num_remaining = (u16 __user)reap_inq->num_remaining;
                                             /* user buffer ptr      */
 
@@ -736,21 +738,20 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
                 /* Calculate the entry size */
                 comp_entry_size = (pmetrics_cq_node->private_cq.size) /
                         (pmetrics_cq_node->public_cq.elements);
-                if(comp_entry_size != 16) {
-                    LOG_NRM("CQ entry size is different than std 16!");
-                }
             }
             /* local tmp phase bit */
             tmp_pbit = pmetrics_cq_node->public_cq.pbit_new_entry;
-            LOG_DBG("Reap Inquiry on CQ_ID:PBIT = %d:%d", pmetrics_cq_node->
-                    public_cq.q_id, tmp_pbit);
-            /* point the head ptr to corresponding head ptr */
+            LOG_DBG("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
+                    pmetrics_cq_node->public_cq.q_id, tmp_pbit,
+                    comp_entry_size);
+            LOG_DBG("CQ Hd Ptr = %d", pmetrics_cq_node->public_cq.head_ptr);
+            /* point the address to corresponding head ptr */
             q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr +
                     (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr);
             /* loop through the entries in the cq */
             while (1) {
-                memcpy(&cq_entry, q_head_ptr, sizeof(cq_entry));
-                if(cq_entry.phase_bit == tmp_pbit) {
+                cq_entry = (struct cq_completion *)q_head_ptr;
+                if (cq_entry->phase_bit == tmp_pbit) {
                     pmetrics_cq_node->public_cq.tail_ptr += 1;
                     q_head_ptr += comp_entry_size;
                     num_remaining += 1;
@@ -761,9 +762,8 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
                         tmp_pbit = !tmp_pbit;
                         q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr;
                     }
-                }
-                /* Check if we reached stale element */
-                if (tmp_pbit != cq_entry.phase_bit) {
+                } else {
+                    /* we reached stale element */
                     break;
                 }
             } /* end of while loop */
