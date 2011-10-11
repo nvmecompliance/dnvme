@@ -177,7 +177,7 @@ void test_admin(int file_desc)
 
 void test_prep_sq(int file_desc)
 {
-    printf("\nTEST 3: Allocating SQ 1 to 3 with different sizes...\n");
+    printf("\nTEST 3: Allocating SQs with different sizes...\n");
     printf("\nTEST 3: Contiguous SQ Case...\n");
     printf("\n\tSD_ID : CQ ID = 1 : 1\n");
     ioctl_prep_sq(file_desc, 1, 1, 20, 1);
@@ -316,7 +316,7 @@ void ioctl_dump(int file_desc, char *tmpfile)
 
     pfile.flen = strlen(tmpfile);
 
-    printf("size = %d\n", pfile.flen);
+    //printf("size = %d\n", pfile.flen);
 
     pfile.file_name = malloc(sizeof(char) * pfile.flen);
     strcpy((char *)pfile.file_name, tmpfile);
@@ -342,19 +342,19 @@ int test_prp(int file_desc)
 
 void test_reap_inquiry(int file_desc)
 {
-    printf("Reap inquiry on Admin CQ...\n");
+    printf("\tReap inquiry on Admin CQ...\n");
     ioctl_reap_inquiry(file_desc, 0);
-    printf("Reap inquiry on CQ = 1...\n");
+    printf("\tReap inquiry on CQ = 1...\n");
     ioctl_reap_inquiry(file_desc, 1);
-    printf("Reap inquiry on CQ = 2...\n");
+    printf("\tReap inquiry on CQ = 2...\n");
     ioctl_reap_inquiry(file_desc, 2);
-    printf("Reap inquiry on CQ = 3...\n");
+    printf("\tReap inquiry on CQ = 3...\n");
     ioctl_reap_inquiry(file_desc, 3);
-    printf("Reap inquiry on CQ = 4...\n");
+    printf("\tReap inquiry on CQ = 4...\n");
     ioctl_reap_inquiry(file_desc, 4);
-    printf("Reap inquiry on CQ = 5...\n");
+    printf("\tReap inquiry on CQ = 5...\n");
     ioctl_reap_inquiry(file_desc, 5);
-    printf("Reap inquiry on CQ = 6...\n");
+    printf("\tReap inquiry on CQ = 6...\n");
     ioctl_reap_inquiry(file_desc, 6);
 }
 
@@ -378,12 +378,9 @@ int main(void)
         exit(-1);
     }
 
-    printf("Device File Succesfully Opened = %d\n", file_desc);
+    printf("Device File Successfully Opened = %d\n", file_desc);
 
-    //printf("Calling Check Device status\n");
-    //ioctl_check_device(file_desc);
-
-    printf("Calling Contoller State to set to Disable state\n");
+    printf("Calling Controller State to set to Disable state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE);
 
     test_admin(file_desc);
@@ -391,7 +388,7 @@ int main(void)
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("\nCalling Contoller State to set to Enable state\n");
+    printf("\nCalling Controller State to set to Enable state\n");
     ioctl_enable_ctrl(file_desc);
 
     printf("\nSet IO Q Size before proceeding....\n");
@@ -414,9 +411,6 @@ int main(void)
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("Calling Dump Metrics to tmpfile1\n");
-    ioctl_dump(file_desc, tmpfile1);
-
     printf("\nTesting Reap Inquiry...\n");
     test_reap_inquiry(file_desc);
     printf("\nPress any key to continue..");
@@ -431,18 +425,26 @@ int main(void)
     printf("\n...Test PASS if creation is not successful.");
     printf("\nPress any key to continue..");
     getchar();
-    test_metrics(file_desc);
-    printf("Executing PRP Test Cases\n");
+
+    //test_metrics(file_desc);
+
+    printf("\nExecuting PRP Test Cases\n");
     test_prp(file_desc);
-    ioctl_dump(file_desc, tmpfile2);
-    printf("Calling Contoller State to set to Disable state\n");
+
+    printf("Calling Dump Metrics to tmpfile1\n");
+    ioctl_dump(file_desc, tmpfile1);
+
+    printf("\nCalling Contoller State to set to Disable state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE);
+
+    printf("\nCalling Dump Metrics to tmpfile2 Afer Disable...\n");
     ioctl_dump(file_desc, tmpfile2);
-    printf("Calling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
+
+    printf("\nCalling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+
+    printf("\nCalling Dump Metrics to tmpfile2 After Disable Completely...\n");
     ioctl_dump(file_desc, tmpfile3);
-    printf("Executing PRP Test Cases\n");
-    test_prp(file_desc);
 
     close(file_desc);
     printf("\nEnd of Testing...");

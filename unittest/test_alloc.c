@@ -73,10 +73,10 @@ void ioctl_reap_inquiry(int file_desc, int cq_id)
 
     ret_val = ioctl(file_desc, NVME_IOCTL_REAP_INQUIRY, &rp_inq);
     if(ret_val < 0) {
-        printf("reap inquiry failed!\n");
+        printf("\nreap inquiry failed!\n");
     }
     else {
-        printf("Reaped Cq = %d Successfully, num_remaining = %d\n",
+        printf("\t\tReaped on CQ ID = %d, Num_Remaining = %d\n",
                 rp_inq.q_id, rp_inq.num_remaining);
     }
 }
