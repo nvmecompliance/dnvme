@@ -20,7 +20,7 @@ enum {
     NVME_RING_SQ_DOORBELL, /** <enum Ring SQ Tail doorbell              */
     NVME_DUMP_METRICS,     /** <enum Log data from Metrics structure    */
     NVME_REAP_INQUIRY,     /** <enum Invoke Reap inquiry                */
-    UT_REAP_INQUIRY,       /* Test Reap inquiry                         */
+    UNIT_TESTS,            /* Generic IOCTL to set up UT scenarios      */
 };
 
 /**
@@ -174,6 +174,10 @@ enum {
 #define NVME_IOCTL_REAP_INQUIRY _IOWR('A', NVME_REAP_INQUIRY,\
         struct nvme_reap_inquiry)
 
-#define UNIT_TEST_REAP_INQ _IOWR('A', UT_REAP_INQUIRY, int)
+/**
+ * @def IOCTL_UNIT_TESTS
+ * To set up generic unit test scenarios.
+ */
+#define IOCTL_UNIT_TESTS _IOWR('A', UNIT_TESTS, uint16_t)
 
 #endif

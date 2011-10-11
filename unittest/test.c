@@ -253,10 +253,16 @@ void test_prep_cq(int file_desc)
     getchar();
 }
 
-void ioctl_ut_reap_inq(int file_desc)
+int ioctl_ut_reap_inq(int file_desc)
 {
     uint16_t tmp;
-    ioctl(file_desc, UNIT_TEST_REAP_INQ, &tmp);
+
+    tmp = 0; // Reap Inquiry Unit Test setup.
+    if (ioctl(file_desc, IOCTL_UNIT_TESTS, &tmp) < 0) {
+        printf("\n\nTest = %d Setup failed...", tmp);
+        return -1;
+    }
+    return 0;
 }
 
 void test_metrics(int file_desc)
@@ -405,6 +411,8 @@ int main(void)
 
     printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
     ioctl_ut_reap_inq(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
 
     printf("Calling Dump Metrics to tmpfile1\n");
     ioctl_dump(file_desc, tmpfile1);
@@ -416,6 +424,8 @@ int main(void)
 
     printf("Call Ring Doorbell\n");
     tst_ring_dbl(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
 
     test_admin(file_desc);
     printf("\n...Test PASS if creation is not successful.");

@@ -250,6 +250,7 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
     struct nvme_file    *n_file;         /* dump metrics params              */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
     int dev_found;
+    u16 test_number;
 
     LOG_DBG("Minor No = %d", iminor(inode));
     /* Loop through the devices available in the metrics list */
@@ -398,9 +399,22 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         ret_val = driver_reap_inquiry(pmetrics_device_element, reap_inq);
         break;
 
-    case UNIT_TEST_REAP_INQ:
-        LOG_DBG("UT Reap Inquiry ioctl:");
-        unit_test_reap_inq(pmetrics_device_element);
+    case IOCTL_UNIT_TESTS:
+        /* Get the test_number that user passed */
+        copy_from_user(&test_number, &ioctl_param, sizeof(u16));
+
+        /* Call the Test setup based on user request */
+        switch (test_number) {
+        case 0: /* Unit Test for IOCTL REAP INQUIRY */
+            LOG_DBG("UT Reap Inquiry ioctl:");
+            unit_test_reap_inq(pmetrics_device_element);
+            ret_val = SUCCESS;
+            break;
+        default:
+            LOG_DBG("Invalid Test Setup called....%d", test_number);
+            ret_val = -EINVAL;
+        }
+
         break;
 
     default:

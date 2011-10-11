@@ -77,7 +77,6 @@ void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device)
                 cq_entry->phase_bit = tmpbit;
                 q_head_ptr += comp_entry_size;
                 num++;
-                LOG_DBG("NUM = %d", num);
                 if (q_head_ptr >= pmetrics_cq_node->private_cq.vir_kern_addr +
                                     pmetrics_cq_node->private_cq.size) {
                     /* Roll over */
