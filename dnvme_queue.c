@@ -761,6 +761,7 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
                                     pmetrics_cq_node->private_cq.size)) {
                         tmp_pbit = !tmp_pbit;
                         q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr;
+                        pmetrics_cq_node->public_cq.tail_ptr = 0;
                     }
                 } else {
                     /* we reached stale element */

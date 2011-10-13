@@ -127,7 +127,7 @@ int driver_log(struct nvme_file *n_file)
                         data_buf_addr);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"data_buf_size = %d",
-                        (u64)pmetrics_cq_list->private_cq.prp_persist.
+                        pmetrics_cq_list->private_cq.prp_persist.
                         data_buf_size);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"sq = 0X%llX", (u64)pmetrics_cq_list->
@@ -212,7 +212,7 @@ int driver_log(struct nvme_file *n_file)
                         data_buf_addr);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"data_buf_size = %d",
-                        (u64)pmetrics_sq_list->private_sq.prp_persist.
+                        pmetrics_sq_list->private_sq.prp_persist.
                         data_buf_size);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"sg = 0X%llX", (u64)pmetrics_sq_list->

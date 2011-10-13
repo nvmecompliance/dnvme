@@ -169,16 +169,15 @@ void ioctl_disable_ctrl(int file_desc, enum nvme_state new_state)
 void test_admin(int file_desc)
 {
     /* Test Case 1 */
-    printf("\nTEST 1: Create Admin CQ...\n");
+    printf("\nTEST 1.1: Create Admin CQ...\n");
     ioctl_create_acq(file_desc);
-    printf("\nTEST 2: Create Admin SQ...\n");
+    printf("\nTEST 1.2: Create Admin SQ...\n");
     ioctl_create_asq(file_desc);
 }
 
 void test_prep_sq(int file_desc)
 {
-    printf("\nTEST 3: Allocating SQs with different sizes...\n");
-    printf("\nTEST 3: Contiguous SQ Case...\n");
+    printf("\nTEST 2.2.1: Allocating 3 IO Contiguous SQs with different sizes...\n");
     printf("\n\tSD_ID : CQ ID = 1 : 1\n");
     ioctl_prep_sq(file_desc, 1, 1, 20, 1);
     printf("\nPress any key to continue..");
@@ -191,8 +190,7 @@ void test_prep_sq(int file_desc)
     ioctl_prep_sq(file_desc, 3, 6, 120, 1);
     printf("\nPress any key to continue..");
     getchar();
-    printf("\nTEST 4: Allocating SQ 1 to 3 with different sizes...\n");
-    printf("\nTEST 4: Non Contiguous SQ Case...\n");
+    printf("\nTEST 2.2.2: Allocating 3 Non-Contiguous IO SQs with different sizes...\n");
     printf("\n\tSD_ID : CQ ID = 4 : 6\n");
     ioctl_prep_sq(file_desc, 4, 6, 10, 0);
     printf("\nPress any key to continue..");
@@ -209,8 +207,7 @@ void test_prep_sq(int file_desc)
 
 void test_prep_cq(int file_desc)
 {
-    printf("\nTEST 5: Preparing CQ's with different sizes...\n");
-    printf("\nTEST 5: Contiguous CQ Case...\n");
+    printf("\nTEST 2.3.1: Preparing IO Contiguous CQ's with 100 elements each...\n");
     printf("\n\tCQ ID = 1\n");
     ioctl_prep_cq(file_desc, 1, 100, 1);
     printf("\nPress any key to continue..");
@@ -241,8 +238,7 @@ void test_prep_cq(int file_desc)
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("\nTEST 6: Preparing CQ with different sizes...\n");
-    printf("\nTEST 6: Non Contiguous SQ Case...\n");
+    printf("\nTEST 2.3.2: Preparing Non-Contiguous IO CQ's with different sizes...\n");
     printf("\n\tCQ ID = 16\n");
     ioctl_prep_cq(file_desc, 16, 10, 0);
     printf("\nPress any key to continue..");
@@ -342,8 +338,8 @@ int test_prp(int file_desc)
 
 void test_reap_inquiry(int file_desc)
 {
-    printf("\tReap inquiry on Admin CQ...\n");
-    ioctl_reap_inquiry(file_desc, 0);
+    //printf("\tReap inquiry on Admin CQ...\n");
+    //ioctl_reap_inquiry(file_desc, 0);
     printf("\tReap inquiry on CQ = 1...\n");
     ioctl_reap_inquiry(file_desc, 1);
     printf("\tReap inquiry on CQ = 2...\n");
@@ -366,7 +362,7 @@ int main(void)
     char *tmpfile3 = "/tmp/file_name3.txt";
     //char *tmpfile4 = "/tmp/file_name4.txt";
 
-    printf("\n*****\t Demo \t*****\n");
+    printf("\n******\t Sprint 2 Demo \t******\n");
 
     /*printf("Ensure you have permissions to device..\n\
     else \n do \"chmod 777 /dev/qnvme0\" \n");*/
@@ -382,14 +378,18 @@ int main(void)
 
     printf("Calling Controller State to set to Disable state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE);
+    printf("\nPress any key to continue..");
+    getchar();
 
     test_admin(file_desc);
     printf("\n...Test PASS if creation is success.");
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("\nCalling Controller State to set to Enable state\n");
+    printf("\nTEST 2.1: Calling Controller State to set to Enable state\n");
     ioctl_enable_ctrl(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
 
     printf("\nSet IO Q Size before proceeding....\n");
     ioctl_write_data(file_desc);
@@ -411,40 +411,52 @@ int main(void)
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("\nTesting Reap Inquiry...\n");
+    printf("\nTest 2.4: Testing Reap Inquiry...\n");
     test_reap_inquiry(file_desc);
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("Call Ring Doorbell\n");
+    printf("\n Test 2.5: Call Ring Doorbell\n");
     tst_ring_dbl(file_desc);
     printf("\nPress any key to continue..");
     getchar();
 
-    test_admin(file_desc);
-    printf("\n...Test PASS if creation is not successful.");
-    printf("\nPress any key to continue..");
-    getchar();
+    //test_admin(file_desc);
+    //printf("\n...Test PASS if creation is not successful.");
+    //printf("\nPress any key to continue..");
+    //getchar();
 
     //test_metrics(file_desc);
 
-    printf("\nExecuting PRP Test Cases\n");
+    printf("\nTest 1.3+: Executing PRP Test Cases\n");
     test_prp(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
 
-    printf("Calling Dump Metrics to tmpfile1\n");
+    printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile1\n");
     ioctl_dump(file_desc, tmpfile1);
+    printf("\nPress any key to continue..");
+    getchar();
 
-    printf("\nCalling Contoller State to set to Disable state\n");
+    printf("\nTest 2.7: Calling Controller State to set to Disable state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE);
+    printf("\nPress any key to continue..");
+    getchar();
 
-    printf("\nCalling Dump Metrics to tmpfile2 Afer Disable...\n");
+    printf("\nTest 2.6.2 : Calling Dump Metrics to tmpfile2 after DISABLE...\n");
     ioctl_dump(file_desc, tmpfile2);
+    printf("\nPress any key to continue..");
+    getchar();
 
-    printf("\nCalling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
+    printf("\nTest 2.8: Calling Controller State to set to ST_DISABLE_COMPLETELY state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+    printf("\nPress any key to continue..");
+    getchar();
 
-    printf("\nCalling Dump Metrics to tmpfile2 After Disable Completely...\n");
+    printf("\nTest 2.6.3 :Calling Dump Metrics to tmpfile3 After DISABLE_COMPLETELY...\n");
     ioctl_dump(file_desc, tmpfile3);
+    printf("\nPress any key to continue..");
+    getchar();
 
     close(file_desc);
     printf("\nEnd of Testing...");
