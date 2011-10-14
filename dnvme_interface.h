@@ -80,10 +80,10 @@ struct nvme_ctrl_state {
  * enum providing the definitions of the NVME commands.
  */
 enum nvme_cmds {
-    CMD_ADMIN, /* Admin Command Set */
-    CMD_NVME, /* NVME Command Set */
-    CMD_AON, /* AON  Command Set */
-    CMD_FENCE, /* last element for loop over-run */
+    CMD_ADMIN,   /* Admin Command Set               */
+    CMD_NVME,    /* NVME Command Set                */
+    CMD_AON,     /* AON  Command Set                */
+    CMD_FENCE,   /* last element for loop over-run  */
 };
 
 /**
