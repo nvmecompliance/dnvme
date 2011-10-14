@@ -3,6 +3,7 @@
 
 #include <linux/cdev.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include "dnvme_interface.h"
 
 #define    NVME_DS_VERSION    1.15
@@ -91,13 +92,14 @@ struct metrics_sq {
 };
 
 struct nvme_device {
-    struct pci_dev  *pdev;          /* Pointer to the device in PCI space  */
-    struct nvme_ctrl_reg __iomem *nvme_ctrl_space; /* Pointer to reg space */
-    struct dma_pool *prp_page_pool; /* Mem for PRP List */
-    u8  *bar_0_mapped;              /* Bar 0 IO re-mapped value            */
-    struct device   *dmadev;        /* Pointer to the dma device from pdev */
-    int minor_no;                   /* Minor no. of the device being used  */
-    u8 open_flag;                   /* Allows device opening only once     */
+    struct pci_dev  *pdev;           /* Pointer to the device in PCI space  */
+    struct nvme_ctrl_reg __iomem *nvme_ctrl_space;  /* Pointer to reg space */
+    struct dma_pool *prp_page_pool;  /* Mem for PRP List */
+    u8  *bar_0_mapped;               /* Bar 0 IO re-mapped value            */
+    struct device   *dmadev;         /* Pointer to the dma device from pdev */
+    int minor_no;                    /* Minor no. of the device being used  */
+    u8 open_flag;                    /* Allows device opening only once     */
+    struct mutex metrics_mtx;        /* Mutex for locking per device        */
 };
 
 /*
@@ -105,10 +107,10 @@ struct nvme_device {
  * that are defined.
  */
 struct metrics_device_list {
-    struct  list_head   metrics_device_hd; /* metrics linked list head    */
-    struct  list_head   metrics_cq_list;   /* CQ linked list              */
-    struct  list_head   metrics_sq_list;   /* SQ linked list              */
-    struct  nvme_device *metrics_device;   /* Pointer to this nvme device */
+    struct  list_head   metrics_device_hd; /* metrics linked list head      */
+    struct  list_head   metrics_cq_list;   /* CQ linked list                */
+    struct  list_head   metrics_sq_list;   /* SQ linked list                */
+    struct  nvme_device *metrics_device;   /* Pointer to this nvme device   */
 };
 
 /* extern device metrics linked list for exporting to project files */

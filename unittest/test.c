@@ -359,9 +359,9 @@ int main(void)
     int file_desc;
     int fd2;
     int fd3;
-    //char *tmpfile1 = "/tmp/file_name1.txt";
-    //char *tmpfile2 = "/tmp/file_name2.txt";
-    //char *tmpfile3 = "/tmp/file_name3.txt";
+    char *tmpfile1 = "/tmp/file_name1.txt";
+    char *tmpfile2 = "/tmp/file_name2.txt";
+    char *tmpfile3 = "/tmp/file_name3.txt";
     char *tmpfile4 = "/tmp/file_name4.txt";
 
     printf("\n******\t Sprint 2 Demo \t******\n");
@@ -410,7 +410,7 @@ int main(void)
     printf("\nPress any key to continue..");
     getchar();
 
-#if 0
+#if 1
     test_prep_cq(file_desc);
     printf("\n...Test PASS if all Preparation success...");
     printf("\nPress any key to continue..");

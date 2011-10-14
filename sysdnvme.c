@@ -224,6 +224,9 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     /* set device open status to false when initialized */
     pmetrics_device_list->metrics_device->open_flag = 0;
 
+    /* Initialize the mutex state. */
+    mutex_init(&pmetrics_device_list->metrics_device->metrics_mtx);
+
     /* Add the device to the linked list */
     list_add_tail(&pmetrics_device_list->metrics_device_hd, &metrics_dev_ll);
     return retCode;
@@ -287,6 +290,8 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
                 minor_no) {
             dev_found = 1;
             pmetrics_device_element->metrics_device->open_flag = 0;
+            mutex_destroy(pmetrics_device_element->metrics_device->
+                    metrics_mtx);
             LOG_DBG("dealllocating device memeory...");
             deallocate_all_queues(pmetrics_device_element,
                     ST_DISABLE_COMPLETELY);
@@ -350,6 +355,9 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
         return -ENOTTY;
     }
+
+    /* Grab the Mutex */
+    mutex_lock(&pmetrics_device_list->metrics_device->metrics_mtx);
 
     /*
      * Given a ioctl_num invoke corresponding function
@@ -501,6 +509,9 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         break;
     }
 
+    /* Release the Mutex */
+    mutex_unlock(&pmetrics_device_list->metrics_device->metrics_mtx);
+
     return ret_val;
 }
 
@@ -526,6 +537,7 @@ static void __exit dnvme_exit(void)
         destroy_dma_pool(pmetrics_device_element->metrics_device);
         /* Clean Up the Data Structures. */
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
+        mutex_destroy(pmetrics_device_element->metrics_device->metrics_mtx);
         pdev = pmetrics_device_element->metrics_device->pdev;
         pci_release_regions(pdev);
         /* free up the cq linked list */
