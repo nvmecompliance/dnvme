@@ -16,6 +16,7 @@ struct nvme_prps {
     u32 type; /* refers to types of PRP Possible */
     /* List of virtual pointers to PRP List pages */
     __le64 **vir_prp_list;
+    __u8 *vir_kern_addr; /* K.V.A for pinned down pages */
     __le64 prp1; /* Physical address in PRP1 of command */
     __le64 prp2; /* Physical address in PRP2 of command */
     /* TODO: Will be removed once complete IOCTL is working */

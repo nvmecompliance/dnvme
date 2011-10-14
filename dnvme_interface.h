@@ -91,7 +91,7 @@ enum nvme_cmds {
 * sending 64 Bytes command to both admin  and IO SQ's and CQ's
 */
 struct nvme_64b_send {
-    u_int16_t queue_id; /* Queue ID where the cmd_buf command should go */
+    u_int16_t q_id; /* Queue ID where the cmd_buf command should go */
     u_int16_t bit_mask; /* BIT MASK for PRP1,PRP2 and Metadata pointer */
     u_int32_t data_buf_size; /* Size of Data Buffer */
     /* Data Buffer or Discontiguous CQ/SQ's user space address */
@@ -253,12 +253,30 @@ struct nvme_create_cq {
 };
 
 /**
+ * Specific structure for Create SQ command
+ */
+struct nvme_create_sq {
+    uint8_t  opcode;
+    uint8_t  flags;
+    uint16_t command_id;
+    uint32_t rsvd1[5];
+    uint64_t prp1;
+    uint64_t rsvd8;
+    uint16_t sqid;
+    uint16_t qsize;
+    uint16_t sq_flags;
+    uint16_t cqid;
+    uint32_t rsvd12[4];
+};
+
+/**
  * Format of nvme command
  */
 struct nvme_command {
     union {
         struct nvme_general_command gen_cmd;
         struct nvme_create_cq create_cq_cmd;
+        struct nvme_create_sq create_sq_cmd;
     };
 };
 

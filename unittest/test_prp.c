@@ -25,7 +25,7 @@ void ioctl_create_prp_more_than_two_page(int file_desc)
         printf("Malloc Failed");
         return;
     }
-    user_cmd.queue_id = 0;
+    user_cmd.q_id = 0;
     user_cmd.cmd_set = 0;
     user_cmd.bit_mask = 0;
     user_cmd.cmd_buf_ptr = NULL;
@@ -54,7 +54,7 @@ void ioctl_create_prp_less_than_one_page(int file_desc)
         printf("Malloc Failed");
         return;
     }
-    user_cmd.queue_id = 0;
+    user_cmd.q_id = 0;
     user_cmd.cmd_set = 0;
     user_cmd.bit_mask = 0;
     user_cmd.cmd_buf_ptr = NULL;
@@ -83,7 +83,7 @@ void ioctl_create_prp_one_page(int file_desc)
         printf("Malloc Failed");
         return;
     }
-    user_cmd.queue_id = 0;
+    user_cmd.q_id = 0;
     user_cmd.cmd_set = 0;
     user_cmd.bit_mask = 0;
     user_cmd.cmd_buf_ptr = NULL;
@@ -113,7 +113,7 @@ void ioctl_create_list_of_prp(int file_desc)
         printf("Malloc Failed");
         return;
     }
-    user_cmd.queue_id = 0;
+    user_cmd.q_id = 0;
     user_cmd.cmd_set = 0;
     user_cmd.bit_mask = 0;
     user_cmd.cmd_buf_ptr = NULL;
@@ -142,7 +142,7 @@ void ioctl_create_fill_list_of_prp(int file_desc)
         printf("Malloc Failed");
         return;
     }
-    user_cmd.queue_id = 0;
+    user_cmd.q_id = 0;
     user_cmd.cmd_set = 0;
     user_cmd.bit_mask = 0;
     user_cmd.cmd_buf_ptr = NULL;
@@ -150,6 +150,44 @@ void ioctl_create_fill_list_of_prp(int file_desc)
     user_cmd.data_buf_ptr = addr;
     user_cmd.meta_buf_size = 0;
     user_cmd.meta_buf_ptr = NULL;
+    printf("User Call to Create Lists of PRP's\n");
+
+    ret_val = ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
+    if (ret_val < 0) {
+        printf("Creation of PRP Failed!\n");
+    } else {
+        printf("PRP Creation SUCCESS\n");
+    }
+    free(addr);
+}
+
+void ioctl_create_discontig_ioq(int file_desc)
+{
+    int ret_val = -1;
+    struct nvme_64b_send user_cmd;
+    struct nvme_create_sq create_sq_cmd;
+    /* 2 pages of PRP Lists filled completley */
+    void *addr = (void *) malloc(4 * 4096);
+    if (addr == NULL) {
+        printf("Malloc Failed");
+        return;
+    }
+
+    /* Fill the command (random values put) */
+    create_sq_cmd.opcode = 0x01;
+    create_sq_cmd.sqid = 0x01;
+
+    /* Fill the user command */
+    user_cmd.q_id = 0;
+    user_cmd.bit_mask = 1;
+    user_cmd.cmd_buf_ptr = (u_int8_t *) &create_sq_cmd;
+    user_cmd.data_buf_size = 4 * 4096;
+    user_cmd.data_buf_ptr = addr;
+    user_cmd.meta_buf_size = 0;
+    user_cmd.meta_buf_ptr = NULL;
+    user_cmd.cmd_set = CMD_ADMIN;
+    user_cmd.data_dir = 1;
+
     printf("User Call to Create Lists of PRP's\n");
 
     ret_val = ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, &user_cmd);

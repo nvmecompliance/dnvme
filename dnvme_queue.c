@@ -559,8 +559,8 @@ int deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device)
 {
-    empty_cmd_track_list(pmetrics_device, pmetrics_sq_list->
-            public_sq.sq_id);
+    empty_cmd_track_list(pmetrics_device->pnvme_device, pmetrics_sq_list);
+
     /* Clean up memory for all metrics_sq for current id here */
     if (pmetrics_sq_list->private_sq.contig == 0) {
         /* TODO: free the prp pool pointed by this non contig sq. */
@@ -598,7 +598,7 @@ int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
 int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
     struct  metrics_device_list *pmetrics_device)
 {
-    empty_cmd_track_list(pmetrics_device, 0);
+    empty_cmd_track_list(pmetrics_device->pnvme_device, pmetrics_sq_list);
 
     pmetrics_sq_list->public_sq.head_ptr = 0;
     pmetrics_sq_list->public_sq.tail_ptr = 0;

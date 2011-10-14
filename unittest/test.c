@@ -302,11 +302,12 @@ void ioctl_dump(int file_desc, char *tmpfile)
 
 int test_prp(int file_desc)
 {
-    ioctl_create_prp_one_page(file_desc);
-    ioctl_create_prp_less_than_one_page(file_desc);
-    ioctl_create_prp_more_than_two_page(file_desc);
-    ioctl_create_list_of_prp(file_desc);
-    ioctl_create_fill_list_of_prp(file_desc);
+//    ioctl_create_prp_one_page(file_desc);
+//    ioctl_create_prp_less_than_one_page(file_desc);
+//    ioctl_create_prp_more_than_two_page(file_desc);
+//    ioctl_create_list_of_prp(file_desc);
+//    ioctl_create_fill_list_of_prp(file_desc);
+	ioctl_create_discontig_ioq(file_desc);
     return 0;
 }
 
@@ -351,6 +352,24 @@ int main(void)
     printf("\nPress any key to continue..");
     getchar();
 
+    printf("Calling Dump Metrics to tmpfile1\n");
+    ioctl_dump(file_desc, tmpfile1);
+
+    printf("Executing PRP Test Cases\n");
+    test_prp(file_desc);
+
+    ioctl_dump(file_desc, tmpfile2);
+
+    printf("Calling Contoller State to set to Disable state\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE);
+
+    ioctl_dump(file_desc, tmpfile3);
+
+    printf("Calling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+
+    ioctl_dump(file_desc, tmpfile4);
+#if 0
     test_prep_cq(file_desc);
     printf("\n...Test PASS if all Preparation success...");
     printf("\nPress any key to continue..");
@@ -392,6 +411,7 @@ int main(void)
     close(file_desc);
     printf("\nEnd of Testing...");
     getchar();
+#endif
     printf("\n\n****** END OF DEMO ****** \n\n");
     return 0;
 }

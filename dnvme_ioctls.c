@@ -576,11 +576,186 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 {
     /* ret code to verify status of sending 64 bytes command */
     int ret_code = -EINVAL;
+    __u16 cmd_buf_size; /* Size of command buffer */
+    /* Particular SQ from linked list of SQ's for device */
+    struct  metrics_sq  *pmetrics_sq;
+    /* SQ represented by the CMD.QID */
+    struct  metrics_sq  *p_cmd_sq;
+    /* Particular CQ (within CMD) from linked list of Q's for device */
+    struct  metrics_cq  *p_cmd_cq;
+    /* Kernel space memory for passed in command */
+    struct nvme_command nvme_cmd_ker;
+    /* Pointer to user space buffer pointing to command */
+    struct nvme_command __user *nvme_cmd_usr;
+    /* Void * pointer to check validity of Queues */
+    void *q_ptr = NULL;
+    struct nvme_prps prps; /* Pointer to PRP List */
 
-    /* TODO: make the function more generic while implementing complete IOCTL */
-    ret_code = submit_command(pmetrics_device, nvme_64b_send->queue_id,
-        nvme_64b_send->data_buf_ptr, nvme_64b_send->data_buf_size);
+    /* Initial invalid arguments checking */
+    if (NULL == nvme_64b_send->cmd_buf_ptr) {
+        LOG_ERR("Command Buffer does not exist");
+        goto ret;
+    } else if ((nvme_64b_send->data_buf_size != 0 &&
+        NULL == nvme_64b_send->data_buf_ptr) ||
+            (nvme_64b_send->data_buf_size == 0 &&
+                NULL != nvme_64b_send->data_buf_ptr)) {
+        LOG_ERR("Data buffer size and data buffer inconsistent");
+        goto ret;
+    } else if (nvme_64b_send->meta_buf_size != 0 ||
+        NULL != nvme_64b_send->meta_buf_ptr) {
+        LOG_ERR("Meta buffer is not supported yet");
+        goto ret;
+    } else if ((nvme_64b_send->bit_mask != MASK_PRP1) &&
+        (nvme_64b_send->bit_mask != (MASK_PRP1 | MASK_PRP2))) {
+        /* TODO Add support for MASK_MPTR */
+        LOG_ERR("Invalid value of bit_mask!");
+        goto ret;
+    }
+
+
+    /* Get the required SQ from the global linked list */
+    list_for_each_entry(pmetrics_sq, &pmetrics_device->metrics_sq_list,
+        sq_list_hd) {
+        if (nvme_64b_send->q_id == pmetrics_sq->public_sq.sq_id) {
+            /* Fill in the command size */
+            cmd_buf_size = (__u16) (pmetrics_sq->private_sq.size /
+                pmetrics_sq->public_sq.elements);
+            break;
+        }
+    }
+
+    if (!cmd_buf_size) {
+        ret_code = -EPERM;
+        LOG_ERR("Global Metrics inconsistent");
+        goto ret;
+    }
+
+    /* Check for SQ is full */
+    if ((pmetrics_sq->public_sq.tail_ptr_virt + 1) %
+        (pmetrics_sq->public_sq.elements) ==
+            pmetrics_sq->public_sq.head_ptr - 1) {
+        LOG_ERR("SQ is full");
+        ret_code = -EPERM;
+        goto ret;
+    }
+
+    /*     Copying userspace buffer to kernel memory */
+    nvme_cmd_usr = (struct nvme_command __user *) nvme_64b_send->cmd_buf_ptr;
+    if (copy_from_user(&nvme_cmd_ker, nvme_cmd_usr, sizeof(nvme_cmd_ker))) {
+        LOG_ERR("Invalid copy from user space");
+        ret_code = -EFAULT;
+        goto ret;
+    }
+
+    /* Initialize PRP Type to NO_PRP */
+    prps.type = NO_PRP;
+
+#if 0
+    /* Handling special condition for opcodes 0x00,0x01,0x04 and
+     * 0x05 of NVME Admin command set
+     */
+    /* Create SQ case */
+    if (nvme_64b_send->cmd_set == CMD_ADMIN &&
+        nvme_cmd_ker.gen_cmd.opcode == 0x01) {
+
+        /* Get the required SQ from the global linked list
+         * represented by CMD.DW10.QID
+         */
+        list_for_each_entry(p_cmd_sq, &pmetrics_device->metrics_sq_list,
+            sq_list_hd) {
+            if (nvme_cmd_ker.create_sq_cmd.sqid == p_cmd_sq->public_sq.sq_id) {
+                q_ptr =  (struct  metrics_sq  *) p_cmd_sq;
+                break;
+            }
+        }
+
+        if (q_ptr == NULL) {
+            ret_code = -EPERM;
+            goto data_err;
+        }
+
+        if (((nvme_cmd_ker.create_sq_cmd.sq_flags & 0x01 == 1) &&
+            (p_cmd_sq->private_sq.contig == 0)) ||
+                ((nvme_cmd_ker.create_sq_cmd.sq_flags & 0x01 == 0) &&
+                    (p_cmd_sq->private_sq.contig != 0))) {
+            /* Contig flag in global metrics out of sync with what cmd says */
+            goto data_err;
+        } else if ((p_cmd_sq->private_sq.contig == 0 &&
+            nvme_64b_send->data_buf_ptr == NULL) ||
+                (p_cmd_sq->private_sq.contig != 0 &&
+                    p_cmd_sq->private_sq.vir_kern_addr == NULL)) {
+            /* Contig flag in global metrics out of sync with what cmd says */
+            goto data_err;
+        }
+
+        if (p_cmd_sq->private_sq.contig == 0) {
+            /* Creation of Discontiguous IO SQ */
+
+            /* Create PRP and add the node inside the command track list */
+            ret_code = data_buf_to_prp(pmetrics_device->pnvme_device,
+                pmetrics_sq, DISCONTG_IO_Q, nvme_64b_send, &prps,
+                    nvme_cmd_ker.gen_cmd.opcode,
+                        nvme_cmd_ker.create_sq_cmd.sqid);
+            if (ret_code < 0) {
+                LOG_ERR("Data buffer to PRP generation failed");
+                goto ret;
+            }
+
+            /* Based on type add the PRP's to the command */
+            if ((prps.type == PRP1) || (prps.type == PRP1|PRP_List)) {
+                nvme_cmd_ker.gen_cmd.prp1 = prps.prp1;
+                nvme_cmd_ker.gen_cmd.prp2 = NULL;
+            } else if ((prps.type == PRP1|PRP2) ||
+               (prps.type == PRP2|PRP_List)) {
+                nvme_cmd_ker.gen_cmd.prp1 = prps.prp1;
+                nvme_cmd_ker.gen_cmd.prp2 = prps.prp2;
+            }
+
+        } else {
+            /* Creation of contiguous IO SQ */
+            /* TODO:- Renaming asq_dma_addr to sq_dma_addr */
+            nvme_cmd_ker.gen_cmd.prp1 = p_cmd_sq->private_sq.asq_dma_addr;
+            /* Adding node inside cmd_track list for pmetrics_sq */
+            ret_code = add_cmd_track_node(pmetrics_sq, 0, prps,
+                nvme_64b_send->cmd_set, nvme_cmd_ker.gen_cmd.opcode);
+            if (ret_code < 0) {
+                LOG_ERR("Failure to add command track node for\
+                    Create Contig Queue Command");
+                goto ret;
+            }
+        }
+        /* Fill the persistent entry structure */
+        memcpy(&p_cmd_sq->private_sq.prp_persist, &prps);
+    } /* If condition for different sceanrios */
+
+
+    /* Copy and Increment the CMD ID */
+    nvme_cmd_ker.gen_cmd.command_id = pmetrics_sq->private_sq.unique_cmd_id++;
+
+    /* Copying the command in to appropriate SQ and handling sync issues */
+    if (pmetrics_sq->private_sq.contig == 0) {
+        dma_sync_sg_for_device();
+    }
+
+data_err:
+    LOG_ERR("Global Metrics inconsistent");
+err:
+    pmetrics_sq->private_sq.unique_cmd_id--;
+ret:
     return ret_code;
+#endif
+       /* Create PRP and add the node inside the command track list */
+        ret_code = data_buf_to_prp(pmetrics_device->pnvme_device,
+            pmetrics_sq, DISCONTG_IO_Q, nvme_64b_send, &prps,
+                nvme_cmd_ker.gen_cmd.opcode,
+                    nvme_cmd_ker.create_sq_cmd.sqid);
+
+        /* Create PRP and add the node inside the command track list */
+         ret_code = data_buf_to_prp(pmetrics_device->pnvme_device,
+             pmetrics_sq, DATA_BUF, nvme_64b_send, &prps,
+                 nvme_cmd_ker.gen_cmd.opcode, 2);
+ret:
+        return ret_code;
 }
 
 /*
