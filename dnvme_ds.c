@@ -56,8 +56,8 @@ int driver_log(struct nvme_file *n_file)
             /* Get the variable from metrics structure and write to file */
             sprintf(data1, "metrics_device_list[%d]\n", dev++);
             vfs_write(file, data1, strlen(data1), &pos);
-            sprintf(data1, "Minor Number = %d", pmetrics_device->pnvme_device->
-                    minor_no);
+            sprintf(data1, "Minor Number = %d",
+                    pmetrics_device->metrics_device->minor_no);
             vfs_write(file, data1, strlen(data1), &pos);
             /* Looping through the available CQ list */
             list_for_each_entry(pmetrics_cq_list, &pmetrics_device->
@@ -86,7 +86,7 @@ int driver_log(struct nvme_file *n_file)
                         (u64)pmetrics_cq_list->private_cq.vir_kern_addr);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"dma_addr_t = 0X%llX",
-                        (u64)pmetrics_cq_list->private_cq.acq_dma_addr);
+                        (u64)pmetrics_cq_list->private_cq.cq_dma_addr);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"contig (0=Y/(!=0)=N) = %d",
                         pmetrics_cq_list->private_cq.contig);

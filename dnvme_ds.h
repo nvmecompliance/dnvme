@@ -5,7 +5,7 @@
 #include <linux/list.h>
 #include "dnvme_interface.h"
 
-#define    NVME_DS_VERSION    1.9
+#define    NVME_DS_VERSION    1.15
 
 /*
  * Strucutre used to define all the essential parameters
@@ -37,7 +37,7 @@ struct nvme_prps {
  */
 struct nvme_trk_cq {
     u8          *vir_kern_addr; /* phy addr ptr to the q's alloc to kern mem*/
-    dma_addr_t  acq_dma_addr;   /* dma mapped address using dma_alloc       */
+    dma_addr_t  cq_dma_addr;    /* dma mapped address using dma_alloc       */
     u32         size;           /* length in bytes of the alloc Q in kernel */
     u32 __iomem *dbs;           /* Door Bell stride                         */
     struct nvme_prps  prp_persist; /* PRP element in CQ                     */
@@ -61,7 +61,7 @@ struct cmd_track {
  */
 struct nvme_trk_sq {
     void        *vir_kern_addr; /* virtual kernal address using kmalloc    */
-    dma_addr_t  asq_dma_addr;   /* dma mapped address using dma_alloc      */
+    dma_addr_t  sq_dma_addr;    /* dma mapped address using dma_alloc      */
     u32         size;           /* len in bytes of allocated Q in kernel   */
     u16         unique_cmd_id;  /* unique counter for each comand in SQ    */
     u32 __iomem *dbs;           /* Door Bell stride                        */
@@ -97,6 +97,8 @@ struct nvme_device {
     u8  *bar_0_mapped;              /* Bar 0 IO re-mapped value            */
     struct device   *dmadev;        /* Pointer to the dma device from pdev */
     int minor_no;                   /* Minor no. of the device being used  */
+    u8 open_flag;                   /* Allows device opening only once     */
+    enum nvme_irq_type irq;         /* Defines the IRQ type used           */
 };
 
 /*
@@ -107,7 +109,7 @@ struct metrics_device_list {
     struct  list_head   metrics_device_hd; /* metrics linked list head    */
     struct  list_head   metrics_cq_list;   /* CQ linked list              */
     struct  list_head   metrics_sq_list;   /* SQ linked list              */
-    struct  nvme_device *pnvme_device;     /* Pointer to this nvme device */
+    struct  nvme_device *metrics_device;   /* Pointer to this nvme device */
 };
 
 /* extern device metrics linked list for exporting to project files */

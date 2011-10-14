@@ -145,7 +145,7 @@ int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element)
     u32 ctrl_config;
 
     /* get the device from the list */
-    pnvme_dev = pmetrics_device_element->pnvme_device;
+    pnvme_dev = pmetrics_device_element->metrics_device;
 
     /* Read Controller Configuration as we can only write 32 bits */
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
@@ -176,7 +176,7 @@ int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element)
     u32 ctrl_config;
     u8 rdy_sts = 0xFF;
     /* get the device from the list */
-    pnvme_dev = pmetrics_device_element->pnvme_device;
+    pnvme_dev = pmetrics_device_element->metrics_device;
 
     /* Read Controller Configuration as we can only write 32 bits */
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
@@ -235,7 +235,7 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
      */
     pmetrics_sq_list->private_sq.vir_kern_addr =
             dma_alloc_coherent(&pnvme_dev->pdev->dev, asq_depth,
-                    &pmetrics_sq_list->private_sq.asq_dma_addr, GFP_KERNEL);
+                    &pmetrics_sq_list->private_sq.sq_dma_addr, GFP_KERNEL);
     if (!pmetrics_sq_list->private_sq.vir_kern_addr) {
         LOG_ERR("Unable to allocate DMA Address for ASQ!!");
         return -ENOMEM;
@@ -260,7 +260,7 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     writel(aqa, &pnvme_dev->nvme_ctrl_space->aqa);
 
     /* Write the DMA address into ASQ base address */
-    WRITEQ(pmetrics_sq_list->private_sq.asq_dma_addr,
+    WRITEQ(pmetrics_sq_list->private_sq.sq_dma_addr,
             &pnvme_dev->nvme_ctrl_space->asq);
 #ifdef DEBUG
     /* Debug statements */
@@ -324,7 +324,7 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
      */
     pmetrics_cq_list->private_cq.vir_kern_addr =
             dma_alloc_coherent(&pnvme_dev->pdev->dev, acq_depth,
-                    &pmetrics_cq_list->private_cq.acq_dma_addr, GFP_KERNEL);
+                    &pmetrics_cq_list->private_cq.cq_dma_addr, GFP_KERNEL);
     if (!pmetrics_cq_list->private_cq.vir_kern_addr) {
         LOG_ERR("Unable to allocate DMA Address for ACQ!!");
         return -ENOMEM;
@@ -336,7 +336,7 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
     LOG_NRM("Virtual ACQ DMA Address: 0x%llx",
             (u64)pmetrics_cq_list->private_cq.vir_kern_addr);
     LOG_NRM("ACQ DMA Address: 0x%llx",
-            (u64)pmetrics_cq_list->private_cq.acq_dma_addr);
+            (u64)pmetrics_cq_list->private_cq.cq_dma_addr);
 
     /* Read, Modify and write the Admin Q attributes */
     aqa = (qsize - 1) << 16; /* acqs is zero based value */
@@ -353,7 +353,7 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
     /* Write new ASQ size using AQA */
     writel(aqa, &pnvme_dev->nvme_ctrl_space->aqa);
     /* Write the DMA address into ACQ base address */
-    WRITEQ(pmetrics_cq_list->private_cq.acq_dma_addr,
+    WRITEQ(pmetrics_cq_list->private_cq.cq_dma_addr,
             &pnvme_dev->nvme_ctrl_space->acq);
 #ifdef DEBUG
     /* Read the AQA attributes after writing and check */
@@ -414,7 +414,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
         /* Assume that CMD.DW11.PC bit will be set to one. */
         pmetrics_sq_list->private_sq.vir_kern_addr = dma_alloc_coherent(
                 &pnvme_dev->pdev->dev, pmetrics_sq_list->private_sq.size,
-                &pmetrics_sq_list->private_sq.asq_dma_addr, GFP_KERNEL);
+                &pmetrics_sq_list->private_sq.sq_dma_addr, GFP_KERNEL);
         /* Check if the dma alloc was successful */
         if (!pmetrics_sq_list->private_sq.vir_kern_addr) {
             LOG_ERR("Unable to allocate DMA Address for IO SQ!!");
@@ -477,7 +477,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
         /* Assume that CMD.DW11.PC bit will be set to one. */
         pmetrics_cq_list->private_cq.vir_kern_addr = dma_alloc_coherent(
                 &pnvme_dev->pdev->dev, pmetrics_cq_list->private_cq.size,
-                &pmetrics_cq_list->private_cq.acq_dma_addr, GFP_KERNEL);
+                &pmetrics_cq_list->private_cq.cq_dma_addr, GFP_KERNEL);
         /* Check if the dma alloc was successful */
         if (!pmetrics_cq_list->private_cq.vir_kern_addr) {
             LOG_ERR("Unable to allocate DMA Address for IO CQ!!");
@@ -511,7 +511,7 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
     struct nvme_device *pnvme_dev;
 
     /* get the device from the list */
-    pnvme_dev = pmetrics_device_element->pnvme_device;
+    pnvme_dev = pmetrics_device_element->metrics_device;
 
     /* Seek the SQ within metrics device SQ list */
     list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
@@ -560,17 +560,17 @@ static int deallocate_metrics_cq(struct device *dev,
     /* Delete memory for all metrics_cq for current id here */
     if (pmetrics_cq_list->private_cq.contig == 0) {
         /* First unmap the dma */
-        unmap_user_pg_to_dma(pmetrics_device->pnvme_device,
+        unmap_user_pg_to_dma(pmetrics_device->metrics_device,
                 &pmetrics_cq_list->private_cq.prp_persist);
         /* free prp list pointed by this non contig cq */
-        free_prp_pool(pmetrics_device->pnvme_device,
+        free_prp_pool(pmetrics_device->metrics_device,
                 &pmetrics_cq_list->private_cq.prp_persist,
                 pmetrics_cq_list->private_cq.prp_persist.npages);
     } else {
         /* Contiguous CQ, so free the DMA memory */
         dma_free_coherent(dev, pmetrics_cq_list->private_cq.size,
                  (void *)pmetrics_cq_list->private_cq.vir_kern_addr,
-                 pmetrics_cq_list->private_cq.acq_dma_addr);
+                 pmetrics_cq_list->private_cq.cq_dma_addr);
 
     }
     /* Delete the current cq entry from the list */
@@ -593,7 +593,7 @@ static int deallocate_metrics_sq(struct device *dev,
         struct  metrics_device_list *pmetrics_device)
 {
     /* Clean the Cmd track list */
-    empty_cmd_track_list(pmetrics_device->pnvme_device, pmetrics_sq_list);
+    empty_cmd_track_list(pmetrics_device->metrics_device, pmetrics_sq_list);
 
     /* Clean up memory for all metrics_sq for current id here */
     if (pmetrics_sq_list->private_sq.contig == 0) {
@@ -601,10 +601,10 @@ static int deallocate_metrics_sq(struct device *dev,
         LOG_DBG("DMA Free for non-contig sq id = %d", pmetrics_sq_list->
                 public_sq.sq_id);
         /* First unmap the dma */
-        unmap_user_pg_to_dma(pmetrics_device->pnvme_device,
+        unmap_user_pg_to_dma(pmetrics_device->metrics_device,
                 &pmetrics_sq_list->private_sq.prp_persist);
         /* free prp list pointed by this non contig cq */
-        free_prp_pool(pmetrics_device->pnvme_device,
+        free_prp_pool(pmetrics_device->metrics_device,
                 &pmetrics_sq_list->private_sq.prp_persist,
                 pmetrics_sq_list->private_sq.prp_persist.npages);
     } else {
@@ -613,7 +613,7 @@ static int deallocate_metrics_sq(struct device *dev,
         /* Contiguous SQ, so free the DMA memory */
         dma_free_coherent(dev, pmetrics_sq_list->private_sq.size,
                 (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
-                pmetrics_sq_list->private_sq.asq_dma_addr);
+                pmetrics_sq_list->private_sq.sq_dma_addr);
     }
     /* Delete the current sq entry from the list */
     list_del_init(&pmetrics_sq_list->sq_list_hd);
@@ -641,7 +641,7 @@ static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device)
 {
     /* Free command track list for admin */
-    empty_cmd_track_list(pmetrics_device->pnvme_device, pmetrics_sq_list);
+    empty_cmd_track_list(pmetrics_device->metrics_device, pmetrics_sq_list);
 
     /* reinit required params in admin node */
     pmetrics_sq_list->public_sq.head_ptr = 0;
@@ -672,7 +672,7 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
         exclude_admin = 1;
     }
 
-    dev = &pmetrics_device->pnvme_device->pdev->dev;
+    dev = &pmetrics_device->metrics_device->pdev->dev;
     /* Loop for each sq node */
     list_for_each_entry_safe(pmetrics_sq_list, pmetrics_sq_next,
             &pmetrics_device->metrics_sq_list, sq_list_hd) {
@@ -705,11 +705,11 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
     if (new_state == ST_DISABLE_COMPLETELY) {
         /* Set the Registers to default values. */
         /* Write 0 to AQA */
-        writel(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->aqa);
+        writel(0x0, &pmetrics_device->metrics_device->nvme_ctrl_space->aqa);
         /* Write 0 to the DMA address into ASQ base address */
-        WRITEQ(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->asq);
+        WRITEQ(0x0, &pmetrics_device->metrics_device->nvme_ctrl_space->asq);
         /* Write 0 to the DMA address into ACQ base address */
-        WRITEQ(0x0, &pmetrics_device->pnvme_device->nvme_ctrl_space->acq);
+        WRITEQ(0x0, &pmetrics_device->metrics_device->nvme_ctrl_space->acq);
     }
     return SUCCESS;
 }

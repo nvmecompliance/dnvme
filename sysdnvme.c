@@ -55,6 +55,8 @@ static struct pci_driver dnvme_pci_driver = {
 static const struct file_operations dnvme_fops_f = {
     .owner = THIS_MODULE,
     .ioctl = dnvme_ioctl_device,
+    .open  = dnvme_device_open,
+    .release = dnvme_device_release,
 };
 
 /* char device specific parameters */
@@ -215,7 +217,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
         return -EINVAL;
     }
     /* Update info in the metrics list */
-    pmetrics_device_list->pnvme_device->minor_no = nvme_minor_x;
+    pmetrics_device_list->metrics_device->minor_no = nvme_minor_x;
     /* update the device minor number */
     nvme_minor_x = nvme_minor_x + 1;
     /* Add the device to the linked list */
@@ -223,6 +225,78 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     return retCode;
 }
 
+/*
+ * This operation is always the first operation performed on the device file.
+ * when the user call open fd, this is where it lands.
+ */
+int dnvme_device_open(struct inode *inode, struct file *filp)
+{
+    struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
+    u8 dev_found = 0;
+
+    LOG_DBG("Call to open the device...");
+
+    /* Loop through the devices available in the metrics list */
+    list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
+            metrics_device_hd) {
+        if (iminor(inode) == pmetrics_device_element->metrics_device->
+                minor_no) {
+            dev_found = 1;
+            if (pmetrics_device_element->metrics_device->open_flag != 1) {
+                pmetrics_device_element->metrics_device->open_flag = 1;
+                deallocate_all_queues(pmetrics_device_element,
+                        ST_DISABLE_COMPLETELY);
+            } else {
+                LOG_ERR("Attempt to open device multiple times not allowed!!");
+                return -EPERM; /* Operation not permitted */
+            }
+            /* device found and open flag set so done here */
+            break;
+        } else {
+            dev_found = 0; /* No such device found in current slot */
+        }
+    }
+    if (dev_found == 0) {
+        LOG_ERR("Device not found...");
+        return -ENODEV; /* No such device found in entire list */
+    }
+    return SUCCESS;
+}
+
+/*
+ * This operation is invoked when the file structure is being released. When
+ * the user app close a device then this is where the entry point is. The
+ * driver cleans up any memory it has reference to. This ensures a clean state
+ * of the device.
+ */
+int dnvme_device_release(struct inode *inode, struct file *filp)
+{
+    struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
+    u8 dev_found = 0;
+
+    LOG_DBG("Call to Release the device...");
+
+    /* Loop through the devices available in the metrics list */
+    list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
+            metrics_device_hd) {
+        if (iminor(inode) == pmetrics_device_element->metrics_device->
+                minor_no) {
+            dev_found = 1;
+            pmetrics_device_element->metrics_device->open_flag = 0;
+            LOG_DBG("dealllocating device memeory...");
+            deallocate_all_queues(pmetrics_device_element,
+                    ST_DISABLE_COMPLETELY);
+            break;
+        } else {
+            dev_found = 0; /* No such device found in current slot */
+        }
+    }
+    if (dev_found == 0) {
+        LOG_ERR("Device not found...");
+        return -ENODEV; /* No such device found in entire list */
+    }
+    return SUCCESS;
+}
 /*
  * This function is called whenever a process tries to do an ioctl on our
  * device file. We get two extra parameters (additional to the inode and file
@@ -257,8 +331,9 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
     list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
             metrics_device_hd) {
         LOG_DBG("Minor Number in the List = %d", pmetrics_device_element->
-                pnvme_device->minor_no);
-        if (iminor(inode) == pmetrics_device_element->pnvme_device->minor_no) {
+                metrics_device->minor_no);
+        if (iminor(inode) == pmetrics_device_element->metrics_device->
+                minor_no) {
             LOG_DBG("Found device in the metrics list");
             dev_found = 1;
             break;
@@ -444,10 +519,10 @@ static void __exit dnvme_exit(void)
     list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
             metrics_device_hd) {
         /* Free up the DMA pool */
-        destroy_dma_pool(pmetrics_device_element->pnvme_device);
+        destroy_dma_pool(pmetrics_device_element->metrics_device);
         /* Clean Up the Data Structures. */
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
-        pdev = pmetrics_device_element->pnvme_device->pdev;
+        pdev = pmetrics_device_element->metrics_device->pdev;
         pci_release_regions(pdev);
         /* free up the cq linked list */
         list_del(&pmetrics_device_element->metrics_cq_list);

@@ -110,7 +110,6 @@ struct nvme_64b_send {
  * check if these versions match.
  */
 struct metrics_driver {
-    enum        nvme_irq_type    irq;   /* Defines the IRQ type used         */
     uint16_t    driver_version;         /* dnvme driver version              */
     uint16_t    api_version;            /* tnvme test application version    */
 };

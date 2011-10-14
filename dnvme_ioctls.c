@@ -38,7 +38,7 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
     int __user *datap = (int __user *)status;
 
     /* get the device from the list */
-    pdev = pmetrics_device_element->pnvme_device->pdev;
+    pdev = pmetrics_device_element->metrics_device->pdev;
     /*
     * Read a word (16bit value) from the configuration register
     * and pass it to user.
@@ -110,8 +110,8 @@ int driver_generic_read(struct rw_generic *nvme_data,
     LOG_DBG("Inside Generic Read Function of the IOCTLs");
 
     /* get the device from the list */
-    pdev = pmetrics_device_element->pnvme_device->pdev;
-    nvme_dev = pmetrics_device_element->pnvme_device;
+    pdev = pmetrics_device_element->metrics_device->pdev;
+    nvme_dev = pmetrics_device_element->metrics_device;
 
     /*
     *  Switch based on the user passed read type using the
@@ -271,8 +271,8 @@ int driver_generic_write(struct rw_generic *nvme_data,
     LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
     /* get the device from the list */
-    pdev = pmetrics_device_element->pnvme_device->pdev;
-    nvme_dev = pmetrics_device_element->pnvme_device;
+    pdev = pmetrics_device_element->metrics_device->pdev;
+    nvme_dev = pmetrics_device_element->metrics_device;
 
     /* allocate kernel memory to datap that is requested from user app */
     datap = kzalloc((nvme_data->nBytes * sizeof(u8)) , GFP_KERNEL);
@@ -408,7 +408,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     struct nvme_device *pnvme_dev;
 
     /* get the device from the list */
-    pnvme_dev = pmetrics_device_element->pnvme_device;
+    pnvme_dev = pmetrics_device_element->metrics_device;
 
     if (readl(&pnvme_dev->nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
         LOG_ERR("Device enable bit is set already!!");
@@ -471,7 +471,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     struct nvme_device *pnvme_dev;
 
     /* get the device from the list */
-    pnvme_dev = pmetrics_device_element->pnvme_device;
+    pnvme_dev = pmetrics_device_element->metrics_device;
 
     if (readl(&pnvme_dev->nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
         LOG_ERR("Device enable bit is set already!!");
@@ -531,9 +531,9 @@ int driver_ioctl_init(struct pci_dev *pdev,
     LOG_NRM("Initializing the BAR01 and NVME Controller Space");
 
     /* Allocate mem fo nvme device with kernel memory */
-    pmetrics_device_list->pnvme_device = kmalloc(sizeof(struct nvme_device),
+    pmetrics_device_list->metrics_device = kmalloc(sizeof(struct nvme_device),
             GFP_KERNEL);
-    if (pmetrics_device_list->pnvme_device == NULL) {
+    if (pmetrics_device_list->metrics_device == NULL) {
         LOG_ERR("failed mem allocation for device.");
         return -ENOMEM;
     }
@@ -543,37 +543,37 @@ int driver_ioctl_init(struct pci_dev *pdev,
     INIT_LIST_HEAD(&(pmetrics_device_list->metrics_cq_list));
 
     /* Populate Metrics device list with this device */
-    pmetrics_device_list->pnvme_device->pdev = pdev;
-    pmetrics_device_list->pnvme_device->bar_0_mapped = ioremap(
+    pmetrics_device_list->metrics_device->pdev = pdev;
+    pmetrics_device_list->metrics_device->bar_0_mapped = ioremap(
             pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
     /* Check if remap was success */
-    if (!pmetrics_device_list->pnvme_device->bar_0_mapped) {
+    if (!pmetrics_device_list->metrics_device->bar_0_mapped) {
         LOG_ERR("IOCTL init failed");
         return -EINVAL;
     }
 
-    pmetrics_device_list->pnvme_device->nvme_ctrl_space =
-            (void __iomem *)pmetrics_device_list->pnvme_device->bar_0_mapped;
-    pmetrics_device_list->pnvme_device->dmadev =
-            &pmetrics_device_list->pnvme_device->pdev->dev;
+    pmetrics_device_list->metrics_device->nvme_ctrl_space =
+            (void __iomem *)pmetrics_device_list->metrics_device->bar_0_mapped;
+    pmetrics_device_list->metrics_device->dmadev =
+            &pmetrics_device_list->metrics_device->pdev->dev;
 
     /* Used to create Coherent DMA mapping for PRP List */
-    pmetrics_device_list->pnvme_device->prp_page_pool = dma_pool_create
-            ("prp page", &pmetrics_device_list->pnvme_device->pdev->dev,
+    pmetrics_device_list->metrics_device->prp_page_pool = dma_pool_create
+            ("prp page", &pmetrics_device_list->metrics_device->pdev->dev,
                     PAGE_SIZE, PAGE_SIZE, 0);
 
     /* Used to create Coherent DMA mapping for PRP List */
-    pmetrics_device_list->pnvme_device->prp_page_pool =
+    pmetrics_device_list->metrics_device->prp_page_pool =
         dma_pool_create("prp page",
-            &pmetrics_device_list->pnvme_device->pdev->dev,
+            &pmetrics_device_list->metrics_device->pdev->dev,
                 PAGE_SIZE, PAGE_SIZE, 0);
-    if (NULL == pmetrics_device_list->pnvme_device->prp_page_pool) {
+    if (NULL == pmetrics_device_list->metrics_device->prp_page_pool) {
         LOG_ERR("Creation of DMA Pool failed");
         return -ENOMEM;
      }
 
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
-        (uint64_t)pmetrics_device_list->pnvme_device->nvme_ctrl_space);
+        (uint64_t)pmetrics_device_list->metrics_device->nvme_ctrl_space);
 
     return SUCCESS;
 }
@@ -750,7 +750,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
 
     /* get the device from the list */
-    pnvme_dev = pmetrics_device_element->pnvme_device;
+    pnvme_dev = pmetrics_device_element->metrics_device;
 
     ret_code = identify_unique(prep_sq->sq_id, METRICS_SQ,
             pmetrics_device_element);
@@ -822,7 +822,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     struct nvme_device *pnvme_dev;
 
     /* get the device from the list */
-    pnvme_dev = pmetrics_device_element->pnvme_device;
+    pnvme_dev = pmetrics_device_element->metrics_device;
 
     ret_code = identify_unique(prep_cq->cq_id, METRICS_CQ,
             pmetrics_device_element);

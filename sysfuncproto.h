@@ -191,4 +191,20 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
 int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         struct nvme_reap_inquiry *reap_inq);
 
+/**
+ * This operation is always the first operation performed on the device file.
+ * @param inode
+ * @param filp
+ * @return success or failure based on device open
+ */
+int dnvme_device_open(struct inode *inode, struct file *filp);
+
+/**
+ * This operation is invoked when the file structure is being released.
+ * @param inode
+ * @param filp
+ * @return success or failure based on device clean up.
+ */
+int dnvme_device_release(struct inode *inode, struct file *filp);
+
 #endif

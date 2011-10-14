@@ -33,7 +33,7 @@ int submit_command(struct  metrics_device_list *pmetrics_device, __u16 q_id,
     struct scatterlist *sg; /* Pointer to SG List */
     struct nvme_prps prps; /* Pointer to PRP List */
     unsigned long addr; /* Buf Addr typecasted to unsigned long */
-    struct nvme_device *nvme_dev = pmetrics_device->pnvme_device;
+    struct nvme_device *nvme_dev = pmetrics_device->metrics_device;
     struct  metrics_sq  *pmetrics_sq_element;  /* Element of SQ linked list */
 
 #ifdef TEST_PRP_DEBUG
