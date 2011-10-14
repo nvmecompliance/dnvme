@@ -242,7 +242,7 @@ int dnvme_device_open(struct inode *inode, struct file *filp)
         if (iminor(inode) == pmetrics_device_element->metrics_device->
                 minor_no) {
             dev_found = 1;
-            if (pmetrics_device_element->metrics_device->open_flag != 1) {
+            if (pmetrics_device_element->metrics_device->open_flag == 0) {
                 pmetrics_device_element->metrics_device->open_flag = 1;
                 deallocate_all_queues(pmetrics_device_element,
                         ST_DISABLE_COMPLETELY);

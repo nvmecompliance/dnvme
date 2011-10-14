@@ -98,7 +98,6 @@ struct nvme_device {
     struct device   *dmadev;        /* Pointer to the dma device from pdev */
     int minor_no;                   /* Minor no. of the device being used  */
     u8 open_flag;                   /* Allows device opening only once     */
-    enum nvme_irq_type irq;         /* Defines the IRQ type used           */
 };
 
 /*
