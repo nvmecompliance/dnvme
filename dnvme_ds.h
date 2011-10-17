@@ -99,7 +99,6 @@ struct nvme_device {
     struct device   *dmadev;         /* Pointer to the dma device from pdev */
     int minor_no;                    /* Minor no. of the device being used  */
     u8 open_flag;                    /* Allows device opening only once     */
-    struct mutex metrics_mtx;        /* Mutex for locking per device        */
 };
 
 /*
@@ -111,6 +110,7 @@ struct metrics_device_list {
     struct  list_head   metrics_cq_list;   /* CQ linked list                */
     struct  list_head   metrics_sq_list;   /* SQ linked list                */
     struct  nvme_device *metrics_device;   /* Pointer to this nvme device   */
+    struct  mutex       metrics_mtx;       /* Mutex for locking per device  */
 };
 
 /* extern device metrics linked list for exporting to project files */

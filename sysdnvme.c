@@ -57,7 +57,11 @@ static const struct file_operations dnvme_fops_f = {
     .ioctl = dnvme_ioctl_device,
     .open  = dnvme_device_open,
     .release = dnvme_device_release,
+    .mmap = dnvme_device_mmap,
 };
+
+/* local functions static declarations */
+static struct  metrics_device_list *find_device(struct inode *inode);
 
 /* char device specific parameters */
 static int NVME_MAJOR;
@@ -225,11 +229,40 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     pmetrics_device_list->metrics_device->open_flag = 0;
 
     /* Initialize the mutex state. */
-    mutex_init(&pmetrics_device_list->metrics_device->metrics_mtx);
+    mutex_init(&pmetrics_device_list->metrics_mtx);
 
     /* Add the device to the linked list */
     list_add_tail(&pmetrics_device_list->metrics_device_hd, &metrics_dev_ll);
     return retCode;
+}
+
+/*
+ * find device from the device linked list. Returns pointer to the
+ * device if found otherwise returns NULL.
+ */
+static struct  metrics_device_list *find_device(struct inode *inode)
+{
+    struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
+    int dev_found = 1;
+    /* Loop through the devices available in the metrics list */
+    list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
+            metrics_device_hd) {
+        LOG_DBG("Minor Number in the List = %d", pmetrics_device_element->
+                metrics_device->minor_no);
+        if (iminor(inode) == pmetrics_device_element->metrics_device->
+                minor_no) {
+            LOG_DBG("Found device in the metrics list");
+            return pmetrics_device_element;
+        } else {
+            dev_found = 0;
+        }
+    }
+    /* The specified device could not be found in the list */
+    if (dev_found == 0) {
+        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
+        return NULL;
+    }
+    return NULL;
 }
 
 /*
@@ -239,33 +272,18 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 int dnvme_device_open(struct inode *inode, struct file *filp)
 {
     struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
-    u8 dev_found = 0;
 
     LOG_DBG("Call to open the device...");
-
-    /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
-            metrics_device_hd) {
-        if (iminor(inode) == pmetrics_device_element->metrics_device->
-                minor_no) {
-            dev_found = 1;
-            if (pmetrics_device_element->metrics_device->open_flag == 0) {
-                pmetrics_device_element->metrics_device->open_flag = 1;
-                deallocate_all_queues(pmetrics_device_element,
-                        ST_DISABLE_COMPLETELY);
-            } else {
-                LOG_ERR("Attempt to open device multiple times not allowed!!");
-                return -EPERM; /* Operation not permitted */
-            }
-            /* device found and open flag set so done here */
-            break;
-        } else {
-            dev_found = 0; /* No such device found in current slot */
-        }
+    if ((pmetrics_device_element = find_device(inode)) == NULL) {
+        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
+        return -ENODEV;
     }
-    if (dev_found == 0) {
-        LOG_ERR("Device not found...");
-        return -ENODEV; /* No such device found in entire list */
+    if (pmetrics_device_element->metrics_device->open_flag == 0) {
+        pmetrics_device_element->metrics_device->open_flag = 1;
+        deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
+    } else {
+        LOG_ERR("Attempt to open device multiple times not allowed!!");
+        return -EPERM; /* Operation not permitted */
     }
     return SUCCESS;
 }
@@ -279,33 +297,70 @@ int dnvme_device_open(struct inode *inode, struct file *filp)
 int dnvme_device_release(struct inode *inode, struct file *filp)
 {
     struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
-    u8 dev_found = 0;
 
     LOG_DBG("Call to Release the device...");
 
-    /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
-            metrics_device_hd) {
-        if (iminor(inode) == pmetrics_device_element->metrics_device->
-                minor_no) {
-            dev_found = 1;
-            pmetrics_device_element->metrics_device->open_flag = 0;
-            mutex_destroy(pmetrics_device_element->metrics_device->
-                    metrics_mtx);
-            LOG_DBG("dealllocating device memeory...");
-            deallocate_all_queues(pmetrics_device_element,
-                    ST_DISABLE_COMPLETELY);
-            break;
-        } else {
-            dev_found = 0; /* No such device found in current slot */
-        }
+    if ((pmetrics_device_element = find_device(inode)) == NULL) {
+        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
+        return -ENODEV;
     }
-    if (dev_found == 0) {
-        LOG_ERR("Device not found...");
-        return -ENODEV; /* No such device found in entire list */
+    pmetrics_device_element->metrics_device->open_flag = 0;
+    mutex_destroy(pmetrics_device_element->metrics_device->metrics_mtx);
+    if (deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY)
+            != SUCCESS) {
+        LOG_ERR("Deallocation failed!!");
+        return -EINVAL;
     }
     return SUCCESS;
 }
+
+/*
+ * dnvme_device_mmap - This function maps the contiguous device mapped area
+ * to user space. This is specfic to device which is called though fd.
+ */
+int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+    struct  metrics_device_list *pmetrics_device_element; /* Metrics device */
+    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list               */
+    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list               */
+    unsigned long pfn;
+    struct inode *inode = filp->f_dentry->d_inode;
+    u32 qtype;
+    u16 qid;
+
+    vma->vm_flags |= VM_IO;
+    LOG_DBG("Device Calling mmap function...");
+
+    if ((pmetrics_device_element = find_device(inode)) == NULL) {
+        return -ENODEV;
+    }
+
+    /* Calculate the q id and q type from offset */
+    qtype = (vma->vm_pgoff >> 0x10) & 0x1;
+    qid = vma->vm_pgoff & 0xFFFF;
+
+    LOG_DBG("Q Type = %d", qtype);
+    LOG_DBG("Q ID = 0x%x", qid);
+
+    /* If Q type is 1 implies SQ */
+    if (qtype != 0) {
+        if ((pmetrics_sq_list = find_sq(pmetrics_device_element, qid)) == NULL) {
+            return -EBADSLT;
+        }
+        pfn = virt_to_phys(pmetrics_sq_list->private_sq.vir_kern_addr) >> PAGE_SHIFT;
+    } else {
+        if ((pmetrics_cq_list = find_cq(pmetrics_device_element, qid)) == NULL) {
+            return -EBADSLT;
+        }
+        pfn = virt_to_phys(pmetrics_cq_list->private_cq.vir_kern_addr) >> PAGE_SHIFT;
+    }
+
+    LOG_DBG("PFN = 0x%lx", pfn);
+
+    return remap_pfn_range(vma, vma->vm_start, pfn,
+                    vma->vm_end - vma->vm_start, vma->vm_page_prot);
+}
+
 /*
  * This function is called whenever a process tries to do an ioctl on our
  * device file. We get two extra parameters (additional to the inode and file
@@ -332,32 +387,18 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
     struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params               */
     struct nvme_file    *n_file;         /* dump metrics params              */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
-    int dev_found;
-    u16 test_number;
+    u16 __user test_number;
+    unsigned char __user *datap = (unsigned char __user *)ioctl_param;
 
     LOG_DBG("Minor No = %d", iminor(inode));
-    /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
-            metrics_device_hd) {
-        LOG_DBG("Minor Number in the List = %d", pmetrics_device_element->
-                metrics_device->minor_no);
-        if (iminor(inode) == pmetrics_device_element->metrics_device->
-                minor_no) {
-            LOG_DBG("Found device in the metrics list");
-            dev_found = 1;
-            break;
-        } else {
-            dev_found = 0;
-        }
-    }
-    /* The specified device could not be found in the list */
-    if (dev_found != 1) {
+
+    if ((pmetrics_device_element = find_device(inode)) == NULL) {
         LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
-        return -ENOTTY;
+        return -ENODEV;
     }
 
-    /* Grab the Mutex */
-    mutex_lock(&pmetrics_device_list->metrics_device->metrics_mtx);
+    /* Grab the Mutex for this device in the linked list */
+    mutex_lock(&pmetrics_device_list->metrics_mtx);
 
     /*
      * Given a ioctl_num invoke corresponding function
@@ -488,13 +529,19 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
 
     case IOCTL_UNIT_TESTS:
         /* Get the test_number that user passed */
-        copy_from_user(&test_number, &ioctl_param, sizeof(u16));
+        copy_from_user(&test_number, datap, sizeof(u16));
 
+        LOG_DBG("Test Number = %d", test_number);
         /* Call the Test setup based on user request */
         switch (test_number) {
         case 0: /* Unit Test for IOCTL REAP INQUIRY */
             LOG_DBG("UT Reap Inquiry ioctl:");
             unit_test_reap_inq(pmetrics_device_element);
+            ret_val = SUCCESS;
+            break;
+        case 1:
+            LOG_DBG("UT Mmap ioctl:");
+            unit_test_mmap(pmetrics_device_element);
             ret_val = SUCCESS;
             break;
         default:
@@ -510,7 +557,7 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
     }
 
     /* Release the Mutex */
-    mutex_unlock(&pmetrics_device_list->metrics_device->metrics_mtx);
+    mutex_unlock(&pmetrics_device_list->metrics_mtx);
 
     return ret_val;
 }

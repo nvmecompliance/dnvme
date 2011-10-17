@@ -207,4 +207,15 @@ int dnvme_device_open(struct inode *inode, struct file *filp);
  */
 int dnvme_device_release(struct inode *inode, struct file *filp);
 
+/**
+ * This mmap will do the linear mapping to device memory into user space.
+ * The parameter vma holds all the required mapping and return the caller with
+ * virtual address.
+ * @param filp
+ * @param vma
+ * @return success or failure depending on mapping.
+ */
+int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma);
+
+
 #endif

@@ -3,5 +3,7 @@
 
 void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device);
 
+void unit_test_mmap(struct  metrics_device_list *pmetrics_device);
+
 #endif
 

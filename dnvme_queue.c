@@ -784,3 +784,43 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
     LOG_ERR("CQ ID = %d is not in list", reap_inq->q_id);
     return -EBADSLT;
 }
+
+/*
+ * find sq node in the given device element node and given sq id. If found
+ * returns the pointer to the sq node in the sq linked list. Otherwise returns
+ * NULL.
+ */
+struct metrics_sq *find_sq(struct  metrics_device_list
+        *pmetrics_device_element, u16 sq_id)
+{
+    struct  metrics_sq  *pmetrics_sq_list;
+
+    list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
+            metrics_sq_list, sq_list_hd) {
+        if (sq_id == pmetrics_sq_list->public_sq.sq_id) {
+            LOG_DBG("SQ ID = %d exists", sq_id);
+            return pmetrics_sq_list;
+        }
+    }
+    return NULL;
+}
+
+/*
+ * find cq node in the given device element node and given cq id. If found
+ * returns the pointer to the cq node in the cq linked list otherwise returns
+ * NULL.
+ */
+struct metrics_cq *find_cq(struct  metrics_device_list
+        *pmetrics_device_element, u16 cq_id)
+{
+    struct  metrics_cq  *pmetrics_cq_list;
+
+    list_for_each_entry(pmetrics_cq_list, &pmetrics_device_element->
+            metrics_cq_list, cq_list_hd) {
+        if (cq_id == pmetrics_cq_list->public_cq.q_id) {
+            LOG_DBG("CQ ID = %d exists", cq_id);
+            return pmetrics_cq_list;
+        }
+    }
+    return NULL;
+}

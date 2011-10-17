@@ -168,4 +168,16 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
         struct  metrics_device_list *pmetrics_device_element);
 
+/**
+ *
+ */
+struct metrics_sq *find_sq(struct  metrics_device_list
+        *pmetrics_device_element, u16 sq_id);
+
+/**
+ *
+ */
+struct metrics_cq *find_cq(struct  metrics_device_list
+        *pmetrics_device_element, u16 cq_id);
+
 #endif

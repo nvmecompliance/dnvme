@@ -154,3 +154,89 @@ void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device)
     }
 }
 
+void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
+{
+    struct metrics_sq  *pmetrics_sq_node;   /* ptr to cq node       */
+    struct metrics_cq  *pmetrics_cq_node;   /* ptr to cq node       */
+    u64 *q_head_ptr;                         /* head ptr in cq       */
+    u16 num = 0;
+
+    /* Lookup the CQ for which the reap inquiry is requested */
+    list_for_each_entry(pmetrics_sq_node, &pmetrics_device->metrics_sq_list,
+            sq_list_hd) {
+        /* Test: SQ Pattern 0xaa55, SQ ID = 0 */
+        if (pmetrics_sq_node->public_sq.sq_id == 0) {
+            /* point to corresponding head ptr */
+            q_head_ptr = pmetrics_sq_node->private_sq.vir_kern_addr +
+                    (64 * pmetrics_sq_node->public_sq.head_ptr);
+            while (1) {
+                *q_head_ptr = (0xaa55 + num);
+                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr, (u64)*q_head_ptr);
+                q_head_ptr++; /* increment to next location */
+                num++;
+                if (q_head_ptr == pmetrics_sq_node->private_sq.vir_kern_addr +
+                                    pmetrics_sq_node->private_sq.size) {
+                    /* Roll over */
+                    q_head_ptr = pmetrics_sq_node->private_sq.vir_kern_addr;
+                }
+                if (num == 15) {
+                    LOG_NRM("Entries in Q = %d", num);
+                    break;
+                }
+            }
+        }
+
+#if 0
+        num = 0;
+        /* Test: SQ Pattern 0xbb77, SQ ID = 1 */
+        if (pmetrics_sq_node->public_sq.sq_id == 1) {
+            /* point to corresponding head ptr */
+            q_head_ptr = pmetrics_sq_node->private_sq.vir_kern_addr +
+                    (64 * pmetrics_sq_node->public_sq.head_ptr);
+            while (1) {
+                *q_head_ptr = (0xbb77 + num);
+                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr, (u64)*q_head_ptr);
+                q_head_ptr++; /* increment to next location */
+                num++;
+                if (q_head_ptr == pmetrics_sq_node->private_sq.vir_kern_addr +
+                                    pmetrics_sq_node->private_sq.size) {
+                    /* Roll over */
+                    q_head_ptr = pmetrics_sq_node->private_sq.vir_kern_addr;
+                }
+                if (num == 15) {
+                    LOG_NRM("Entries in Q = %d", num);
+                    break;
+                }
+            }
+        }
+#endif
+
+    }
+
+    num = 0;
+    /* Lookup the CQ for which the reap inquiry is requested */
+    list_for_each_entry(pmetrics_cq_node, &pmetrics_device->metrics_cq_list,
+            cq_list_hd) {
+        /* Test: CQ Pattern 0x1122, CQ ID = 0 */
+        if (pmetrics_cq_node->public_cq.q_id == 0) {
+            /* point to corresponding head ptr */
+            q_head_ptr = (u64 *)(pmetrics_cq_node->private_cq.vir_kern_addr +
+                    (16 * pmetrics_cq_node->public_cq.head_ptr));
+            while (1) {
+                *q_head_ptr = (0x3344 + num);
+                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr, (u64)*q_head_ptr);
+                q_head_ptr++; /* increment to next location */
+                num++;
+                if (q_head_ptr == (u64 *)(pmetrics_cq_node->private_cq.vir_kern_addr +
+                                    pmetrics_cq_node->private_cq.size)) {
+                    /* Roll over */
+                    q_head_ptr = (u64 *)pmetrics_cq_node->private_cq.vir_kern_addr;
+                }
+                if (num == 25) {
+                    LOG_NRM("Entries in Q = %d", num);
+                    break;
+                }
+            }
+        }
+    }
+}
