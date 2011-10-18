@@ -609,7 +609,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     }
 
 
-    /* Get the required SQ from the global linked list */
+    /* Get the required SQ through which command should be sent */
     list_for_each_entry(pmetrics_sq, &pmetrics_device->metrics_sq_list,
         sq_list_hd) {
         if (nvme_64b_send->q_id == pmetrics_sq->public_sq.sq_id) {
@@ -637,7 +637,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     }
 
     /* Allocating memory for the command in kernel space */
-    nvme_cmd_ker = kmalloc(cmd_buf_size, GFP_ATOMIC);
+    nvme_cmd_ker = kmalloc(cmd_buf_size, GFP_ATOMIC | __GFP_ZERO);
 
     /* Copying userspace buffer to kernel memory */
     if (copy_from_user(nvme_cmd_ker,
@@ -655,8 +655,11 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
         /* Handling special condition for opcodes 0x00,0x01,0x04
          * and 0x05 of NVME Admin command set */
-        /* Create SQ case */
-        if (nvme_adm_cmd_ker->gen_cmd.opcode == 0x01) {
+
+
+        switch (nvme_adm_cmd_ker->gen_cmd.opcode) {
+        case 0x01:
+            /* Create IOSQ command */
 
             /* Get the required SQ from the global linked list
              * represented by CMD.DW10.QID
@@ -691,45 +694,106 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
             if (p_cmd_sq->private_sq.contig == 0) {
                 /* Creation of Discontiguous IO SQ */
-
-                /* Create PRP and add the node inside the command track list */
-                ret_code = data_buf_to_prp(pmetrics_device->pnvme_device,
-                    pmetrics_sq, nvme_64b_send, &prps,
-                        nvme_adm_cmd_ker->gen_cmd.opcode,
-                            nvme_adm_cmd_ker->create_sq_cmd.sqid,
-                                DISCONTG_IO_Q);
+                ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
+                    pmetrics_sq, nvme_64b_send, &prps, nvme_adm_cmd_ker,
+                        nvme_adm_cmd_ker->create_sq_cmd.sqid, DISCONTG_IO_Q,
+                            PRP_GEN);
                 if (ret_code < 0) {
-                    LOG_ERR("Data buffer to PRP generation failed");
+                    LOG_ERR("Failure to prepare 64 byte command");
                     goto err;
                 }
-                /* Update the PRP's in the command */
-                nvme_adm_cmd_ker->gen_cmd.prp1 = prps.prp1;
-                nvme_adm_cmd_ker->gen_cmd.prp2 = prps.prp2;
             } else {
-                /* Creation of contiguous IO SQ */
+                /* Contig IOCQ creation */
+                ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
+                    pmetrics_sq, nvme_64b_send, &prps, nvme_adm_cmd_ker, 0,
+                        0, 0);
+                if (ret_code < 0) {
+                    LOG_ERR("Failure to prepare 64 byte command");
+                    goto err;
+                }
                 /* TODO:- Renaming asq_dma_addr to sq_dma_addr */
                 nvme_adm_cmd_ker->gen_cmd.prp1 =
                     p_cmd_sq->private_sq.asq_dma_addr;
-
-                /* Adding node inside cmd_track list for pmetrics_sq */
-                ret_code = add_cmd_track_node(pmetrics_sq, 0, &prps,
-                    nvme_64b_send->cmd_set, nvme_adm_cmd_ker->gen_cmd.opcode);
-                if (ret_code < 0) {
-                    LOG_ERR("Failure to add command track node for\
-                    Create Contig Queue Command");
-                    goto err;
-                }
             }
             /* Fill the persistent entry structure */
             memcpy(&p_cmd_sq->private_sq.prp_persist, &prps, sizeof(prps));
-        } /* If condition for different sceanrios */
+            break;
+        case 0x05:
+            /* Create IOCQ command */
+
+            /* Get the required CQ from the global linked list
+             * represented by CMD.DW10.QID
+             */
+            list_for_each_entry(p_cmd_cq, &pmetrics_device->metrics_cq_list,
+                cq_list_hd) {
+                if (nvme_adm_cmd_ker->create_cq_cmd.cqid ==
+                    p_cmd_cq->public_cq.q_id) {
+                    q_ptr =  (struct  metrics_cq  *) p_cmd_cq;
+                    break;
+                }
+            }
+
+            if (q_ptr == NULL) {
+                ret_code = -EPERM;
+                goto data_err;
+            }
+
+            /* Sanity Checks */
+            if (((nvme_adm_cmd_ker->create_cq_cmd.cq_flags & 0x01) &&
+                (p_cmd_cq->private_cq.contig == 0)) ||
+                    (!(nvme_adm_cmd_ker->create_cq_cmd.cq_flags & 0x01) &&
+                        (p_cmd_cq->private_cq.contig != 0))) {
+                /* Contig flag out of sync with what cmd says */
+                goto data_err;
+            } else if ((p_cmd_cq->private_cq.contig == 0 &&
+                nvme_64b_send->data_buf_ptr == NULL) ||
+                    (p_cmd_cq->private_cq.contig != 0 &&
+                        p_cmd_cq->private_cq.vir_kern_addr == NULL)) {
+                /* Contig flag out of sync with what cmd says */
+                goto data_err;
+            }
+
+            if (p_cmd_cq->private_cq.contig == 0) {
+                /* Discontig IOCQ creation */
+                ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
+                    pmetrics_sq, nvme_64b_send, &prps, nvme_adm_cmd_ker,
+                        nvme_adm_cmd_ker->create_cq_cmd.cqid, DISCONTG_IO_Q,
+                            PRP_GEN);
+                if (ret_code < 0) {
+                    LOG_ERR("Failure to prepare 64 byte command");
+                    goto err;
+                }
+            } else {
+                /* Contig IOCQ creation */
+                ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
+                    pmetrics_sq, nvme_64b_send, &prps, nvme_adm_cmd_ker,
+                        0, 0, 0);
+                if (ret_code < 0) {
+                    LOG_ERR("Failure to prepare 64 byte command");
+                    goto err;
+                }
+                /* TODO:- Renaming acq_dma_addr to cq_dma_addr */
+                nvme_adm_cmd_ker->gen_cmd.prp1 =
+                    p_cmd_cq->private_cq.acq_dma_addr;
+            }
+
+            /* Fill the persistent entry structure */
+            memcpy(&p_cmd_cq->private_cq.prp_persist, &prps, sizeof(prps));
+            break;
+        default:
+            /* TODO Remove the jump since it will be the default case */
+            LOG_ERR("Illegal Opcode");
+            goto err;
+        } /* switch case for different sceanrios of admin commands */
 
         /* Copy and Increment the CMD ID */
         nvme_adm_cmd_ker->gen_cmd.command_id =
             pmetrics_sq->private_sq.unique_cmd_id++;
     }
+
+
     /* Copying the command in to appropriate SQ and handling sync issues */
-    if (pmetrics_sq->private_sq.contig == !0) {
+    if (pmetrics_sq->private_sq.contig) {
         memcpy((pmetrics_sq->private_sq.vir_kern_addr +
             (pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size)),
                 nvme_cmd_ker, cmd_buf_size);
@@ -750,6 +814,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         ++pmetrics_sq->public_sq.tail_ptr_virt %
             pmetrics_sq->public_sq.elements;
 
+    kfree(nvme_cmd_ker);
     return 0;
 data_err:
     LOG_ERR("Global Metrics inconsistent");

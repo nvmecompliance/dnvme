@@ -15,6 +15,7 @@ enum prp_type {
     PRP2 = 2,
     PRP_List = 4,
     PRP_Size = 8,
+    PRP_GEN = 1,
 };
 
 /* Enum specifying bitmask passed on to IOCTL_SEND_64B */
@@ -30,23 +31,6 @@ enum data_buf_type {
     DISCONTG_IO_Q = 1,
 };
 
-/**
-* data_buf_to_prp :
-* Creates persist or non persist PRP's from data_buf_ptr memory
-* and addes a node inside cmd track list pointed by pmetrics_sq
-* @param nvme_dev
-* @param pmetrics_sq
-* @param nvme_64b_send
-* @param prps
-* @param opcode
-* @param persist_q_id
-* @param data_buf_type
-* @return Error codes
-*/
-int data_buf_to_prp(struct nvme_device *nvme_dev,
-    struct metrics_sq *pmetrics_sq, struct nvme_64b_send *nvme_64b_send,
-        struct nvme_prps *prps, __u8 opcode, __u16 persist_q_id,
-            enum data_buf_type data_buf_type);
 /**
  * destroy_dma_pool:
  * Destroy's the dma pool
@@ -78,4 +62,23 @@ int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
 void empty_cmd_track_list(struct  nvme_device *pnvme_device,
     struct  metrics_sq  *pmetrics_sq);
 
+/**
+ * prep_send64b_cmd:
+ * Prepares the 64 byte command to be sent
+ * with PRP generation and addition of nodes
+ * inside cmd track list
+ * @param nvme_dev
+ * @param pmetrics_sq
+ * @param nvme_64b_send
+ * @param prps
+ * @param nvme_adm_cmd_ker
+ * @param persist_q_id
+ * @param data_buf_type
+ * @param gen_prp
+ * @return Error Codes
+ */
+int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
+    *pmetrics_sq, struct nvme_64b_send *nvme_64b_send, struct nvme_prps *prps,
+        struct nvme_command *nvme_adm_cmd_ker, __u16 persist_q_id,
+            enum data_buf_type data_buf_type, __u8 gen_prp);
 #endif
