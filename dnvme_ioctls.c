@@ -417,12 +417,10 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
 
     /* Search if admin sq already exists. */
     LOG_NRM("Searching for Node in the sq_list_hd...");
-    list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
-            metrics_sq_list, sq_list_hd) {
-        if (admn_id == pmetrics_sq_list->public_sq.sq_id) {
-            LOG_DBG("ASQ already exists");
-            return -EINVAL;
-        }
+    ret_code = identify_unique(admn_id, METRICS_SQ, pmetrics_device_element);
+    if (ret_code != SUCCESS) {
+        LOG_ERR("ASQ already exists..");
+        return ret_code;
     }
 
     LOG_NRM("Alloc mem for a node...");
@@ -480,14 +478,12 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
 
     /* Search if admin sq already exists. */
     LOG_NRM("Searching for Node in the cq_list_hd");
-    /* Get the device from the linked list */
-    list_for_each_entry(pmetrics_cq_list, &pmetrics_device_element->
-            metrics_cq_list, cq_list_hd) {
-        if (admn_id == pmetrics_cq_list->public_cq.q_id) {
-            LOG_DBG("ACQ already exists");
-            return -EINVAL;
-        }
+    ret_code = identify_unique(admn_id, METRICS_CQ, pmetrics_device_element);
+    if (ret_code != SUCCESS) {
+        LOG_ERR("ACQ already exists");
+        return -EINVAL;
     }
+
     LOG_NRM("Alloc mem for a Admin CQ node.");
     pmetrics_cq_list = kmalloc(sizeof(struct metrics_cq), GFP_KERNEL);
     if (pmetrics_cq_list == NULL) {
@@ -712,25 +708,19 @@ int identify_unique(u16 q_id, enum metrics_type type,
 
     /* Determine the type of Q for which the metrics was needed */
     if (type == METRICS_SQ) {
-        /* Get the device from the linked list */
-        list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
-                metrics_sq_list, sq_list_hd) {
-            /* Check if the Q Id matches */
-            if (q_id == pmetrics_sq_list->public_sq.sq_id) {
-                LOG_ERR("SQ ID is not unique. SQ_ID = %d already created.",
-                    pmetrics_sq_list->public_sq.sq_id);
-                return -EINVAL;
-            }
+        LOG_NRM("Searching for Node in the sq_list_hd...");
+        pmetrics_sq_list = find_sq(pmetrics_device_element, q_id);
+        if (pmetrics_sq_list != NULL) {
+            LOG_ERR("SQ ID is not unique. SQ_ID = %d already created.",
+                         pmetrics_sq_list->public_sq.sq_id);
+            return -EINVAL;
         }
     } else if (type == METRICS_CQ) {
-        list_for_each_entry(pmetrics_cq_list, &pmetrics_device_element->
-                metrics_cq_list, cq_list_hd) {
-            /* check if a q id matches in the list */
-            if (q_id == pmetrics_cq_list->public_cq.q_id) {
-                LOG_DBG("CQ ID is not unique. CQ_ID = %d already created.",
-                    pmetrics_cq_list->public_cq.q_id);
-                return -EINVAL;
-            }
+        pmetrics_cq_list = find_cq(pmetrics_device_element, q_id);
+        if (pmetrics_cq_list != NULL) {
+            LOG_ERR("CQ ID is not unique. CQ_ID = %d already created.",
+                                pmetrics_cq_list->public_cq.q_id);
+            return -EINVAL;
         }
     }
     return SUCCESS;

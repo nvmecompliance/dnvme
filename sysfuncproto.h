@@ -58,15 +58,13 @@ int dnvme_blk_gendisk(struct pci_dev *pdev, int which);
 * The user selection of IOCTL required is specified in the
 * ioctl_num parameter based on which corresponding IOCTL
 * call is made. The data supplied by used is in ioctl_param.
-* @param inode
-* @param file
+* @param filp
 * @param ioctl_num
 * @param ioctl_param
 * @return whether successful or not.
 */
-int dnvme_ioctl_device(struct inode *inode, struct file *file,
-    unsigned int ioctl_num, unsigned long ioctl_param);
-
+long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
+        unsigned long ioctl_param);
 /**
 * driver_generic_read is a function that is called from
 * driver IOCTL when user want to read data from the
