@@ -7,6 +7,12 @@
 #include "dnvme_queue.h"
 #include "ut_reap_inq.h"
 
+#undef TEST_IO_SQ
+
+/*
+ * Function to set up completion q entries as if they are really placed by
+ * the h/w.
+ */
 void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device)
 {
     struct metrics_cq  *pmetrics_cq_node;   /* ptr to cq node       */
@@ -154,6 +160,9 @@ void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device)
     }
 }
 
+/*
+ * function to submit data to SQ.
+ */
 void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
 {
     struct metrics_sq  *pmetrics_sq_node;   /* ptr to cq node       */
@@ -187,7 +196,7 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
             }
         }
 
-#if 0
+#ifdef TEST_IO_SQ
         num = 0;
         /* Test: SQ Pattern 0xbb77, SQ ID = 1 */
         if (pmetrics_sq_node->public_sq.sq_id == 1) {
