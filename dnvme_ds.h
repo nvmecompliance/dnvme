@@ -114,8 +114,10 @@ struct metrics_device_list {
 };
 
 /* extern device metrics linked list for exporting to project files */
-extern struct metrics_device_list *pmetrics_device_list;
 extern struct metrics_driver g_metrics_drv;
+
+/* Global linked list for the entire data structure for all devices. */
+extern struct list_head metrics_dev_ll;
 
 /**
  * This function gives the device metrics when the user requests. This

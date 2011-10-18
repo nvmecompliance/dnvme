@@ -74,9 +74,6 @@ struct cq_completion {
     u16 status_field:15;   /* Status field         */
 };
 
-/* To use the linked list in queues. */
-extern struct list_head metrics_dev_ll;
-
 /**
 * The user selection of IOCTL for creating admin cq eventually calls
 * this function if init is successful. This will create infrastructure
@@ -169,13 +166,19 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
         struct  metrics_device_list *pmetrics_device_element);
 
 /**
- *
+ * finds the sq node in the given sq list for the given sq id
+ * @param pmetrics_device_element
+ * @param sq_id
+ * @return pointer to the sq node for given sq id
  */
 struct metrics_sq *find_sq(struct  metrics_device_list
         *pmetrics_device_element, u16 sq_id);
 
 /**
- *
+ * finds the cq node in the given cq list for the given cq id
+ * @param pmetrics_device_element
+ * @param cq_id
+ * @return pointer to the cq node for given cq id
  */
 struct metrics_cq *find_cq(struct  metrics_device_list
         *pmetrics_device_element, u16 cq_id);

@@ -130,6 +130,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     u32  *bar;
     dev_t devno = 0;
     int err;
+    struct metrics_device_list *pmetrics_device_element;
 
     /* Following the Iniitalization steps from LDD 3 */
     LOG_DBG("Start probing for NVME PCI Express Device");
@@ -208,31 +209,31 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     LOG_DBG("PCI BAR 0 = 0x%x", BaseAddress0);
 
     /* Allocate mem fo nvme device with kernel memory */
-    pmetrics_device_list = kmalloc(sizeof(struct metrics_device_list),
+    pmetrics_device_element = kmalloc(sizeof(struct metrics_device_list),
             GFP_KERNEL);
-    if (pmetrics_device_list == NULL) {
+    if (pmetrics_device_element == NULL) {
         LOG_ERR("failed mem allocation for device in device list.");
         return -ENOMEM;
     }
     /* Initialize the current device found */
-    retCode = driver_ioctl_init(pdev, pmetrics_device_list);
+    retCode = driver_ioctl_init(pdev, pmetrics_device_element);
     if (retCode != SUCCESS) {
         LOG_ERR("Failed driver ioctl initializations!!");
         return -EINVAL;
     }
     /* Update info in the metrics list */
-    pmetrics_device_list->metrics_device->minor_no = nvme_minor_x;
+    pmetrics_device_element->metrics_device->minor_no = nvme_minor_x;
     /* update the device minor number */
     nvme_minor_x = nvme_minor_x + 1;
 
     /* set device open status to false when initialized */
-    pmetrics_device_list->metrics_device->open_flag = 0;
+    pmetrics_device_element->metrics_device->open_flag = 0;
 
     /* Initialize the mutex state. */
-    mutex_init(&pmetrics_device_list->metrics_mtx);
+    mutex_init(&pmetrics_device_element->metrics_mtx);
 
     /* Add the device to the linked list */
-    list_add_tail(&pmetrics_device_list->metrics_device_hd, &metrics_dev_ll);
+    list_add_tail(&pmetrics_device_element->metrics_device_hd, &metrics_dev_ll);
     return retCode;
 }
 

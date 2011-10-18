@@ -26,7 +26,6 @@ static int deallocate_metrics_sq(struct device *dev,
         struct  metrics_device_list *pmetrics_device);
 
 /* device metrics linked list */
-struct metrics_device_list *pmetrics_device_list;
 struct metrics_driver g_metrics_drv;
 
 /* Conditional compilation for QEMU related modifications. */
@@ -274,7 +273,7 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     /* Read the status register and printout to log */
     tmp_aqa = readl(&pnvme_dev->nvme_ctrl_space->csts);
 
-    LOG_NRM("Reading status reg = 0x%x", tmp_aqa);
+    LOG_DBG("Reading status reg = 0x%x", tmp_aqa);
 #endif
 
     /* Set the door bell of ASQ to 0x1000 as per spec 1.0b */
@@ -463,7 +462,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 #ifdef DEBUG
     /* Check to see if the entries exceed the Max Q entries supported */
     u16cap_mqes = readl(&pnvme_dev->nvme_ctrl_space->cap) & 0xFFFF;
-    LOG_NRM("Max CQ:Actual CQ elements = 0x%x:0x%x", u16cap_mqes,
+    LOG_DBG("Max CQ:Actual CQ elements = 0x%x:0x%x", u16cap_mqes,
             pmetrics_cq_list->public_cq.elements);
     /* I should not return from here if exceeds */
     if (pmetrics_cq_list->public_cq.elements > u16cap_mqes) {
@@ -524,9 +523,9 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
             LOG_ERR("SQ_ID= %d found in the linked list.",
                     pmetrics_sq_list->public_sq.sq_id);
 #ifdef DEBUG
-             LOG_NRM("\tVirt Tail Ptr = 0x%x",
+             LOG_DBG("\tVirt Tail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr_virt);
-             LOG_NRM("\tTail Ptr = 0x%x",
+             LOG_DBG("\tTail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr);
 #endif
             /* Copy tail_prt_virt to tail_prt */
@@ -536,10 +535,10 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
              writel(pmetrics_sq_list->public_sq.tail_ptr, pmetrics_sq_list->
                      private_sq.dbs);
 #ifdef DEBUG
-             LOG_NRM("After Writing Doorbell...");
-             LOG_NRM("\tVirt Tail Ptr = 0x%x",
+             LOG_DBG("After Writing Doorbell...");
+             LOG_DBG("\tVirt Tail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr_virt);
-             LOG_NRM("\tTail Ptr = 0x%x",
+             LOG_DBG("\tTail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr);
 #endif
              /* Done with this function return success */
