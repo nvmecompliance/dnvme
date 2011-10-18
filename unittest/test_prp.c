@@ -31,8 +31,7 @@ void ioctl_create_prp_more_than_two_page(int file_desc)
     user_cmd.cmd_buf_ptr = NULL;
     user_cmd.data_buf_size = 8200; /* more than 2 page */
     user_cmd.data_buf_ptr = addr;
-    user_cmd.meta_buf_size = 0;
-    user_cmd.meta_buf_ptr = NULL;
+
 
     printf("User Call to Create PRP more than one page:\n");
 
@@ -60,8 +59,7 @@ void ioctl_create_prp_less_than_one_page(int file_desc)
     user_cmd.cmd_buf_ptr = NULL;
     user_cmd.data_buf_size = 95;
     user_cmd.data_buf_ptr = addr;
-    user_cmd.meta_buf_size = 0;
-    user_cmd.meta_buf_ptr = NULL;
+
 
     printf("User Call to Create PRP less than one page:\n");
 
@@ -89,8 +87,7 @@ void ioctl_create_prp_one_page(int file_desc)
     user_cmd.cmd_buf_ptr = NULL;
     user_cmd.data_buf_size = 4096;
     user_cmd.data_buf_ptr = addr;
-    user_cmd.meta_buf_size = 0;
-    user_cmd.meta_buf_ptr = NULL;
+
     printf("User Call to Create PRP single page:\n");
 
     ret_val = ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
@@ -119,8 +116,6 @@ void ioctl_create_list_of_prp(int file_desc)
     user_cmd.cmd_buf_ptr = NULL;
     user_cmd.data_buf_size = (512 * 4096) + 4096;
     user_cmd.data_buf_ptr = addr;
-    user_cmd.meta_buf_size = 0;
-    user_cmd.meta_buf_ptr = NULL;
     printf("User Call to Create Lists of PRP's\n");
 
     ret_val = ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
@@ -148,8 +143,7 @@ void ioctl_create_fill_list_of_prp(int file_desc)
     user_cmd.cmd_buf_ptr = NULL;
     user_cmd.data_buf_size = 1023 * 4096;
     user_cmd.data_buf_ptr = addr;
-    user_cmd.meta_buf_size = 0;
-    user_cmd.meta_buf_ptr = NULL;
+
     printf("User Call to Create Lists of PRP's\n");
 
     ret_val = ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
@@ -173,18 +167,20 @@ void ioctl_create_discontig_ioq(int file_desc)
         return;
     }
 
-    /* Fill the command (random values put) */
+    /* Fill the command for create discontig IOSQ*/
     create_sq_cmd.opcode = 0x01;
     create_sq_cmd.sqid = 0x01;
+    create_sq_cmd.qsize = 256;
+    create_sq_cmd.cqid = 0x01;
+    create_sq_cmd.sq_flags= 0x00;
 
     /* Fill the user command */
     user_cmd.q_id = 0;
-    user_cmd.bit_mask = 1;
+    user_cmd.bit_mask = 3;
     user_cmd.cmd_buf_ptr = (u_int8_t *) &create_sq_cmd;
     user_cmd.data_buf_size = 4 * 4096;
     user_cmd.data_buf_ptr = addr;
-    user_cmd.meta_buf_size = 0;
-    user_cmd.meta_buf_ptr = NULL;
+
     user_cmd.cmd_set = CMD_ADMIN;
     user_cmd.data_dir = 1;
 

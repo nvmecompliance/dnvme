@@ -17,7 +17,7 @@ static int map_user_pg_to_dma(struct nvme_device *, __u8,
         enum data_buf_type);
 static void unmap_user_pg_to_dma(struct nvme_device *, struct nvme_prps *);
 static int setup_prps(struct nvme_device *, struct scatterlist *,
-    __s32, struct nvme_prps *, __u8);
+    __s32, struct nvme_prps *, __u8, __u16);
 static void free_prp_pool(struct nvme_device *, struct nvme_prps *, __u32);
 
 
@@ -27,9 +27,9 @@ static void free_prp_pool(struct nvme_device *, struct nvme_prps *, __u32);
  * and addes a node inside cmd track list pointed by pmetrics_sq
  */
 int data_buf_to_prp(struct nvme_device *nvme_dev,
-    struct metrics_sq *pmetrics_sq, enum data_buf_type data_buf_type,
-        struct nvme_64b_send *nvme_64b_send, struct nvme_prps *prps,
-        __u8 opcode, __u16 persist_q_id)
+    struct metrics_sq *pmetrics_sq, struct nvme_64b_send *nvme_64b_send,
+        struct nvme_prps *prps, __u8 opcode, __u16 persist_q_id,
+            enum data_buf_type data_buf_type)
 {
     int err; /* Error code return values */
     struct scatterlist *sg; /* Pointer to SG List */
@@ -61,7 +61,7 @@ int data_buf_to_prp(struct nvme_device *nvme_dev,
     /* Setting up PRP's */
     /* TODO change function arguments while implementing command support */
     err = setup_prps(nvme_dev, sg, nvme_64b_send->data_buf_size, prps,
-        data_buf_type);
+        data_buf_type, nvme_64b_send->bit_mask);
     if (err < 0) {
         /* Unampping PRP's and User pages */
         unmap_user_pg_to_dma(nvme_dev, prps);
@@ -308,19 +308,25 @@ static void unmap_user_pg_to_dma(struct nvme_device *dev,
  * TODO: Handle Create IO CQ/SQ case
  */
 static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
-    __s32 buf_len, struct nvme_prps *prps, __u8 cr_io_q)
+    __s32 buf_len, struct nvme_prps *prps, __u8 cr_io_q, __u16 prp_mask)
 {
     dma_addr_t prp_dma, dma_addr;
     __s32 dma_len; /* Length of DMA'ed SG */
     __le64 *prp_list; /* Pointer to PRP List */
     __u32 offset;
-    __u32 num_prps, num_pg, prp_page;
+    __u32 num_prps, num_pg, prp_page = 0;
     int index, err;
     struct dma_pool *prp_page_pool;
 
     dma_addr = sg_dma_address(sg);
     dma_len = sg_dma_len(sg);
     offset = offset_in_page(dma_addr);
+
+    /* Checking for PRP1 mask */
+    if (!(prp_mask & MASK_PRP1)) {
+        LOG_ERR("bit_mask does not support MASK_PRP1");
+        goto error;
+    }
 
     /* Create IO CQ/SQ's */
     if (cr_io_q) {
@@ -353,6 +359,12 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     }
 
     offset = 0;
+    /* Checking for PRP2 mask */
+    if (!(prp_mask & MASK_PRP2)) {
+        LOG_ERR("bit_mask does not support MASK_PRP2");
+        goto error;
+    }
+
     if (buf_len <= PAGE_SIZE) {
         prps->prp2 = cpu_to_le64(dma_addr);
         prps->type = (PRP1 | PRP2);
@@ -500,7 +512,6 @@ int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     struct cmd_track  *pcmd_track_list;
 
     /* Fill the cmd_track structure */
-    LOG_DBG("Alloc memory for the node inside command track list");
     pcmd_track_list = kmalloc(sizeof(struct cmd_track), GFP_KERNEL);
     if (pcmd_track_list == NULL) {
         LOG_ERR("Failed to alloc memory for the command track list");
@@ -518,7 +529,7 @@ int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     /* Add an element to the end of the list */
     list_add_tail(&pcmd_track_list->cmd_list_hd,
         &pmetrics_sq->private_sq.cmd_track_list);
-
+    LOG_DBG("Node created and added inside command track list");
     return 0;
 }
 

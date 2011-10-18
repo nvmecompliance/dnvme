@@ -55,38 +55,6 @@ void ioctl_read_data(int file_desc)
 
 }
 
-/*
- * Functions for the ioctl calls
-*/
-void ioctl_write_data(int file_desc)
-{
-    int ret_val;
-    //int message;
-    struct rw_generic test_data;
-
-    test_data.type = NVMEIO_BAR01;
-    test_data.offset = 0x8;
-    test_data.nBytes = 4;
-    test_data.acc_type = DWORD_LEN;
-    test_data.buffer[0] = 0xaa;
-    test_data.buffer[1] = 0xbb;
-    test_data.buffer[2] = 0xcc;
-    test_data.buffer[3] = 0xdd;
-    test_data.buffer[4] = 0xee;
-    test_data.buffer[5] = 0xbb;
-    test_data.buffer[6] = 0xcc;
-    test_data.buffer[7] = 0xdd;
-
-
-    printf("writing Test Application...\n");
-    ret_val = ioctl(file_desc, NVME_IOCTL_WRITE_GENERIC, &test_data);
-
-    if (ret_val < 0) {
-            printf("ioctl_set_msg failed:%d\n", ret_val);
-            exit(-1);
-   }
-}
-
 void ioctl_create_acq(int file_desc)
 {
     int ret_val = -1;
@@ -183,7 +151,8 @@ void test_prep_sq(int file_desc)
     printf("\nTEST 3: Allocating SQ 1 to 3 with different sizes...\n");
     printf("\nTEST 3: Contiguous SQ Case...\n");
     printf("\n\tSD_ID : CQ ID = 1 : 1\n");
-    ioctl_prep_sq(file_desc, 1, 1, 20, 1);
+    ioctl_prep_sq(file_desc, 1, 1, 256, 0);
+#if 0
     printf("\nPress any key to continue..");
     getchar();
     printf("\n\tSD_ID : CQ ID = 2 : 3\n");
@@ -208,6 +177,33 @@ void test_prep_sq(int file_desc)
     ioctl_prep_sq(file_desc, 6, 3, 32, 0);
     printf("\nPress any key to continue..");
     getchar();
+#endif
+}
+
+void ioctl_write_data(int file_desc)
+{
+    int ret_val;
+    //int message;
+    struct rw_generic test_data;
+
+    test_data.type = NVMEIO_BAR01;
+    test_data.offset = 0x14;
+    test_data.nBytes = 4;
+    test_data.acc_type = DWORD_LEN;
+
+    test_data.buffer = malloc(sizeof(char) * test_data.nBytes);
+    test_data.buffer[0] = 0x01;
+    test_data.buffer[1] = 0x00;
+    test_data.buffer[2] = 0x46;
+    test_data.buffer[3] = 0x00;
+
+    printf("\nwriting Test Application...\n");
+    ret_val = ioctl(file_desc, NVME_IOCTL_WRITE_GENERIC, &test_data);
+
+    if (ret_val < 0) {
+            printf("ioctl_set_msg failed:%d\n", ret_val);
+            exit(-1);
+   }
 }
 
 void test_prep_cq(int file_desc)
@@ -344,13 +340,20 @@ int main(void)
     printf("\nPress any key to continue..");
     getchar();
 
+
     printf("Calling Contoller State to set to Enable state\n");
     ioctl_enable_ctrl(file_desc);
 
-    test_prep_sq(file_desc);
-    printf("\n...Test PASS if all Preparation success...");
-    printf("\nPress any key to continue..");
-    getchar();
+    printf("Writing the Registers of NVME space \n");
+    ioctl_write_data(file_desc);
+
+    printf("\n Creating contig CQ with ID 1 \n");
+    printf("\n\tCQ ID = 1\n");
+    ioctl_prep_cq(file_desc, 1, 20, 1);
+
+    printf("\n Creating Discontig SQ with ID 1 \n");
+    printf("\n\tSD_ID : CQ ID = 1 : 1\n");
+    ioctl_prep_sq(file_desc, 1, 1, 256, 0);
 
     printf("Calling Dump Metrics to tmpfile1\n");
     ioctl_dump(file_desc, tmpfile1);
@@ -360,6 +363,10 @@ int main(void)
 
     ioctl_dump(file_desc, tmpfile2);
 
+    printf("Ringing Doorbell for SQID 0\n");
+    ioctl_tst_ring_dbl(file_desc, 0);
+
+/*
     printf("Calling Contoller State to set to Disable state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE);
 
@@ -369,6 +376,7 @@ int main(void)
     ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
 
     ioctl_dump(file_desc, tmpfile4);
+*/
 #if 0
     test_prep_cq(file_desc);
     printf("\n...Test PASS if all Preparation success...");

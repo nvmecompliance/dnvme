@@ -36,18 +36,17 @@ enum data_buf_type {
 * and addes a node inside cmd track list pointed by pmetrics_sq
 * @param nvme_dev
 * @param pmetrics_sq
-* @param data_buf_type
 * @param nvme_64b_send
 * @param prps
 * @param opcode
 * @param persist_q_id
+* @param data_buf_type
 * @return Error codes
 */
 int data_buf_to_prp(struct nvme_device *nvme_dev,
-    struct metrics_sq *pmetrics_sq, enum data_buf_type data_buf_type,
-        struct nvme_64b_send *nvme_64b_send, struct nvme_prps *prps,
-            __u8 opcode, __u16 persist_q_id);
-
+    struct metrics_sq *pmetrics_sq, struct nvme_64b_send *nvme_64b_send,
+        struct nvme_prps *prps, __u8 opcode, __u16 persist_q_id,
+            enum data_buf_type data_buf_type);
 /**
  * destroy_dma_pool:
  * Destroy's the dma pool
