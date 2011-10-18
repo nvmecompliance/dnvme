@@ -406,7 +406,7 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
     }
 
     /* Grab the Mutex for this device in the linked list */
-    mutex_lock(&pmetrics_device_list->metrics_mtx);
+    mutex_lock(&pmetrics_device_element->metrics_mtx);
 
     /*
      * Given a ioctl_num invoke corresponding function
@@ -565,7 +565,7 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
     }
 
     /* Release the Mutex */
-    mutex_unlock(&pmetrics_device_list->metrics_mtx);
+    mutex_unlock(&pmetrics_device_element->metrics_mtx);
 
     return ret_val;
 }

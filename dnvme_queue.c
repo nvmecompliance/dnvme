@@ -269,7 +269,7 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     /* Read the AQA attributes after writing and check */
     tmp_aqa = readl(&pnvme_dev->nvme_ctrl_space->aqa);
 
-    LOG_NRM("Reading AQA after writing = 0x%x", tmp_aqa);
+    LOG_DBG("Reading AQA after writing = 0x%x", tmp_aqa);
 
     /* Read the status register and printout to log */
     tmp_aqa = readl(&pnvme_dev->nvme_ctrl_space->csts);
@@ -360,7 +360,7 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
     /* Read the AQA attributes after writing and check */
     tmp_aqa = readl(&pnvme_dev->nvme_ctrl_space->aqa);
 
-    LOG_NRM("Reading AQA after writing in ACQ = 0x%x\n", tmp_aqa);
+    LOG_DBG("Reading AQA after writing in ACQ = 0x%x\n", tmp_aqa);
 
 #endif
 
@@ -400,7 +400,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
 #ifdef DEBUG
     /* Check to see if the entries exceed the Max Q entries supported */
     u16cap_mqes = readl(&pnvme_dev->nvme_ctrl_space->cap) & 0xFFFF;
-    LOG_NRM("Max Q:Actual Q elements = 0x%x:0x%x", u16cap_mqes,
+    LOG_DBG("Max Q:Actual Q elements = 0x%x:0x%x", u16cap_mqes,
             pmetrics_sq_list->public_sq.elements);
     /* I should not return from here if exceeds */
     if (pmetrics_sq_list->public_sq.elements > u16cap_mqes) {
