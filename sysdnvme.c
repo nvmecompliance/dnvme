@@ -274,7 +274,8 @@ int dnvme_device_open(struct inode *inode, struct file *filp)
     struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
 
     LOG_DBG("Call to open the device...");
-    if ((pmetrics_device_element = find_device(inode)) == NULL) {
+    pmetrics_device_element = find_device(inode);
+    if (pmetrics_device_element == NULL) {
         LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
         return -ENODEV;
     }
@@ -300,7 +301,9 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
 
     LOG_DBG("Call to Release the device...");
 
-    if ((pmetrics_device_element = find_device(inode)) == NULL) {
+    pmetrics_device_element = find_device(inode);
+
+    if (pmetrics_device_element == NULL) {
         LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
         return -ENODEV;
     }
@@ -331,7 +334,8 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     vma->vm_flags |= VM_IO;
     LOG_DBG("Device Calling mmap function...");
 
-    if ((pmetrics_device_element = find_device(inode)) == NULL) {
+    pmetrics_device_element = find_device(inode);
+    if (pmetrics_device_element == NULL) {
         return -ENODEV;
     }
 
@@ -344,15 +348,19 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
 
     /* If Q type is 1 implies SQ */
     if (qtype != 0) {
-        if ((pmetrics_sq_list = find_sq(pmetrics_device_element, qid)) == NULL) {
+        pmetrics_sq_list = find_sq(pmetrics_device_element, qid);
+        if (pmetrics_sq_list == NULL) {
             return -EBADSLT;
         }
-        pfn = virt_to_phys(pmetrics_sq_list->private_sq.vir_kern_addr) >> PAGE_SHIFT;
+        pfn = virt_to_phys(pmetrics_sq_list->private_sq.vir_kern_addr) >>
+                PAGE_SHIFT;
     } else {
-        if ((pmetrics_cq_list = find_cq(pmetrics_device_element, qid)) == NULL) {
+        pmetrics_cq_list = find_cq(pmetrics_device_element, qid);
+        if (pmetrics_cq_list == NULL) {
             return -EBADSLT;
         }
-        pfn = virt_to_phys(pmetrics_cq_list->private_cq.vir_kern_addr) >> PAGE_SHIFT;
+        pfn = virt_to_phys(pmetrics_cq_list->private_cq.vir_kern_addr) >>
+                PAGE_SHIFT;
     }
 
     LOG_DBG("PFN = 0x%lx", pfn);
@@ -391,8 +399,8 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
     unsigned char __user *datap = (unsigned char __user *)ioctl_param;
 
     LOG_DBG("Minor No = %d", iminor(inode));
-
-    if ((pmetrics_device_element = find_device(inode)) == NULL) {
+    pmetrics_device_element = find_device(inode);
+    if (pmetrics_device_element == NULL) {
         LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
         return -ENODEV;
     }

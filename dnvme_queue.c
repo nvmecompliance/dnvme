@@ -283,6 +283,7 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     /* set private members in sq metrics */
     pmetrics_sq_list->private_sq.size = asq_depth;
     pmetrics_sq_list->private_sq.unique_cmd_id = 0;
+    pmetrics_sq_list->private_sq.contig = 1;
     /* returns success or failure*/
     return SUCCESS;
 }
@@ -364,6 +365,8 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
 #endif
 
     pmetrics_cq_list->private_cq.size = acq_depth;
+    pmetrics_cq_list->private_cq.contig = 1;
+
     /* Set the door bell of ACQ to 0x1000 as per spec 1.0b */
     pmetrics_cq_list->private_cq.dbs =
             ((void __iomem *)pnvme_dev->nvme_ctrl_space) + NVME_CQ0TBDL;

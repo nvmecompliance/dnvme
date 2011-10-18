@@ -171,7 +171,8 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                     (64 * pmetrics_sq_node->public_sq.head_ptr);
             while (1) {
                 *q_head_ptr = (0xaa55 + num);
-                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr, (u64)*q_head_ptr);
+                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr,
+                        (u64)*q_head_ptr);
                 q_head_ptr++; /* increment to next location */
                 num++;
                 if (q_head_ptr == pmetrics_sq_node->private_sq.vir_kern_addr +
@@ -195,7 +196,8 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                     (64 * pmetrics_sq_node->public_sq.head_ptr);
             while (1) {
                 *q_head_ptr = (0xbb77 + num);
-                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr, (u64)*q_head_ptr);
+                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr,
+                        (u64)*q_head_ptr);
                 q_head_ptr++; /* increment to next location */
                 num++;
                 if (q_head_ptr == pmetrics_sq_node->private_sq.vir_kern_addr +
@@ -224,13 +226,15 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                     (16 * pmetrics_cq_node->public_cq.head_ptr));
             while (1) {
                 *q_head_ptr = (0x3344 + num);
-                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr, (u64)*q_head_ptr);
+                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr,
+                        (u64)*q_head_ptr);
                 q_head_ptr++; /* increment to next location */
                 num++;
-                if (q_head_ptr == (u64 *)(pmetrics_cq_node->private_cq.vir_kern_addr +
-                                    pmetrics_cq_node->private_cq.size)) {
+                if (q_head_ptr == (u64 *)(pmetrics_cq_node->private_cq.
+                        vir_kern_addr + pmetrics_cq_node->private_cq.size)) {
                     /* Roll over */
-                    q_head_ptr = (u64 *)pmetrics_cq_node->private_cq.vir_kern_addr;
+                    q_head_ptr = (u64 *)pmetrics_cq_node->private_cq.
+                            vir_kern_addr;
                 }
                 if (num == 25) {
                     LOG_NRM("Entries in Q = %d", num);

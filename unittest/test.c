@@ -478,7 +478,6 @@ int main(void)
     printf("\nPress any key to continue..");
     getchar();
 
-
     //test_admin(file_desc);
     //printf("\n...Test PASS if creation is not successful.");
     //printf("\nPress any key to continue..");
@@ -491,7 +490,7 @@ int main(void)
     //printf("\nPress any key to continue..");
     //getchar();
 
-    /*
+
     printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile1\n");
     ioctl_dump(file_desc, tmpfile1);
     printf("\nPress any key to continue..");
@@ -516,7 +515,7 @@ int main(void)
     ioctl_dump(file_desc, tmpfile3);
     printf("\nPress any key to continue..");
     getchar();
-    */
+
 #endif
 
     close(file_desc);
