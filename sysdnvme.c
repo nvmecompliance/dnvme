@@ -61,6 +61,8 @@ static const struct file_operations dnvme_fops_f = {
 };
 
 /* local functions static declarations */
+static struct  metrics_device_list *lock_device(struct inode *inode);
+static void unlock_device(struct  metrics_device_list *pmetrics_device_element);
 static struct  metrics_device_list *find_device(struct inode *inode);
 
 /* char device specific parameters */
@@ -267,34 +269,60 @@ static struct  metrics_device_list *find_device(struct inode *inode)
 }
 
 /*
+ * lock_device function will call find_device and if found device locks my
+ * taking the mutex. This function returns a pointer to successfully found
+ * device.
+ */
+static struct  metrics_device_list *lock_device(struct inode *inode)
+{
+    struct  metrics_device_list *pmetrics_device_element;
+    pmetrics_device_element = find_device(inode);
+    if (pmetrics_device_element == NULL) {
+        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
+        return NULL;
+    }
+    LOG_DBG("Obtain Mutex...");
+    /* Grab the Mutex for this device in the linked list */
+    mutex_lock(&pmetrics_device_element->metrics_mtx);
+    return pmetrics_device_element;
+}
+
+/*
+ * Release the mutex for this device.
+ */
+static void unlock_device(struct  metrics_device_list *pmetrics_device_element)
+{
+    LOG_DBG("Releasing Mutex...");
+    mutex_unlock(&pmetrics_device_element->metrics_mtx);
+}
+
+/*
  * This operation is always the first operation performed on the device file.
  * when the user call open fd, this is where it lands.
  */
 int dnvme_device_open(struct inode *inode, struct file *filp)
 {
     struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
+    int ret_val = SUCCESS;
 
     LOG_DBG("Call to open the device...");
-    pmetrics_device_element = find_device(inode);
+    pmetrics_device_element = lock_device(inode);
     if (pmetrics_device_element == NULL) {
-        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
-        return -ENODEV;
+        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        ret_val = -ENODEV;
+        goto exit;
     }
-    LOG_DBG("Obtain Mutex...");
-    /* Grab the Mutex for this device in the linked list */
-    mutex_lock(&pmetrics_device_element->metrics_mtx);
+
     if (pmetrics_device_element->metrics_device->open_flag == 0) {
         pmetrics_device_element->metrics_device->open_flag = 1;
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
     } else {
         LOG_ERR("Attempt to open device multiple times not allowed!!");
-        LOG_DBG("Releasing Mutex...");
-        mutex_unlock(&pmetrics_device_element->metrics_mtx);
-        return -EPERM; /* Operation not permitted */
+        ret_val =  -EPERM; /* Operation not permitted */
     }
-    LOG_DBG("Releasing Mutex...");
-    mutex_unlock(&pmetrics_device_element->metrics_mtx);
-    return SUCCESS;
+    unlock_device(pmetrics_device_element);
+exit:
+    return ret_val;
 }
 
 /*
@@ -306,33 +334,25 @@ int dnvme_device_open(struct inode *inode, struct file *filp)
 int dnvme_device_release(struct inode *inode, struct file *filp)
 {
     struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
+    int ret_val = -EINVAL;
 
     LOG_DBG("\n.....Call to Release the device...\n");
-
-    pmetrics_device_element = find_device(inode);
-
+    pmetrics_device_element = lock_device(inode);
     if (pmetrics_device_element == NULL) {
-        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
-        return -ENODEV;
+        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        ret_val = -ENODEV;
+        goto exit;
     }
-    /* Grab the Mutex for this device in the linked list */
-    LOG_DBG("Obtain Mutex...");
-    mutex_lock(&pmetrics_device_element->metrics_mtx);
     pmetrics_device_element->metrics_device->open_flag = 0;
-
-     if (deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY)
+    if (deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY)
             != SUCCESS) {
         LOG_ERR("Deallocation failed!!");
-        /* Release mutex */
-        LOG_DBG("Releasing Mutex...");
-        mutex_unlock(&pmetrics_device_element->metrics_mtx);
-        return -EINVAL;
+        ret_val = -EINVAL;
     }
-     LOG_DBG("\n.....Close Successful!!!....Releasing Mutex...\n");
-    /* Release mutex */
-    mutex_unlock(&pmetrics_device_element->metrics_mtx);
-
-    return SUCCESS;
+    LOG_DBG("\n.....Close Successful!!!....Releasing Mutex...\n");
+    unlock_device(pmetrics_device_element);
+exit:
+    return ret_val;
 }
 
 /*
@@ -353,13 +373,12 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     vma->vm_flags |= VM_IO;
     LOG_DBG("Device Calling mmap function...");
 
-    pmetrics_device_element = find_device(inode);
+    pmetrics_device_element = lock_device(inode);
     if (pmetrics_device_element == NULL) {
-        return -ENODEV;
+        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        ret_val = -ENODEV;
+        goto exit;
     }
-    LOG_DBG("Obtain Mutex...");
-    /* Grab the Mutex for this device in the linked list */
-    mutex_lock(&pmetrics_device_element->metrics_mtx);
 
     /* Calculate the q id and q type from offset */
     qtype = (vma->vm_pgoff >> 0x10) & 0x1;
@@ -372,30 +391,26 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     if (qtype != 0) {
         pmetrics_sq_list = find_sq(pmetrics_device_element, qid);
         if (pmetrics_sq_list == NULL) {
-            LOG_DBG("Releasing Mutex...");
-            mutex_unlock(&pmetrics_device_element->metrics_mtx);
-            return -EBADSLT;
+            ret_val = -EBADSLT;
+            goto release_device;
         }
         pfn = virt_to_phys(pmetrics_sq_list->private_sq.vir_kern_addr) >>
                 PAGE_SHIFT;
     } else {
         pmetrics_cq_list = find_cq(pmetrics_device_element, qid);
         if (pmetrics_cq_list == NULL) {
-            LOG_DBG("Releasing Mutex...");
-            mutex_unlock(&pmetrics_device_element->metrics_mtx);
-            return -EBADSLT;
+            ret_val = -EBADSLT;
+            goto release_device;
         }
         pfn = virt_to_phys(pmetrics_cq_list->private_cq.vir_kern_addr) >>
                 PAGE_SHIFT;
     }
-
     LOG_DBG("PFN = 0x%lx", pfn);
     ret_val = remap_pfn_range(vma, vma->vm_start, pfn,
                     vma->vm_end - vma->vm_start, vma->vm_page_prot);
-
-    LOG_DBG("Releasing Mutex...");
-    mutex_unlock(&pmetrics_device_element->metrics_mtx);
-
+release_device:
+    unlock_device(pmetrics_device_element);
+exit:
     return ret_val;
 }
 
@@ -430,15 +445,12 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct inode *inode = filp->f_dentry->d_inode;
 
     LOG_DBG("Minor No = %d", iminor(inode));
-    pmetrics_device_element = find_device(inode);
+    pmetrics_device_element = lock_device(inode);
     if (pmetrics_device_element == NULL) {
-        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
-        return -ENODEV;
+        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        ret_val = -ENODEV;
+        goto exit;
     }
-
-    LOG_DBG("Obtain Mutex...");
-    /* Grab the Mutex for this device in the linked list */
-    mutex_lock(&pmetrics_device_element->metrics_mtx);
 
     /* Given a ioctl_num invoke corresponding function */
     switch (ioctl_num) {
@@ -476,7 +488,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
             ret_val = driver_create_acq(create_admn_q, pmetrics_device_element);
         } else {
             LOG_ERR("Unknown Q type specified..");
-            return -EINVAL;
+            ret_val =  -EINVAL;
         }
         break;
 
@@ -500,7 +512,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
             }
          } else {
             LOG_ERR("Device State not correctly specified.");
-            return -EINVAL;
+            ret_val =  -EINVAL;
         }
         break;
 
@@ -598,6 +610,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     /* Release the Mutex */
     mutex_unlock(&pmetrics_device_element->metrics_mtx);
 
+exit:
     return ret_val;
 }
 

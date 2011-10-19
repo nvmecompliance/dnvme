@@ -522,25 +522,21 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
         if (ring_sqx->sq_id == pmetrics_sq_list->public_sq.sq_id) {
             LOG_ERR("SQ_ID= %d found in the linked list.",
                     pmetrics_sq_list->public_sq.sq_id);
-#ifdef DEBUG
              LOG_DBG("\tVirt Tail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr_virt);
              LOG_DBG("\tTail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr);
-#endif
             /* Copy tail_prt_virt to tail_prt */
             pmetrics_sq_list->public_sq.tail_ptr = pmetrics_sq_list->
                     public_sq.tail_ptr_virt;
             /* Ring the doorbell with tail_prt */
              writel(pmetrics_sq_list->public_sq.tail_ptr, pmetrics_sq_list->
                      private_sq.dbs);
-#ifdef DEBUG
              LOG_DBG("After Writing Doorbell...");
              LOG_DBG("\tVirt Tail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr_virt);
              LOG_DBG("\tTail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr);
-#endif
              /* Done with this function return success */
              return SUCCESS;
         }
