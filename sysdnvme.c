@@ -606,9 +606,8 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
     }
 
-    LOG_DBG("Releasing Mutex...");
-    /* Release the Mutex */
-    mutex_unlock(&pmetrics_device_element->metrics_mtx);
+    /* Unlock the device */
+    unlock_device(pmetrics_device_element);
 
 exit:
     return ret_val;

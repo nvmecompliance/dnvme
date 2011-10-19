@@ -387,6 +387,7 @@ int main(void)
     //char *tmpfile4 = "/tmp/file_name4.txt";
     uint64_t *kadr;
     int fd2;
+    int fd3;
 
     printf("\n******\t Sprint 2 Demo \t******\n");
 
@@ -399,9 +400,18 @@ int main(void)
         printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
         exit(-1);
     }
-    //fd2 = open(DEVICE_FILE_NAME, 0);
-
     printf("Device File Successfully Opened = %d\n", file_desc);
+    getchar();
+
+    printf("Try opening an already opened device...\n");
+    fd3 = open(DEVICE_FILE_NAME, 0);
+    if (fd3 > 0) {
+        printf("Should not open an already opened device...");
+        exit(-1);
+    }
+    printf("Device not opened as expected...\n");
+    getchar();
+
 
     printf("Calling Controller State to set to Disable state\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE);
