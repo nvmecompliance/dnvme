@@ -402,9 +402,9 @@ int driver_generic_write(struct rw_generic *nvme_data,
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
         struct  metrics_device_list *pmetrics_device_element)
 {
-    int ret_code = -EINVAL; /* Set return value to error        */
-    u8 admn_id = 0;         /* Always admin ID is 0             */
-    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list   */
+    int ret_code = -EINVAL; /* Set return value to error                */
+    u8 admn_id = 0;         /* Always admin ID is 0                     */
+    struct  metrics_sq  *pmetrics_sq_list = NULL; /* SQ linked list     */
     struct nvme_device *pnvme_dev;
 
     /* get the device from the list */
@@ -412,7 +412,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
 
     if (readl(&pnvme_dev->nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
         LOG_ERR("Device enable bit is set already!!");
-        return -EINVAL;
+        goto asq_exit; /* use invalid return code */
     }
 
     /* Search if admin sq already exists. */
@@ -420,14 +420,15 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     ret_code = identify_unique(admn_id, METRICS_SQ, pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("ASQ already exists..");
-        return ret_code;
+        goto asq_exit; /* use invalid return code */
     }
 
     LOG_NRM("Alloc mem for a node...");
     pmetrics_sq_list = kmalloc(sizeof(struct metrics_sq), GFP_KERNEL);
     if (pmetrics_sq_list == NULL) {
         LOG_ERR("failed mem alloc in ASQ creation.");
-        return -ENOMEM;
+        ret_code = -ENOMEM;
+        goto asq_exit;
     }
     /* Reset the data for this node */
     memset(pmetrics_sq_list, 0, sizeof(struct metrics_sq));
@@ -446,7 +447,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
             pmetrics_sq_list);
     if (ret_code != SUCCESS) {
         LOG_ERR("Failed Admin Q creation!!");
-        return ret_code;
+        goto asq_exit;
     }
 
     LOG_NRM("Adding node for Admin SQ to the list.");
@@ -454,6 +455,12 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     list_add_tail(&pmetrics_sq_list->sq_list_hd,
             &pmetrics_device_element->metrics_sq_list);
 
+    return ret_code;
+
+asq_exit:
+    if (pmetrics_sq_list != NULL) {
+        kfree(pmetrics_sq_list);
+    }
     return ret_code;
 }
 
@@ -464,9 +471,9 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
 int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
         struct  metrics_device_list *pmetrics_device_element)
 {
-    int ret_code = -EINVAL; /* return value is invalid        */
-    u8 admn_id = 0;         /* Always Admin ID is zero.       */
-    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
+    int ret_code = -EINVAL; /* return value is invalid              */
+    u8 admn_id = 0;         /* Always Admin ID is zero.             */
+    struct  metrics_cq  *pmetrics_cq_list = NULL; /* CQ linked list */
     struct nvme_device *pnvme_dev;
 
     /* get the device from the list */
@@ -474,7 +481,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
 
     if (readl(&pnvme_dev->nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
         LOG_ERR("Device enable bit is set already!!");
-        return -EINVAL;
+        goto acq_exit;
     }
 
     /* Search if admin sq already exists. */
@@ -482,14 +489,15 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     ret_code = identify_unique(admn_id, METRICS_CQ, pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("ACQ already exists");
-        return -EINVAL;
+        goto acq_exit;
     }
 
     LOG_NRM("Alloc mem for a Admin CQ node.");
     pmetrics_cq_list = kmalloc(sizeof(struct metrics_cq), GFP_KERNEL);
     if (pmetrics_cq_list == NULL) {
         LOG_ERR("failed mem alloc in ACQ creation.");
-        return -ENOMEM;
+        ret_code = -ENOMEM;
+        goto acq_exit;
     }
     /* Reset the data for this node */
     memset(pmetrics_cq_list, 0, sizeof(struct metrics_cq));
@@ -504,7 +512,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
             pmetrics_cq_list);
     if (ret_code != SUCCESS) {
         LOG_ERR("Admin CQ creation failed!!");
-        return ret_code;
+        goto acq_exit;
     }
 
     /* Set the pbit_new_entry value */
@@ -515,6 +523,12 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
             &pmetrics_device_element->metrics_cq_list);
 
     LOG_DBG("Admin CQ successfully created and added to linked list...");
+    return ret_code;
+
+acq_exit:
+    if (pmetrics_cq_list != NULL) {
+        kfree(pmetrics_cq_list);
+    }
     return ret_code;
 }
 /*
@@ -738,7 +752,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
 {
     int ret_code = SUCCESS;
     struct nvme_device *pnvme_dev;
-    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
+    struct  metrics_sq  *pmetrics_sq_node = NULL;
 
     /* get the device from the list */
     pnvme_dev = pmetrics_device_element->metrics_device;
@@ -747,36 +761,42 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
             pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("SQ ID is not unique.");
-        return ret_code;
+        goto exit_prep_sq;
     }
 
     LOG_DBG("Allocating SQ node in linked list.");
-    pmetrics_sq_list = kmalloc(sizeof(struct metrics_sq), GFP_KERNEL);
-    if (pmetrics_sq_list == NULL) {
+    pmetrics_sq_node = kmalloc(sizeof(struct metrics_sq), GFP_KERNEL);
+    if (pmetrics_sq_node == NULL) {
         LOG_ERR("failed allocating kernel memory in SQ allocation.");
-        return -ENOMEM;
+        ret_code = -ENOMEM;
+        goto exit_prep_sq;
     }
     /* Reset the data for this node */
-    memset(pmetrics_sq_list, 0, sizeof(struct metrics_sq));
+    memset(pmetrics_sq_node, 0, sizeof(struct metrics_sq));
 
     /* Filling the data elements of sq metrics. */
-    pmetrics_sq_list->public_sq.sq_id = prep_sq->sq_id;
-    pmetrics_sq_list->public_sq.cq_id = prep_sq->cq_id;
-    pmetrics_sq_list->public_sq.elements = prep_sq->elements;
-    pmetrics_sq_list->private_sq.contig = prep_sq->contig;
-    /* Adding Command Tracking list */
-    INIT_LIST_HEAD(&(pmetrics_sq_list->private_sq.cmd_track_list));
+    pmetrics_sq_node->public_sq.sq_id = prep_sq->sq_id;
+    pmetrics_sq_node->public_sq.cq_id = prep_sq->cq_id;
+    pmetrics_sq_node->public_sq.elements = prep_sq->elements;
+    pmetrics_sq_node->private_sq.contig = prep_sq->contig;
 
-    ret_code = nvme_prepare_sq(pmetrics_sq_list, pnvme_dev);
-
+    ret_code = nvme_prepare_sq(pmetrics_sq_node, pnvme_dev);
     if (ret_code < 0) {
         LOG_ERR("Failed nvme_prep_sq call!!");
-        return ret_code;
+        goto exit_prep_sq;
     }
 
+    /* Adding Command Tracking list */
+    INIT_LIST_HEAD(&(pmetrics_sq_node->private_sq.cmd_track_list));
     /* Add this element to the end of the list */
-    list_add_tail(&pmetrics_sq_list->sq_list_hd,
+    list_add_tail(&pmetrics_sq_node->sq_list_hd,
             &pmetrics_device_element->metrics_sq_list);
+    return ret_code;
+
+exit_prep_sq:
+    if (pmetrics_sq_node != NULL) {
+        kfree(pmetrics_sq_node);
+    }
     return ret_code;
 }
 
@@ -790,7 +810,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
         struct  metrics_device_list *pmetrics_device_element)
 {
     int ret_code = SUCCESS;
-    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
+    struct  metrics_cq  *pmetrics_cq_node = NULL;
     struct nvme_device *pnvme_dev;
 
     /* get the device from the list */
@@ -800,34 +820,41 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
             pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("CQ ID is not unique.");
-        return ret_code;
+        goto exit_prep_cq;
     }
 
     LOG_DBG("Allocating CQ node in linked list.");
-    pmetrics_cq_list = kmalloc(sizeof(struct metrics_cq), GFP_KERNEL);
-    if (pmetrics_cq_list == NULL) {
+    pmetrics_cq_node = kmalloc(sizeof(struct metrics_cq), GFP_KERNEL);
+    if (pmetrics_cq_node == NULL) {
         LOG_ERR("failed allocating kernel memory in CQ allocation.");
-        return -ENOMEM;
+        ret_code = -ENOMEM;
+        goto exit_prep_cq;
     }
     /* Reset the data for this node */
-    memset(pmetrics_cq_list, 0, sizeof(struct metrics_cq));
+    memset(pmetrics_cq_node, 0, sizeof(struct metrics_cq));
 
     /* Filling the data elements of sq metrics. */
-    pmetrics_cq_list->public_cq.q_id = prep_cq->cq_id;
-    pmetrics_cq_list->public_cq.elements = prep_cq->elements;
-    pmetrics_cq_list->private_cq.contig = prep_cq->contig;
+    pmetrics_cq_node->public_cq.q_id = prep_cq->cq_id;
+    pmetrics_cq_node->public_cq.elements = prep_cq->elements;
+    pmetrics_cq_node->private_cq.contig = prep_cq->contig;
 
-    ret_code = nvme_prepare_cq(pmetrics_cq_list, pnvme_dev);
+    ret_code = nvme_prepare_cq(pmetrics_cq_node, pnvme_dev);
     if (ret_code < 0) {
         LOG_ERR("Failed nvme_prep_cq call!!");
-        return ret_code;
+        goto exit_prep_cq;
     }
 
     /* Set the pbit_new_entry for IO CQ here. */
-    pmetrics_cq_list->public_cq.pbit_new_entry = 1;
+    pmetrics_cq_node->public_cq.pbit_new_entry = 1;
 
     /* Add this element to the end of the list */
-    list_add_tail(&pmetrics_cq_list->cq_list_hd,
+    list_add_tail(&pmetrics_cq_node->cq_list_hd,
             &pmetrics_device_element->metrics_cq_list);
     return ret_code;
+
+exit_prep_cq:
+    if (pmetrics_cq_node != NULL) {
+        kfree(pmetrics_cq_node);
+    }
+        return ret_code;
 }

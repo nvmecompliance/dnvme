@@ -190,7 +190,8 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         struct nvme_reap_inquiry *reap_inq);
 
 /**
- * This operation is always the first operation performed on the device file.
+ * dnvme_device_open - This operation is always the first operation performed
+ * on the device file.
  * @param inode
  * @param filp
  * @return success or failure based on device open
@@ -198,7 +199,8 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
 int dnvme_device_open(struct inode *inode, struct file *filp);
 
 /**
- * This operation is invoked when the file structure is being released.
+ * dnvme_device_release - This operation is invoked when the file structure
+ * is being released.
  * @param inode
  * @param filp
  * @return success or failure based on device clean up.
@@ -206,7 +208,8 @@ int dnvme_device_open(struct inode *inode, struct file *filp);
 int dnvme_device_release(struct inode *inode, struct file *filp);
 
 /**
- * This mmap will do the linear mapping to device memory into user space.
+ * dnvme_device_mmap - This mmap will do the linear mapping to device memory
+ * into user space.
  * The parameter vma holds all the required mapping and return the caller with
  * virtual address.
  * @param filp
@@ -215,5 +218,14 @@ int dnvme_device_release(struct inode *inode, struct file *filp);
  */
 int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma);
 
+/**
+ * driver_reap_cq - Reap the number of elements specified for the given CQ id.
+ * Return the CQ entry data in the buffer specified.
+ * @param pmetrics_device
+ * @param reap_data
+ * @return Success of Failure based on Reap Success or failure.
+ */
+int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
+        struct nvme_reap *reap_data);
 
 #endif

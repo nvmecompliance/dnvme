@@ -24,6 +24,7 @@ static int deallocate_metrics_cq(struct device *dev,
 static int deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device);
+static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node);
 
 /* device metrics linked list */
 struct metrics_driver g_metrics_drv;
@@ -208,6 +209,7 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     u32 aqa;        /* Admin Q attributes in 32 bits size             */
     u32 tmp_aqa;    /* Temp var to hold admin q attributes            */
     u32 asq_depth;  /* Variable to hold the size of bytes allocated   */
+    int ret_code = SUCCESS;
 
     LOG_NRM("Creating Admin Submission Queue...");
 
@@ -217,7 +219,8 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     /* Checking for overflow or underflow. */
     if (qsize > MAX_AQ_ENTRIES || qsize == 0) {
         LOG_ERR("ASQ entries is more than MAX Q size or specified NULL");
-        return -EINVAL;
+        ret_code = -EINVAL;
+        goto asq_out;
     }
 
     /*
@@ -237,7 +240,8 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
                     &pmetrics_sq_list->private_sq.sq_dma_addr, GFP_KERNEL);
     if (!pmetrics_sq_list->private_sq.vir_kern_addr) {
         LOG_ERR("Unable to allocate DMA Address for ASQ!!");
-        return -ENOMEM;
+        ret_code = -ENOMEM;
+        goto asq_out;
     }
 
     /* Zero out all ASQ memory before processing */
@@ -283,8 +287,10 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     pmetrics_sq_list->private_sq.size = asq_depth;
     pmetrics_sq_list->private_sq.unique_cmd_id = 0;
     pmetrics_sq_list->private_sq.contig = 1;
+
+ asq_out:
     /* returns success or failure*/
-    return SUCCESS;
+    return ret_code;
 }
 
 /*
@@ -310,7 +316,8 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
     /* Checking for overflow or underflow. */
     if (qsize > MAX_AQ_ENTRIES || qsize == 0) {
         LOG_ERR("ASQ size is more than MAX Q size or specified NULL");
-        return -EINVAL;
+        ret_code = -EINVAL;
+        goto acq_out;
     }
     /*
     * As the qsize send is in number of entries this computes the no. of bytes
@@ -327,7 +334,8 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
                     &pmetrics_cq_list->private_cq.cq_dma_addr, GFP_KERNEL);
     if (!pmetrics_cq_list->private_cq.vir_kern_addr) {
         LOG_ERR("Unable to allocate DMA Address for ACQ!!");
-        return -ENOMEM;
+        ret_code = -ENOMEM;
+        goto acq_out;
     }
 
     /* Zero out all ACQ memory before processing */
@@ -369,8 +377,10 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
     /* Set the door bell of ACQ to 0x1000 as per spec 1.0b */
     pmetrics_cq_list->private_cq.dbs =
             ((void __iomem *)pnvme_dev->nvme_ctrl_space) + NVME_CQ0TBDL;
+acq_out:
     /* returns success or failure*/
     return ret_code;
+
 }
 
 /*
@@ -420,7 +430,8 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
         /* Check if the dma alloc was successful */
         if (!pmetrics_sq_list->private_sq.vir_kern_addr) {
             LOG_ERR("Unable to allocate DMA Address for IO SQ!!");
-            return -ENOMEM;
+            ret_code = -ENOMEM;
+            goto psq_out;
         }
         /* Zero out all IO SQ memory before processing */
         memset(pmetrics_sq_list->private_sq.vir_kern_addr, 0,
@@ -434,6 +445,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
             ((void __iomem *)pnvme_dev->nvme_ctrl_space) + NVME_SQ0TBDL +
             ((2 * pmetrics_sq_list->public_sq.sq_id) * (4 << cap_dstrd));
 
+psq_out:
     return ret_code;
 }
 
@@ -713,74 +725,88 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
 }
 
 /*
+ *  reap_inquiry - This generic function will try to inquire the number of
+ *  commands in the Completion Queue that are waiting to be reaped for any
+ *  given q_id.
+ */
+static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node)
+{
+    u8 tmp_pbit;                    /* Local phase bit      */
+    u8 *q_head_ptr = NULL;          /* mem head ptr in cq   */
+    struct cq_completion *cq_entry; /* cq entry format      */
+    u16 comp_entry_size = 16;       /* acq entry size       */
+    u16 num_remaining = 0;          /* reap elem remaining  */
+
+    /* If IO CQ set the completion Q entry size */
+    if (pmetrics_cq_node->public_cq.q_id != 0) {
+        comp_entry_size = (pmetrics_cq_node->private_cq.size) /
+                        (pmetrics_cq_node->public_cq.elements);
+    }
+    /* local tmp phase bit */
+    tmp_pbit = pmetrics_cq_node->public_cq.pbit_new_entry;
+    if (pmetrics_cq_node->private_cq.contig != 0) {
+        /* point the address to corresponding head ptr */
+        q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr +
+              (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr);
+    } else {
+        /* do sync and update */
+    }
+
+    LOG_DBG("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
+            pmetrics_cq_node->public_cq.q_id, tmp_pbit, comp_entry_size);
+    LOG_DBG("CQ Hd Ptr = %d", pmetrics_cq_node->public_cq.head_ptr);
+
+    /* loop through the entries in the cq */
+    while (1) {
+        cq_entry = (struct cq_completion *)q_head_ptr;
+        if (cq_entry->phase_bit == tmp_pbit) {
+            pmetrics_cq_node->public_cq.tail_ptr += 1;
+            q_head_ptr += comp_entry_size;
+            num_remaining += 1;
+            /* Q wrapped around */
+            if (q_head_ptr >= (pmetrics_cq_node->private_cq.vir_kern_addr +
+                              pmetrics_cq_node->private_cq.size)) {
+                tmp_pbit = !tmp_pbit;
+                q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr;
+                pmetrics_cq_node->public_cq.tail_ptr = 0;
+            }
+        } else {
+            /* we reached stale element */
+            break;
+        }
+    } /* end of while loop */
+    LOG_DBG("Number of elements remaining = %d", num_remaining);
+    return num_remaining;
+}
+/*
  *  driver_reap_inquiry - This function will try to inquire the number of
  *  commands in the Completion Queue that are waiting to be reaped.
  */
 int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         struct nvme_reap_inquiry *reap_inq)
 {
-    u8 tmp_pbit;                            /* Local phase bit      */
     struct metrics_cq  *pmetrics_cq_node;   /* ptr to cq node       */
-    u16 comp_entry_size = 16;               /* acq entry size       */
-    struct cq_completion *cq_entry;         /* cq entry format      */
-    u8 *q_head_ptr;                         /* mem head ptr in cq   */
     u16 __user num_remaining = (u16 __user)reap_inq->num_remaining;
                                             /* user buffer ptr      */
+    int ret_val = SUCCESS;
 
-    /* Lookup the CQ for which the reap inquiry is requested */
-    list_for_each_entry(pmetrics_cq_node, &pmetrics_device->metrics_cq_list,
-            cq_list_hd) {
-        /* check if admin and set the entry size accordingly */
-        if (reap_inq->q_id == pmetrics_cq_node->public_cq.q_id) {
-            if (reap_inq->q_id != 0) {
-                /* Calculate the entry size */
-                comp_entry_size = (pmetrics_cq_node->private_cq.size) /
-                        (pmetrics_cq_node->public_cq.elements);
-            }
-            /* local tmp phase bit */
-            tmp_pbit = pmetrics_cq_node->public_cq.pbit_new_entry;
-            LOG_DBG("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
-                    pmetrics_cq_node->public_cq.q_id, tmp_pbit,
-                    comp_entry_size);
-            LOG_DBG("CQ Hd Ptr = %d", pmetrics_cq_node->public_cq.head_ptr);
-            /* point the address to corresponding head ptr */
-            q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr +
-                    (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr);
-            /* loop through the entries in the cq */
-            while (1) {
-                cq_entry = (struct cq_completion *)q_head_ptr;
-                if (cq_entry->phase_bit == tmp_pbit) {
-                    pmetrics_cq_node->public_cq.tail_ptr += 1;
-                    q_head_ptr += comp_entry_size;
-                    num_remaining += 1;
-                    /* Q wrapped around */
-                    if (q_head_ptr >=
-                            (pmetrics_cq_node->private_cq.vir_kern_addr +
-                                    pmetrics_cq_node->private_cq.size)) {
-                        tmp_pbit = !tmp_pbit;
-                        q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr;
-                        pmetrics_cq_node->public_cq.tail_ptr = 0;
-                    }
-                } else {
-                    /* we reached stale element */
-                    break;
-                }
-            } /* end of while loop */
-            LOG_DBG("Number of elements remaining = %d", num_remaining);
-            /* Copy to user the reamining elements in this q */
-            if (copy_to_user(&reap_inq->num_remaining, &num_remaining,
-                    sizeof(u16)) < 0) {
-                LOG_ERR("Error copying to user buffer returning");
-                return -EAGAIN;
-            }
-            /* done for this q return from here */
-            return SUCCESS;
-        } /* if cq id */
-    } /* list for q's */
-
-    /* if the control comes here it implies q id not in list */
-    LOG_ERR("CQ ID = %d is not in list", reap_inq->q_id);
-    return -EBADSLT;
+    /* Find given CQ in list */
+    pmetrics_cq_node = find_cq(pmetrics_device, reap_inq->q_id);
+    if (pmetrics_cq_node == NULL) {
+        /* if the control comes here it implies q id not in list */
+        LOG_ERR("CQ ID = %d is not in list", reap_inq->q_id);
+        ret_val = -ENODEV;
+        goto rpi_exit;
+    }
+    num_remaining = reap_inquiry(pmetrics_cq_node);
+    /* Copy to user the remaining elements in this q */
+    if (copy_to_user(&reap_inq->num_remaining, &num_remaining,
+            sizeof(u16)) < 0) {
+        LOG_ERR("Error copying to user buffer returning");
+        ret_val = -EAGAIN;
+    }
+ rpi_exit:
+    return ret_val;
 }
 
 /*
@@ -821,4 +847,36 @@ struct metrics_cq *find_cq(struct  metrics_device_list
         }
     }
     return NULL;
+}
+
+/*
+ * Reap the number of elements specified for the given CQ id and send
+ * the reaped elements back. This is the main place and only palce where
+ * head_ptr is updated. The pbit_new_entry is inverted when Q wraps.
+ */
+int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
+        struct nvme_reap *reap_data)
+{
+    int ret_val = SUCCESS;
+    u16 num_could_reap = 0;
+    struct metrics_cq  *pmetrics_cq_node;
+
+    pmetrics_cq_node = find_cq(pmetrics_device, reap_data->q_id);
+    if (pmetrics_cq_node == NULL) {
+        LOG_ERR("CQ ID = %d does not exist", reap_data->q_id);
+        ret_val = -EBADSLT; /* Invalid slot */
+        goto rp_exit;
+    }
+
+    num_could_reap = reap_inquiry(pmetrics_cq_node);
+    if (reap_data->elements > num_could_reap) {
+        LOG_ERR("CouldReap:ReqReap::%d:%d", num_could_reap,
+                reap_data->elements);
+        LOG_ERR("requested reap elements can't be satisfied...");
+        ret_val = -E2BIG; /* Argument too large */
+        goto rp_exit;
+    }
+
+rp_exit:
+    return ret_val;
 }

@@ -20,6 +20,7 @@ enum {
     NVME_RING_SQ_DOORBELL, /** <enum Ring SQ Tail doorbell              */
     NVME_DUMP_METRICS,     /** <enum Log data from Metrics structure    */
     NVME_REAP_INQUIRY,     /** <enum Invoke Reap inquiry                */
+    NVME_REAP,             /** <enum Invoke actual reap algo            */
     UNIT_TESTS,            /* Generic IOCTL to set up UT scenarios      */
 };
 
@@ -173,6 +174,15 @@ enum {
 */
 #define NVME_IOCTL_REAP_INQUIRY _IOWR('A', NVME_REAP_INQUIRY,\
         struct nvme_reap_inquiry)
+
+/**
+* @def NVME_IOCTL_REAP
+* define a unique value to reap ioctl. The 'A' value is the group to which this
+* IOCTL type belongs to,generally from (0-255)the second parameter is type
+* within the group defined in the enum. The third parameter give the size of
+* data and type of data that is passed to this ioctl from user level to kernel.
+*/
+#define NVME_IOCTL_REAP _IOWR('A', NVME_REAP, struct nvme_reap)
 
 /**
  * @def IOCTL_UNIT_TESTS

@@ -218,6 +218,16 @@ struct nvme_reap_inquiry {
     uint16_t    num_remaining;  /* return no of cmds waiting to be reaped */
 };
 
+/**
+ * Interface structure for reap ioctl. Admin Q and all IO Q's are supported.
+ */
+struct nvme_reap {
+    uint16_t q_id;          /* CQ ID to reap commands for             */
+    uint16_t elements;      /* Get the no. of elements to be reaped   */
+    uint16_t num_remaining; /* return no. of cmds waiting for this cq */
+    uint16_t size;          /* Size of buffer to fill data to         */
+    uint8_t  *buffer;       /* Buffer to copy reaped data             */
+};
 
 /**
  * Format of general purpose nvme command

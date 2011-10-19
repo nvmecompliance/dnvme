@@ -91,13 +91,13 @@ void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device)
                     LOG_DBG("Roll CQ 4 hd ptr = %llx", (u64)q_head_ptr);
                 }
 
-                if (num == 128) {
+                if (num == 101) {
                     LOG_NRM("Entries in Q = %d", num);
                     break;
                 }
             }
             /* Set Head Pointer in between the Q */
-            pmetrics_cq_node->public_cq.head_ptr = 80;
+            pmetrics_cq_node->public_cq.head_ptr = 99;
         }
         /* Test: CQ tail_ptr is last element CQ ID = 5 */
         if (pmetrics_cq_node->public_cq.q_id == 5) {
@@ -122,11 +122,13 @@ void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device)
                     tmpbit = 0;
                 }
 
-                if (num == 99) {
+                if (num == 101) {
                     LOG_NRM("Entries in Q = %d", num);
                     break;
                 }
             }
+            /* Set Head Pointer in between the Q */
+            pmetrics_cq_node->public_cq.head_ptr = 98;
         }
         /* Test: CQ tail ptr is first elemnet CQ ID = 6 */
         if (pmetrics_cq_node->public_cq.q_id == 6) {

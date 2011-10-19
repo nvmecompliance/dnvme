@@ -377,185 +377,182 @@ void display_contents(uint64_t *kadr, int elem)
     }
 }
 
-int main(void)
+int test_regression()
 {
     int file_desc;
-    uint32_t sq_id = 0;
-    char *tmpfile1 = "/tmp/file_name1.txt";
-    char *tmpfile2 = "/tmp/file_name2.txt";
-    char *tmpfile3 = "/tmp/file_name3.txt";
-    //char *tmpfile4 = "/tmp/file_name4.txt";
-    uint64_t *kadr;
-    int fd2;
-    int fd3;
+       uint32_t sq_id = 0;
+       char *tmpfile1 = "/tmp/file_name1.txt";
+       char *tmpfile2 = "/tmp/file_name2.txt";
+       char *tmpfile3 = "/tmp/file_name3.txt";
+       uint64_t *kadr;
+       int fd2;
+       int fd3;
 
-    printf("\n******\t Sprint 2 Demo \t******\n");
+       printf("\n******\t Sprint 2 Demo \t******\n");
 
-    /*printf("Ensure you have permissions to device..\n\
-    else \n do \"chmod 777 /dev/qnvme0\" \n");*/
-    printf("Starting Test Application...\n");
+       /*printf("Ensure you have permissions to device..\n\
+       else \n do \"chmod 777 /dev/qnvme0\" \n");*/
+       printf("Starting Test Application...\n");
 
-    file_desc = open(DEVICE_FILE_NAME, 0);
-    if (file_desc < 0) {
-        printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
-        exit(-1);
-    }
-    printf("Device File Successfully Opened = %d\n", file_desc);
-    getchar();
+       file_desc = open(DEVICE_FILE_NAME, 0);
+       if (file_desc < 0) {
+           printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
+           exit(-1);
+       }
+       printf("Device File Successfully Opened = %d\n", file_desc);
+       printf("\nPress any key to continue..");
+       getchar();
 
-    printf("Try opening an already opened device...\n");
-    fd3 = open(DEVICE_FILE_NAME, 0);
-    if (fd3 > 0) {
-        printf("Should not open an already opened device...");
-        exit(-1);
-    }
-    printf("Device not opened as expected...\n");
-    getchar();
-
-
-    printf("Calling Controller State to set to Disable state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE);
-    printf("\nPress any key to continue..");
-    getchar();
+       printf("Try opening an already opened device...\n");
+       fd3 = open(DEVICE_FILE_NAME, 0);
+       if (fd3 > 0) {
+           printf("Should not open an already opened device...");
+           exit(-1);
+       }
+       printf("Device not opened as expected...\n");
+       printf("\nPress any key to continue..");
+       getchar();
 
 
-    test_admin(file_desc);
-    printf("\n...Test PASS if creation is success.");
-    printf("\nPress any key to continue..");
-    getchar();
-
-    printf("\nTEST 2.1: Calling Controller State to set to Enable state\n");
-    ioctl_enable_ctrl(file_desc);
-    printf("\nPress any key to continue..");
-    getchar();
-
-    printf("\nSet IO Q Size before proceeding....\n");
-    ioctl_write_data(file_desc);
-    printf("\nPress any key to continue..");
-    getchar();
-
-    test_prep_sq(file_desc);
-    printf("\n...Test PASS if all Preparation success...");
-    printf("\nPress any key to continue..");
-    getchar();
-
-    test_prep_cq(file_desc);
-    printf("\n...Test PASS if all Preparation success...");
-    printf("\nPress any key to continue..");
-    getchar();
+       printf("Calling Controller State to set to Disable state\n");
+       ioctl_disable_ctrl(file_desc, ST_DISABLE);
+       printf("\nPress any key to continue..");
+       getchar();
 
 
-    test_prep_sq(file_desc);
-    printf("\n...Test PASS if all Preparation fails...");
-    printf("\nPress any key to continue..");
-    getchar();
+       test_admin(file_desc);
+       printf("\n...Test PASS if creation is success.");
+       printf("\nPress any key to continue..");
+       getchar();
 
-    test_prep_cq(file_desc);
-    printf("\n...Test PASS if all Preparation fails...");
-    printf("\nPress any key to continue..");
-    getchar();
+       printf("\nTEST 2.1: Calling Controller State to set to Enable state\n");
+       ioctl_enable_ctrl(file_desc);
+       printf("\nPress any key to continue..");
+       getchar();
 
-    printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
-    ioctl_ut_reap_inq(file_desc);
-    printf("\nPress any key to continue..");
-    getchar();
+       printf("\nSet IO Q Size before proceeding....\n");
+       ioctl_write_data(file_desc);
+       printf("\nPress any key to continue..");
+       getchar();
 
-    printf("\nTest 2.4: Testing Reap Inquiry...\n");
-    test_reap_inquiry(file_desc);
-    printf("\nPress any key to continue..");
-    getchar();
+       test_prep_sq(file_desc);
+       printf("\n...Test PASS if all Preparation success...");
+       printf("\nPress any key to continue..");
+       getchar();
 
-    printf("\n Test 2.5: Call Ring Doorbell\n");
-    tst_ring_dbl(file_desc);
-    printf("\nPress any key to continue..");
-    getchar();
+       test_prep_cq(file_desc);
+       printf("\n...Test PASS if all Preparation success...");
+       printf("\nPress any key to continue..");
+       getchar();
 
-    ioctl_ut_mmap(file_desc);
-    printf("\nPress any key to continue..");
-    getchar();
 
-    sq_id = 0x10000;
-    printf("\nTEST 3.1: Call to Mmap SQ 0\n");
-    kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * sq_id);
-    if (!kadr) {
-        printf("mapping failed\n");
-        return -1;
-    }
-    display_contents(kadr, 15);
-    printf("\nPress any key to continue..");
-    getchar();
+       test_prep_sq(file_desc);
+       printf("\n...Test PASS if all Preparation fails...");
+       printf("\nPress any key to continue..");
+       getchar();
 
-    munmap(kadr, 4096);
+       test_prep_cq(file_desc);
+       printf("\n...Test PASS if all Preparation fails...");
+       printf("\nPress any key to continue..");
+       getchar();
 
-    sq_id = 0x0;
-    printf("\nTEST 3.2: Calling to mmap CQ 0\n");
-    kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * sq_id);
-    if (!kadr) {
-        printf("mapping failed\n");
-        return -1;
-    }
-    display_contents(kadr, 15);
-    printf("\nPress any key to continue..");
-    getchar();
-    munmap(kadr, 4096);
+       printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
+       ioctl_ut_reap_inq(file_desc);
+       printf("\nPress any key to continue..");
+       getchar();
 
-    test_admin(file_desc);
-    printf("\n...Test PASS if creation is not successful.");
-    printf("\nPress any key to continue..");
-    getchar();
+       printf("\nTest 2.4: Testing Reap Inquiry...\n");
+       test_reap_inquiry(file_desc);
+       printf("\nPress any key to continue..");
+       getchar();
 
-    //test_metrics(file_desc);
+       printf("\n Test 2.5: Call Ring Doorbell\n");
+       tst_ring_dbl(file_desc);
+       printf("\nPress any key to continue..");
+       getchar();
 
- //   printf("\nTest 1.3+: Executing PRP Test Cases\n");
- //   test_prp(file_desc);
- //   printf("\nPress any key to continue..");
- //   getchar();
+       ioctl_ut_mmap(file_desc);
+       printf("\nPress any key to continue..");
+       getchar();
 
-    printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile1\n");
-    ioctl_dump(file_desc, tmpfile1);
-    printf("\nPress any key to continue..");
-    getchar();
+       sq_id = 0x10000;
+       printf("\nTEST 3.1: Call to Mmap SQ 0\n");
+       kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * sq_id);
+       if (!kadr) {
+           printf("mapping failed\n");
+           return -1;
+       }
+       display_contents(kadr, 15);
+       printf("\nPress any key to continue..");
+       getchar();
 
-    printf("\nTest 2.7: Calling Controller State to set to Disable state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE);
-    printf("\nPress any key to continue..");
-    getchar();
+       munmap(kadr, 4096);
 
-    printf("\nTest 2.6.2 : Calling Dump Metrics to tmpfile2 after DISABLE...\n");
-    ioctl_dump(file_desc, tmpfile2);
-    printf("\nPress any key to continue..");
-    getchar();
+       sq_id = 0x0;
+       printf("\nTEST 3.2: Calling to mmap CQ 0\n");
+       kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * sq_id);
+       if (!kadr) {
+           printf("mapping failed\n");
+           return -1;
+       }
+       display_contents(kadr, 15);
+       printf("\nPress any key to continue..");
+       getchar();
+       munmap(kadr, 4096);
 
-    printf("\nTest 2.8: Calling Controller State to set to ST_DISABLE_COMPLETELY state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
-    printf("\nPress any key to continue..");
-    getchar();
+       test_admin(file_desc);
+       printf("\n...Test PASS if creation is not successful.");
+       printf("\nPress any key to continue..");
+       getchar();
 
-    printf("\nTest 2.6.3 :Calling Dump Metrics to tmpfile3 After DISABLE_COMPLETELY...\n");
-    ioctl_dump(file_desc, tmpfile3);
-    printf("\nPress any key to continue..");
-    getchar();
+       printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile1\n");
+       ioctl_dump(file_desc, tmpfile1);
+       printf("\nPress any key to continue..");
+       getchar();
 
-    printf("Call to close the file_desc.");
-    close(file_desc);
-    printf("\nPress any key to continue..");
-    getchar();
+       printf("\nTest 2.7: Calling Controller State to set to Disable state\n");
+       ioctl_disable_ctrl(file_desc, ST_DISABLE);
+       printf("\nPress any key to continue..");
+       getchar();
 
-    fd2 = open(DEVICE_FILE_NAME, 0);
-    if (fd2 < 0) {
-        printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
-        exit(-1);
-    }
-//    ioctl_dump(file_desc, tmpfile4);
+       printf("\nTest 2.6.2 : Calling Dump Metrics to tmpfile2 after DISABLE...\n");
+       ioctl_dump(file_desc, tmpfile2);
+       printf("\nPress any key to continue..");
+       getchar();
 
-    printf("Call to close the fd.");
-    close(fd2);
-    printf("\nPress any key to continue..");
-    getchar();
+       printf("\nTest 2.8: Calling Controller State to set to ST_DISABLE_COMPLETELY state\n");
+       ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+       printf("\nPress any key to continue..");
+       getchar();
 
-    printf("\nEnd of Testing...");
-    getchar();
+       printf("\nTest 2.6.3 :Calling Dump Metrics to tmpfile3 After DISABLE_COMPLETELY...\n");
+       ioctl_dump(file_desc, tmpfile3);
+       printf("\nPress any key to continue..");
+       getchar();
+
+       printf("Call to close the file_desc.");
+       close(file_desc);
+       printf("\nPress any key to continue..");
+       getchar();
+
+       fd2 = open(DEVICE_FILE_NAME, 0);
+       if (fd2 < 0) {
+           printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
+           exit(-1);
+       }
+       printf("Call to close the fd.");
+       close(fd2);
+
+       printf("\nEnd of Regression Testing...");
+       printf("\nPress any key to continue..");
+       getchar();
+       return 0;
+}
+
+int main(void)
+{
+    test_regression();
+
     printf("\n\n****** END OF DEMO ****** \n\n");
-
     return 0;
 }

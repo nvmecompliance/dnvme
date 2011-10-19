@@ -444,6 +444,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params               */
     struct nvme_file    *n_file;         /* dump metrics params              */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
+    struct nvme_reap *reap_data;         /* Actual Reap params               */
     u16 __user test_number;
     unsigned char __user *datap = (unsigned char __user *)ioctl_param;
     struct inode *inode = filp->f_dentry->d_inode;
@@ -577,6 +578,15 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         reap_inq = (struct nvme_reap_inquiry *)ioctl_param;
         /* call reap inquiry driver routine */
         ret_val = driver_reap_inquiry(pmetrics_device_element, reap_inq);
+        break;
+
+    case NVME_IOCTL_REAP:
+        LOG_DBG("Reap ioctl:");
+        /* Assign user passed parameters to local reap structure */
+        reap_data = (struct nvme_reap *)ioctl_param;
+        /* call reap inquiry driver routine */
+        ret_val = driver_reap_cq(pmetrics_device_element, reap_data);
+
         break;
 
     case IOCTL_UNIT_TESTS:
