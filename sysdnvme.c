@@ -293,7 +293,9 @@ static struct  metrics_device_list *lock_device(struct inode *inode)
 static void unlock_device(struct  metrics_device_list *pmetrics_device_element)
 {
     LOG_DBG("Releasing Mutex...");
-    mutex_unlock(&pmetrics_device_element->metrics_mtx);
+    if (mutex_is_locked(&pmetrics_device_element->metrics_mtx)) {
+        mutex_unlock(&pmetrics_device_element->metrics_mtx);
+    }
 }
 
 /*
@@ -320,8 +322,9 @@ int dnvme_device_open(struct inode *inode, struct file *filp)
         LOG_ERR("Attempt to open device multiple times not allowed!!");
         ret_val =  -EPERM; /* Operation not permitted */
     }
-    unlock_device(pmetrics_device_element);
+
 exit:
+    unlock_device(pmetrics_device_element);
     return ret_val;
 }
 
@@ -334,7 +337,7 @@ exit:
 int dnvme_device_release(struct inode *inode, struct file *filp)
 {
     struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
-    int ret_val = -EINVAL;
+    int ret_val = SUCCESS;
 
     LOG_DBG("\n.....Call to Release the device...\n");
     pmetrics_device_element = lock_device(inode);
@@ -349,9 +352,10 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
         LOG_ERR("Deallocation failed!!");
         ret_val = -EINVAL;
     }
+
+exit:
     LOG_DBG("\n.....Close Successful!!!....Releasing Mutex...\n");
     unlock_device(pmetrics_device_element);
-exit:
     return ret_val;
 }
 
@@ -368,7 +372,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     struct inode *inode = filp->f_dentry->d_inode;
     u32 qtype;
     u16 qid;
-    int ret_val;
+    int ret_val = SUCCESS;
 
     vma->vm_flags |= VM_IO;
     LOG_DBG("Device Calling mmap function...");
@@ -392,7 +396,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         pmetrics_sq_list = find_sq(pmetrics_device_element, qid);
         if (pmetrics_sq_list == NULL) {
             ret_val = -EBADSLT;
-            goto release_device;
+            goto exit;
         }
         pfn = virt_to_phys(pmetrics_sq_list->private_sq.vir_kern_addr) >>
                 PAGE_SHIFT;
@@ -400,7 +404,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         pmetrics_cq_list = find_cq(pmetrics_device_element, qid);
         if (pmetrics_cq_list == NULL) {
             ret_val = -EBADSLT;
-            goto release_device;
+            goto exit;
         }
         pfn = virt_to_phys(pmetrics_cq_list->private_cq.vir_kern_addr) >>
                 PAGE_SHIFT;
@@ -408,9 +412,9 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     LOG_DBG("PFN = 0x%lx", pfn);
     ret_val = remap_pfn_range(vma, vma->vm_start, pfn,
                     vma->vm_end - vma->vm_start, vma->vm_page_prot);
-release_device:
-    unlock_device(pmetrics_device_element);
+
 exit:
+    unlock_device(pmetrics_device_element);
     return ret_val;
 }
 
@@ -488,7 +492,6 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
             ret_val = driver_create_acq(create_admn_q, pmetrics_device_element);
         } else {
             LOG_ERR("Unknown Q type specified..");
-            ret_val =  -EINVAL;
         }
         break;
 
@@ -512,7 +515,6 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
             }
          } else {
             LOG_ERR("Device State not correctly specified.");
-            ret_val =  -EINVAL;
         }
         break;
 
@@ -596,7 +598,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
             break;
         default:
             LOG_DBG("Invalid Test Setup called....%d", test_number);
-            ret_val = -EINVAL;
+            break;
         }
 
         break;
@@ -606,10 +608,9 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
     }
 
+exit:
     /* Unlock the device */
     unlock_device(pmetrics_device_element);
-
-exit:
     return ret_val;
 }
 
