@@ -446,6 +446,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
             pmetrics_sq_list);
     if (ret_code != SUCCESS) {
         LOG_ERR("Failed Admin Q creation!!");
+        return ret_code;
     }
 
     LOG_NRM("Adding node for Admin SQ to the list.");
@@ -503,7 +504,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
             pmetrics_cq_list);
     if (ret_code != SUCCESS) {
         LOG_ERR("Admin CQ creation failed!!");
-        return -EINVAL;
+        return ret_code;
     }
 
     /* Set the pbit_new_entry value */
