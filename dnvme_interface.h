@@ -219,9 +219,9 @@ struct nvme_reap_inquiry {
 
 
 /**
- * Format of general purpose nvme command
+ * Format of general purpose nvme command DW0-DW9
  */
-struct nvme_general_command {
+struct nvme_gen_cmd {
     uint8_t   opcode;
     uint8_t   flags;
     uint16_t  command_id;
@@ -230,7 +230,6 @@ struct nvme_general_command {
     uint64_t  metadata;
     uint64_t  prp1;
     uint64_t  prp2;
-    uint32_t  rsvd10[6];
 };
 
 /**
@@ -265,17 +264,6 @@ struct nvme_create_sq {
     uint16_t sq_flags;
     uint16_t cqid;
     uint32_t rsvd12[4];
-};
-
-/**
- * Format of nvme command
- */
-struct nvme_command {
-    union {
-        struct nvme_general_command gen_cmd;
-        struct nvme_create_cq create_cq_cmd;
-        struct nvme_create_sq create_sq_cmd;
-    };
 };
 
 #endif

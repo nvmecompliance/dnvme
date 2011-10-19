@@ -155,13 +155,15 @@ void ioctl_create_fill_list_of_prp(int file_desc)
     free(addr);
 }
 
+/* CMD to create discontig IOQueue spanning multiple pages of PRP lists*/
 void ioctl_create_discontig_ioq(int file_desc)
 {
     int ret_val = -1;
     struct nvme_64b_send user_cmd;
     struct nvme_create_sq create_sq_cmd;
+
     /* 2 pages of PRP Lists filled completley */
-    void *addr = (void *) malloc(4 * 4096);
+    void *addr = (void *) malloc(1023 * 4096);
     if (addr == NULL) {
         printf("Malloc Failed");
         return;
@@ -178,7 +180,7 @@ void ioctl_create_discontig_ioq(int file_desc)
     user_cmd.q_id = 0;
     user_cmd.bit_mask = 3;
     user_cmd.cmd_buf_ptr = (u_int8_t *) &create_sq_cmd;
-    user_cmd.data_buf_size = 4 * 4096;
+    user_cmd.data_buf_size = 1023 * 4096;
     user_cmd.data_buf_ptr = addr;
 
     user_cmd.cmd_set = CMD_ADMIN;

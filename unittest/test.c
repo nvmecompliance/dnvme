@@ -298,27 +298,30 @@ void ioctl_dump(int file_desc, char *tmpfile)
 
 int test_prp(int file_desc)
 {
-//    ioctl_create_prp_one_page(file_desc);
-//    ioctl_create_prp_less_than_one_page(file_desc);
-//    ioctl_create_prp_more_than_two_page(file_desc);
-//    ioctl_create_list_of_prp(file_desc);
-//    ioctl_create_fill_list_of_prp(file_desc);
-	ioctl_create_discontig_ioq(file_desc);
+    ioctl_create_prp_one_page(file_desc);
+    ioctl_create_prp_less_than_one_page(file_desc);
+    ioctl_create_prp_more_than_two_page(file_desc);
+    ioctl_create_list_of_prp(file_desc);
+    ioctl_create_fill_list_of_prp(file_desc);
     return 0;
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
-    int file_desc;
+    int file_desc,test_case;
     char *tmpfile1 = "/tmp/file_name1.txt";
     char *tmpfile2 = "/tmp/file_name2.txt";
     char *tmpfile3 = "/tmp/file_name3.txt";
     char *tmpfile4 = "/tmp/file_name4.txt";
 
+    if (argc != 2) {
+        printf("Usage: %s test_case_num \n",argv[0]);
+        return 1;
+    }
+
+    test_case = atoi(argv[1]); /* convert strings to integers */
     printf("\n*****\t Demo \t*****\n");
 
-    /*printf("Ensure you have permissions to device..\n\
-    else \n do \"chmod 777 /dev/qnvme0\" \n");*/
     printf("Starting Test Application...\n");
 
     file_desc = open(DEVICE_FILE_NAME, 0);
@@ -329,97 +332,51 @@ int main(void)
 
     printf("Device File Succesfully Opened = %d\n", file_desc);
 
-    //printf("Calling Check Device status\n");
-    //ioctl_check_device(file_desc);
+    switch(test_case) {
 
-    printf("Calling Contoller State to set to Disable state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE);
+    case 1:
+    	printf("Implementing sending of Create Discontig IO Queues command\n");
+        printf("Calling Contoller State to set to Disable state\n");
+        ioctl_disable_ctrl(file_desc, ST_DISABLE);
+        test_admin(file_desc);
+        printf("\n.Test PASS if creation is success.");
+        printf("Calling Contoller State to set to Enable state\n");
+        ioctl_enable_ctrl(file_desc);
+        printf("Writing the Registers of NVME space \n");
+        ioctl_write_data(file_desc);
+        printf("\n Creating contig CQ with ID 1 \n");
+        printf("\n\tCQ ID = 1\n");
+        ioctl_prep_cq(file_desc, 1, 20, 1);
 
-    test_admin(file_desc);
-    printf("\n...Test PASS if creation is success.");
-    printf("\nPress any key to continue..");
-    getchar();
+        printf("\n Creating Discontig SQ with ID 1 \n");
+        printf("\n\tSD_ID : CQ ID = 1 : 1\n");
+        ioctl_prep_sq(file_desc, 1, 1, 65472, 0);
 
+        printf("Calling Dump Metrics to tmpfile1\n");
+        ioctl_dump(file_desc, tmpfile1);
 
-    printf("Calling Contoller State to set to Enable state\n");
-    ioctl_enable_ctrl(file_desc);
+        printf("Executing SEND 64 byte command\n");
+        ioctl_create_discontig_ioq(file_desc);
 
-    printf("Writing the Registers of NVME space \n");
-    ioctl_write_data(file_desc);
+        printf("Calling Dump Metrics to tmpfile2\n");
+        ioctl_dump(file_desc, tmpfile2);
 
-    printf("\n Creating contig CQ with ID 1 \n");
-    printf("\n\tCQ ID = 1\n");
-    ioctl_prep_cq(file_desc, 1, 20, 1);
-
-    printf("\n Creating Discontig SQ with ID 1 \n");
-    printf("\n\tSD_ID : CQ ID = 1 : 1\n");
-    ioctl_prep_sq(file_desc, 1, 1, 256, 0);
-
-    printf("Calling Dump Metrics to tmpfile1\n");
-    ioctl_dump(file_desc, tmpfile1);
-
-    printf("Executing PRP Test Cases\n");
-    test_prp(file_desc);
-
-    ioctl_dump(file_desc, tmpfile2);
-
-    printf("Ringing Doorbell for SQID 0\n");
-    ioctl_tst_ring_dbl(file_desc, 0);
-
-/*
-    printf("Calling Contoller State to set to Disable state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE);
-
-    ioctl_dump(file_desc, tmpfile3);
-
-    printf("Calling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
-
-    ioctl_dump(file_desc, tmpfile4);
-*/
-#if 0
-    test_prep_cq(file_desc);
-    printf("\n...Test PASS if all Preparation success...");
-    printf("\nPress any key to continue..");
-    getchar();
-
-    printf("Calling Dump Metrics to tmpfile1\n");
-    ioctl_dump(file_desc, tmpfile1);
-
-
-    printf("Call Ring Doorbell\n");
-    tst_ring_dbl(file_desc);
-
-    test_admin(file_desc);
-    printf("\n...Test PASS if creation is not successful.");
-    printf("\nPress any key to continue..");
-    getchar();
-
-    test_metrics(file_desc);
-
-
-    printf("Executing PRP Test Cases\n");
-    test_prp(file_desc);
-
-    ioctl_dump(file_desc, tmpfile2);
+        printf("Ringing Doorbell for SQID 0\n");
+        ioctl_tst_ring_dbl(file_desc, 0);
+        printf("*****Cmd to Create Discontig IO Queues Sent*****\n");
+        break;
+    default:
+    	 printf("Implementing Disable all completley\n");
+    	 ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+    	 printf("Calling Dump Metrics to tmpfile2\n");
+    	 ioctl_dump(file_desc, tmpfile3);
+    	 /* NOTE:- Disable Controller not called in unit tests since Disable
+         * is an asyn request to the HW and as of now we dont have any means
+         * to wait till CQ entries are posted
+         * TODO : will be called when IOCTL_REAP is implemented
+         */
+    }
     
-    printf("Calling Contoller State to set to Disable state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE);
-    
-    ioctl_dump(file_desc, tmpfile3);
-
-    printf("Calling Contoller State to set to ST_DISABLE_COMPLETELY state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
-
-    ioctl_dump(file_desc, tmpfile4);
-
-    //printf("Executing PRP Test Cases\n");
-    //test_prp(file_desc);
-
-    close(file_desc);
-    printf("\nEnd of Testing...");
-    getchar();
-#endif
     printf("\n\n****** END OF DEMO ****** \n\n");
     return 0;
 }

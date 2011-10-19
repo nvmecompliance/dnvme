@@ -30,7 +30,7 @@ static void free_prp_pool(struct nvme_device *, struct nvme_prps *, __u32);
  */
 int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
     *pmetrics_sq, struct nvme_64b_send *nvme_64b_send, struct nvme_prps *prps,
-        struct nvme_command *nvme_adm_cmd_ker, __u16 persist_q_id,
+        struct nvme_gen_cmd *nvme_gen_cmd, __u16 persist_q_id,
             enum data_buf_type data_buf_type, __u8 gen_prp) {
 
     /* ret code to verify status of sending 64 bytes command */
@@ -41,21 +41,25 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
         /* Create PRP and add the node inside the command track list */
         ret_code = data_buf_to_prp(nvme_dev,
             pmetrics_sq, nvme_64b_send, prps,
-                nvme_adm_cmd_ker->gen_cmd.opcode,
-                    persist_q_id, data_buf_type);
+                nvme_gen_cmd->opcode, persist_q_id, data_buf_type);
 
         if (ret_code < 0) {
             LOG_ERR("Data buffer to PRP generation failed");
             goto err;
         }
-        /* Update the PRP's in the command */
-        nvme_adm_cmd_ker->gen_cmd.prp1 = prps->prp1;
-        nvme_adm_cmd_ker->gen_cmd.prp2 = prps->prp2;
+        /* Update the PRP's in the command based on type */
+        if ((prps->type == (PRP1 | PRP2)) ||
+            (prps->type == (PRP2 | PRP_List))) {
+            nvme_gen_cmd->prp1 = prps->prp1;
+            nvme_gen_cmd->prp2 = prps->prp2;
+        } else {
+            nvme_gen_cmd->prp1 = prps->prp1;
+        }
     } else {
 
         /* Adding node inside cmd_track list for pmetrics_sq */
         ret_code = add_cmd_track_node(pmetrics_sq, persist_q_id, prps,
-            nvme_64b_send->cmd_set, nvme_adm_cmd_ker->gen_cmd.opcode);
+            nvme_64b_send->cmd_set, nvme_gen_cmd->opcode);
         if (ret_code < 0) {
             LOG_ERR("Failure to add command track node for\
                 Create Contig Queue Command");
