@@ -591,6 +591,8 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     struct nvme_create_sq *nvme_create_sq;
     /* Pointer to Gen IOCQ command */
     struct nvme_create_cq *nvme_create_cq;
+    /* Pointer to Delete IO Q command */
+    struct nvme_del_q *nvme_del_q;
     /* Void * pointer to check validity of Queues */
     void *q_ptr = NULL;
     struct nvme_prps prps; /* Pointer to PRP List */
@@ -605,10 +607,10 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                 NULL != nvme_64b_send->data_buf_ptr)) {
         LOG_ERR("Data buffer size and data buffer inconsistent");
         goto ret;
-    } else if ((nvme_64b_send->bit_mask != MASK_PRP1) &&
-        (nvme_64b_send->bit_mask != (MASK_PRP1 | MASK_PRP2))) {
+    } else if (!(nvme_64b_send->bit_mask & (MASK_PRP1_PAGE | MASK_PRP1_LIST |
+        MASK_PRP2_PAGE | MASK_PRP2_LIST | MASK_NO_PRP))) {
         /* TODO Add support for MASK_MPTR */
-        LOG_ERR("Invalid value of bit_mask!");
+        LOG_ERR("Invalid value of bit_mask");
         goto ret;
     }
 
@@ -629,7 +631,6 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         LOG_ERR("Global Metrics inconsistent");
         goto ret;
     }
-    LOG_DBG("Entry Size of the SQ is %u", cmd_buf_size);
 
     /* Check for SQ is full */
     if ((pmetrics_sq->public_sq.tail_ptr_virt + 1) %
@@ -690,13 +691,14 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                     p_cmd_sq->private_sq.vir_kern_addr == NULL)) {
             /* Contig flag out of sync with what cmd says */
             goto data_err;
-        } else if (p_cmd_sq->private_sq.size != nvme_64b_send->data_buf_size) {
-            /* Contig flag out of sync with what cmd says */
-            goto data_err;
         }
 
         if (p_cmd_sq->private_sq.contig == 0) {
             /* Creation of Discontiguous IO SQ */
+            if (p_cmd_sq->private_sq.size != nvme_64b_send->data_buf_size) {
+                /* Contig flag out of sync with what cmd says */
+                goto data_err;
+            }
             ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
                     nvme_create_sq->sqid, DISCONTG_IO_Q, PRP_PRESENT);
@@ -755,13 +757,15 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                     p_cmd_cq->private_cq.vir_kern_addr == NULL)) {
             /* Contig flag out of sync with what cmd says */
             goto data_err;
-        } else if (p_cmd_cq->private_cq.size != nvme_64b_send->data_buf_size) {
-            /* Contig flag out of sync with what cmd says */
-            goto data_err;
         }
 
         if (p_cmd_cq->private_cq.contig == 0) {
             /* Discontig IOCQ creation */
+            if (p_cmd_cq->private_cq.size != nvme_64b_send->data_buf_size) {
+                /* Contig flag out of sync with what cmd says */
+                goto data_err;
+            }
+
             ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
                     nvme_create_cq->cqid, DISCONTG_IO_Q, PRP_PRESENT);
@@ -789,7 +793,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     } else if (nvme_gen_cmd->opcode == 0x00 &&
         nvme_64b_send->cmd_set == CMD_ADMIN) {
         /* Delete IOSQ case */
-        nvme_create_sq = (struct nvme_create_sq *) nvme_cmd_ker;
+        nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
 
         if (nvme_64b_send->data_buf_ptr != NULL) {
             LOG_ERR("Invalid argument for opcode 0x00");
@@ -797,7 +801,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         }
 
         ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device, pmetrics_sq,
-            nvme_64b_send, &prps, nvme_gen_cmd, nvme_create_sq->sqid,
+            nvme_64b_send, &prps, nvme_gen_cmd, nvme_del_q->qid,
                 0, PRP_ABSENT);
 
         if (ret_code < 0) {
@@ -808,7 +812,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     } else if (nvme_gen_cmd->opcode == 0x04 &&
         nvme_64b_send->cmd_set == CMD_ADMIN) {
         /* Delete IOCQ case */
-        nvme_create_cq = (struct nvme_create_cq *) nvme_cmd_ker;
+        nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
 
         if (nvme_64b_send->data_buf_ptr != NULL) {
             LOG_ERR("Invalid argument for opcode 0x00");
@@ -816,7 +820,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         }
 
         ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device, pmetrics_sq,
-            nvme_64b_send, &prps, nvme_gen_cmd, nvme_create_cq->cqid,
+            nvme_64b_send, &prps, nvme_gen_cmd, nvme_del_q->qid,
                 0, PRP_ABSENT);
 
         if (ret_code < 0) {

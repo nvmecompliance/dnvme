@@ -375,9 +375,9 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         ret_val =  driver_send_64b(pmetrics_device_element, nvme_64b_send);
         /* Display success or fail */
         if (ret_val >= 0) {
-            LOG_NRM("PRP Creation Success");
+            LOG_NRM("Command sent succesfully");
         } else {
-            LOG_NRM("PRP Creation Failed");
+            LOG_NRM("Sending of Command Failed");
         }
         break;
 

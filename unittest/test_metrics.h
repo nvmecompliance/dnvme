@@ -17,5 +17,10 @@ void ioctl_create_prp_less_than_one_page(int file_desc);
 void ioctl_create_prp_more_than_two_page(int file_desc);
 void ioctl_create_list_of_prp(int file_desc);
 void ioctl_create_fill_list_of_prp(int file_desc);
-void ioctl_create_discontig_ioq(int file_desc);
+void ioctl_create_discontig_iosq(int file_desc);
+void ioctl_create_contig_iocq(int file_desc);
+void ioctl_create_contig_iosq(int file_desc);
+void ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid);
+void ioctl_send_identify_cmd(int file_desc);
+
 

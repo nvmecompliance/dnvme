@@ -266,4 +266,16 @@ struct nvme_create_sq {
     uint32_t rsvd12[4];
 };
 
+/**
+ * Specific structure for Delete Q command
+ */
+struct nvme_del_q {
+    uint8_t  opcode;
+    uint8_t  flags;
+    uint16_t command_id;
+    uint32_t rsvd1[9];
+    uint16_t qid;
+    uint16_t rsvd10;
+    uint32_t rsvd11[5];
+};
 #endif

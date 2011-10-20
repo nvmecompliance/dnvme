@@ -23,9 +23,12 @@ enum prp_type {
 
 /* Enum specifying bitmask passed on to IOCTL_SEND_64B */
 enum bit_mask_enum {
-    MASK_PRP1 = 1,
-    MASK_PRP2 = 2,
-    MASK_MPTR = 4,
+    MASK_PRP1_PAGE = 1,
+    MASK_PRP1_LIST = 2,
+    MASK_PRP2_PAGE = 4,
+    MASK_PRP2_LIST = 8,
+    MASK_NO_PRP = 16,
+    MASK_MPTR = 32,
 };
 
 /* Enum specifying type of data buffer */

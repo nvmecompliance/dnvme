@@ -235,17 +235,17 @@ void test_metrics(int file_desc)
 {
     printf("\nTEST 4: Get metrics\n");
     /* ACQ Metrics */
-    printf("Get ACQ Metrics: \n\n");
+    printf("Get ACQ Metrics:\n\n");
     ioctl_get_q_metrics(file_desc, 0, 0, sizeof(struct nvme_gen_cq));
     printf("\nPress any key to continue..");
     getchar();
 
     /* ASQ Metrics */
-    //printf("Get ASQ Metrics: \n\n");
-    //ioctl_get_q_metrics(file_desc, 0, 1, sizeof(struct nvme_gen_sq));
-    //printf("\nPress any key to continue..");
-    //getchar();
-
+/*    printf("Get ASQ Metrics:\n\n");
+    ioctl_get_q_metrics(file_desc, 0, 1, sizeof(struct nvme_gen_sq));
+    printf("\nPress any key to continue..");
+    getchar();
+*/
     printf("Get IO_SQ = 2 (exists) Metrics: \n\n");
     ioctl_get_q_metrics(file_desc, 2, 1, sizeof(struct nvme_gen_sq) + 10);
     printf("\nPress any key to continue..");
@@ -333,50 +333,104 @@ int main(int argc, char *argv[])
     printf("Device File Succesfully Opened = %d\n", file_desc);
 
     switch(test_case) {
-
     case 1:
-    	printf("Implementing sending of Create Discontig IO Queues command\n");
+        printf("Test1: Initializing the state of the device to Run tests\n");
         printf("Calling Contoller State to set to Disable state\n");
         ioctl_disable_ctrl(file_desc, ST_DISABLE);
         test_admin(file_desc);
         printf("\n.Test PASS if creation is success.");
         printf("Calling Contoller State to set to Enable state\n");
         ioctl_enable_ctrl(file_desc);
-        printf("Writing the Registers of NVME space \n");
+        printf("Writing the Registers of NVME space\n");
         ioctl_write_data(file_desc);
-        printf("\n Creating contig CQ with ID 1 \n");
+        printf("Test to initialize the state of controller done\n");
+        break;
+    case 2:
+        printf("Test2: Sending Create Discontig IOSQ with ID 1"
+        " and contig IOCQ with ID 1\n");
+        printf("\n Preparing contig CQ with ID 1\n");
         printf("\n\tCQ ID = 1\n");
         ioctl_prep_cq(file_desc, 1, 20, 1);
 
-        printf("\n Creating Discontig SQ with ID 1 \n");
+        printf("\n Preparing Discontig SQ with ID 1\n");
         printf("\n\tSD_ID : CQ ID = 1 : 1\n");
         ioctl_prep_sq(file_desc, 1, 1, 65472, 0);
 
         printf("Calling Dump Metrics to tmpfile1\n");
         ioctl_dump(file_desc, tmpfile1);
 
-        printf("Executing SEND 64 byte command\n");
-        ioctl_create_discontig_ioq(file_desc);
+        printf("Executing SEND 64 byte command both for SQ and CQ\n");
+        ioctl_create_contig_iocq(file_desc);
+        ioctl_create_discontig_iosq(file_desc);
 
         printf("Calling Dump Metrics to tmpfile2\n");
         ioctl_dump(file_desc, tmpfile2);
 
         printf("Ringing Doorbell for SQID 0\n");
         ioctl_tst_ring_dbl(file_desc, 0);
-        printf("*****Cmd to Create Discontig IO Queues Sent*****\n");
+        printf("Test to Create Discontig/Contig IO Queues Done\n");
+        break;
+    case 3:
+        printf("Test3: Sending Create contig IOSQ with ID 2 and linking "
+        "to already created CQ ID1\n");
+
+        printf("\n Preparing contig SQ with ID 2\n");
+        printf("\n\tSD_ID : CQ ID = 2 : 1\n");
+        ioctl_prep_sq(file_desc, 2, 1, 256, 1);
+
+        printf("Calling Dump Metrics to tmpfile1\n");
+        ioctl_dump(file_desc, tmpfile1);
+
+        printf("Executing SEND 64 byte command\n");
+        ioctl_create_contig_iosq(file_desc);
+
+        printf("Calling Dump Metrics to tmpfile2\n");
+        ioctl_dump(file_desc, tmpfile2);
+
+        printf("Ringing Doorbell for SQID 0\n");
+        ioctl_tst_ring_dbl(file_desc, 0);
+        printf("Test to Create contig IOSQ Done\n");
+        break;
+    case 4: /* Delete the Queues */
+        printf("Test4: Sending Delete IOSQ for ID 1 and 2 "
+        "also deleteing IOCQ ID1\n");
+
+        printf("Executing SEND 64 byte commands 3 at a time!\n");
+        printf("Deleting IOSQ 1\n");
+        ioctl_delete_ioq(file_desc, 0x00, 1);
+        printf("Deleting IOSQ 2\n");
+        ioctl_delete_ioq(file_desc, 0x00, 2);
+        printf("Deleting IOCQ 1\n");
+        ioctl_delete_ioq(file_desc, 0x04, 1);
+
+        printf("Ringing Doorbell for SQID 0\n");
+        ioctl_tst_ring_dbl(file_desc, 0);
+        printf("Test to Create contig IOSQ Done\n");
+        break;
+    case 5: /* Send the identify command */
+        printf("Test5: Sending Identify Command\n");
+        ioctl_send_identify_cmd(file_desc);
+        printf("Ringing Doorbell for SQID 0\n");
+        ioctl_tst_ring_dbl(file_desc, 0);
+        printf("Test to send identify command Done\n");
+        break;
+
+    case 6: /* Send an IO command */
+        printf("Test6: Sending IO Command\n");
+
+        printf("Test to send IO command Done\n");
         break;
     default:
-    	 printf("Implementing Disable all completley\n");
-    	 ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
-    	 printf("Calling Dump Metrics to tmpfile2\n");
-    	 ioctl_dump(file_desc, tmpfile3);
-    	 /* NOTE:- Disable Controller not called in unit tests since Disable
+         printf("Default: Disabling the controller completley\n");
+         ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+         printf("Calling Dump Metrics to tmpfile4\n");
+         ioctl_dump(file_desc, tmpfile4);
+         /* NOTE:- Disable Controller not called in unit tests since Disable
          * is an asyn request to the HW and as of now we dont have any means
          * to wait till CQ entries are posted
          * TODO : will be called when IOCTL_REAP is implemented
          */
     }
-    
-    printf("\n\n****** END OF DEMO ****** \n\n");
+    printf("\n\n****** END OF DEMO ******\n\n");
     return 0;
 }

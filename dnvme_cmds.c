@@ -185,7 +185,6 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
     }
 
     /* Setting up PRP's */
-    /* TODO change function arguments while implementing command support */
     err = setup_prps(nvme_dev, sg, nvme_64b_send->data_buf_size, prps,
         data_buf_type, nvme_64b_send->bit_mask);
     if (err < 0) {
@@ -408,14 +407,15 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     dma_len = sg_dma_len(sg);
     offset = offset_in_page(dma_addr);
 
-    /* Checking for PRP1 mask */
-    if (!(prp_mask & MASK_PRP1)) {
-        LOG_ERR("bit_mask does not support MASK_PRP1");
-        goto error;
-    }
 
     /* Create IO CQ/SQ's */
     if (cr_io_q) {
+        /* Checking for PRP1 mask */
+        if (!(prp_mask & MASK_PRP1_LIST)) {
+            LOG_ERR("bit_mask does not support PRP1");
+            err = -EINVAL;
+            goto error;
+        }
         /* Specifies PRP1 entry is a PRP_List */
         prps->type = (PRP1 | PRP_List);
         goto prp_list;
@@ -425,6 +425,12 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     LOG_DBG("PRP1 Entry: dma_len %u", dma_len);
     LOG_DBG("PRP1 Entry: PRP entry %llx", (unsigned long long) dma_addr);
 
+    /* Checking for PRP1 mask */
+    if (!(prp_mask & MASK_PRP1_PAGE)) {
+        LOG_ERR("bit_mask does not support PRP1");
+        err = -EINVAL;
+        goto error;
+    }
     prps->prp1 = cpu_to_le64(dma_addr);
     buf_len -= (PAGE_SIZE - offset);
     if (buf_len <= 0) {
@@ -445,13 +451,14 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     }
 
     offset = 0;
-    /* Checking for PRP2 mask */
-    if (!(prp_mask & MASK_PRP2)) {
-        LOG_ERR("bit_mask does not support MASK_PRP2");
-        goto error;
-    }
 
     if (buf_len <= PAGE_SIZE) {
+        /* Checking for PRP2 mask */
+        if (!(prp_mask & MASK_PRP2_PAGE)) {
+            LOG_ERR("bit_mask does not support PRP2");
+            err = -EINVAL;
+            goto error;
+        }
         prps->prp2 = cpu_to_le64(dma_addr);
         prps->type = (PRP1 | PRP2);
         LOG_DBG("PRP2 Entry: Type %u", prps->type);
@@ -463,7 +470,12 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
 
     /* Specifies PRP2 entry is a PRP_List */
     prps->type = (PRP2 | PRP_List);
-
+    /* Checking for PRP2 mask */
+    if (!(prp_mask & MASK_PRP2_LIST)) {
+        LOG_ERR("bit_mask does not support PRP2");
+        err = -EINVAL;
+        goto error;
+    }
 prp_list:
     /* Generate PRP List */
     num_prps = DIV_ROUND_UP(offset + buf_len, PAGE_SIZE);
