@@ -312,7 +312,7 @@ int dnvme_device_open(struct inode *inode, struct file *filp)
     if (pmetrics_device_element == NULL) {
         LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
         ret_val = -ENODEV;
-        goto exit;
+        goto op_exit;
     }
 
     if (pmetrics_device_element->metrics_device->open_flag == 0) {
@@ -323,7 +323,7 @@ int dnvme_device_open(struct inode *inode, struct file *filp)
         ret_val =  -EPERM; /* Operation not permitted */
     }
 
-exit:
+op_exit:
     unlock_device(pmetrics_device_element);
     return ret_val;
 }
@@ -344,7 +344,7 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
     if (pmetrics_device_element == NULL) {
         LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
         ret_val = -ENODEV;
-        goto exit;
+        goto rel_exit;
     }
     pmetrics_device_element->metrics_device->open_flag = 0;
     if (deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY)
@@ -353,7 +353,7 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
         ret_val = -EINVAL;
     }
 
-exit:
+rel_exit:
     LOG_DBG("\n.....Close Successful!!!....Releasing Mutex...\n");
     unlock_device(pmetrics_device_element);
     return ret_val;
@@ -381,7 +381,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     if (pmetrics_device_element == NULL) {
         LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
         ret_val = -ENODEV;
-        goto exit;
+        goto mmap_exit;
     }
 
     /* Calculate the q id and q type from offset */
@@ -396,7 +396,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         pmetrics_sq_list = find_sq(pmetrics_device_element, qid);
         if (pmetrics_sq_list == NULL) {
             ret_val = -EBADSLT;
-            goto exit;
+            goto mmap_exit;
         }
         pfn = virt_to_phys(pmetrics_sq_list->private_sq.vir_kern_addr) >>
                 PAGE_SHIFT;
@@ -404,7 +404,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         pmetrics_cq_list = find_cq(pmetrics_device_element, qid);
         if (pmetrics_cq_list == NULL) {
             ret_val = -EBADSLT;
-            goto exit;
+            goto mmap_exit;
         }
         pfn = virt_to_phys(pmetrics_cq_list->private_cq.vir_kern_addr) >>
                 PAGE_SHIFT;
@@ -413,7 +413,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     ret_val = remap_pfn_range(vma, vma->vm_start, pfn,
                     vma->vm_end - vma->vm_start, vma->vm_page_prot);
 
-exit:
+mmap_exit:
     unlock_device(pmetrics_device_element);
     return ret_val;
 }
@@ -454,7 +454,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     if (pmetrics_device_element == NULL) {
         LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
         ret_val = -ENODEV;
-        goto exit;
+        goto ictl_exit;
     }
 
     /* Given a ioctl_num invoke corresponding function */
@@ -618,7 +618,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
     }
 
-exit:
+ictl_exit:
     /* Unlock the device */
     unlock_device(pmetrics_device_element);
     return ret_val;

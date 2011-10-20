@@ -538,6 +538,7 @@ acq_exit:
 int driver_ioctl_init(struct pci_dev *pdev,
         struct metrics_device_list *pmetrics_device_list)
 {
+    int ret_val = SUCCESS;
     LOG_DBG("Inside driver IOCTL init function");
     LOG_NRM("Initializing the BAR01 and NVME Controller Space");
 
@@ -546,7 +547,8 @@ int driver_ioctl_init(struct pci_dev *pdev,
             GFP_KERNEL);
     if (pmetrics_device_list->metrics_device == NULL) {
         LOG_ERR("failed mem allocation for device.");
-        return -ENOMEM;
+        ret_val = -ENOMEM;
+        goto iocinit_out;
     }
     /* Init Submission Q linked list for this device. */
     INIT_LIST_HEAD(&(pmetrics_device_list->metrics_sq_list));
@@ -560,7 +562,8 @@ int driver_ioctl_init(struct pci_dev *pdev,
     /* Check if remap was success */
     if (!pmetrics_device_list->metrics_device->bar_0_mapped) {
         LOG_ERR("IOCTL init failed");
-        return -EINVAL;
+        ret_val = -EINVAL;
+        goto iocinit_out;
     }
 
     pmetrics_device_list->metrics_device->nvme_ctrl_space =
@@ -580,13 +583,20 @@ int driver_ioctl_init(struct pci_dev *pdev,
                 PAGE_SIZE, PAGE_SIZE, 0);
     if (NULL == pmetrics_device_list->metrics_device->prp_page_pool) {
         LOG_ERR("Creation of DMA Pool failed");
-        return -ENOMEM;
+        ret_val = -ENOMEM;
+        goto iocinit_out;
      }
 
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)pmetrics_device_list->metrics_device->nvme_ctrl_space);
 
-    return SUCCESS;
+    return ret_val;
+
+iocinit_out:
+    if (pmetrics_device_list->metrics_device) {
+        kfree(pmetrics_device_list->metrics_device);
+    }
+    return ret_val;
 }
 
 /*
