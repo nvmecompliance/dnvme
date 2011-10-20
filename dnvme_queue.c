@@ -495,7 +495,8 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
         /* Check if the dma alloc was successful */
         if (!pmetrics_cq_list->private_cq.vir_kern_addr) {
             LOG_ERR("Unable to allocate DMA Address for IO CQ!!");
-            return -ENOMEM;
+            ret_code = -ENOMEM;
+            goto pcq_out;
         }
         /* Zero out all IO CQ memory before processing */
         memset(pmetrics_cq_list->private_cq.vir_kern_addr, 0,
@@ -509,6 +510,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
             ((void __iomem *)pnvme_dev->nvme_ctrl_space) + NVME_SQ0TBDL +
             ((2 * pmetrics_cq_list->public_cq.q_id + 1) * (4 << cap_dstrd));
 
+ pcq_out:
     return ret_code;
 }
 
