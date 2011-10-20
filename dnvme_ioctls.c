@@ -593,8 +593,11 @@ int driver_ioctl_init(struct pci_dev *pdev,
     return ret_val;
 
 iocinit_out:
-    if (pmetrics_device_list->metrics_device) {
+    if (pmetrics_device_list->metrics_device != NULL) {
         kfree(pmetrics_device_list->metrics_device);
+    }
+    if (pmetrics_device_list->metrics_device->prp_page_pool != NULL) {
+        dma_pool_destroy(pmetrics_device_list->metrics_device->prp_page_pool);
     }
     return ret_val;
 }

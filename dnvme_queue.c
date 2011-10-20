@@ -208,7 +208,7 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     u16 asq_id;     /* Admin Submission Q Id                          */
     u32 aqa;        /* Admin Q attributes in 32 bits size             */
     u32 tmp_aqa;    /* Temp var to hold admin q attributes            */
-    u32 asq_depth;  /* Variable to hold the size of bytes allocated   */
+    u32 asq_depth = 0;  /* the size of bytes to allocate              */
     int ret_code = SUCCESS;
 
     LOG_NRM("Creating Admin Submission Queue...");
@@ -288,8 +288,17 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     pmetrics_sq_list->private_sq.unique_cmd_id = 0;
     pmetrics_sq_list->private_sq.contig = 1;
 
+    /* returns success */
+    return ret_code;
+
  asq_out:
-    /* returns success or failure*/
+     if (pmetrics_sq_list->private_sq.vir_kern_addr != NULL) {
+         /* Admin SQ dma mem allocated, so free the DMA memory */
+         dma_free_coherent(&pnvme_dev->pdev->dev, asq_depth,
+                 (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
+                 pmetrics_sq_list->private_sq.sq_dma_addr);
+     }
+    /* returns failure*/
     return ret_code;
 }
 
@@ -306,7 +315,7 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
     u16 acq_id;             /* Admin Submission Q Id                       */
     u32 aqa;                /* Admin Q attributes in 32 bits size          */
     u32 tmp_aqa;            /* local var to hold admin q attributes        */
-    u32 acq_depth;          /* local var to cal nbytes based on elements   */
+    u32 acq_depth = 0;      /* local var to cal nbytes based on elements   */
 
     LOG_NRM("Creating Admin Completion Queue...");
 
@@ -377,8 +386,18 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
     /* Set the door bell of ACQ to 0x1000 as per spec 1.0b */
     pmetrics_cq_list->private_cq.dbs =
             ((void __iomem *)pnvme_dev->nvme_ctrl_space) + NVME_CQ0TBDL;
+
+    /* returns success */
+    return ret_code;
+
 acq_out:
-    /* returns success or failure*/
+    if (pmetrics_cq_list->private_cq.vir_kern_addr != NULL) {
+        /* Admin CQ dma mem allocated, so free the DMA memory */
+        dma_free_coherent(&pnvme_dev->pdev->dev, acq_depth,
+                (void *)pmetrics_cq_list->private_cq.vir_kern_addr,
+                pmetrics_cq_list->private_cq.cq_dma_addr);
+    }
+    /* returns success */
     return ret_code;
 
 }
@@ -445,7 +464,16 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
             ((void __iomem *)pnvme_dev->nvme_ctrl_space) + NVME_SQ0TBDL +
             ((2 * pmetrics_sq_list->public_sq.sq_id) * (4 << cap_dstrd));
 
+    return ret_code;
+
 psq_out:
+    if (pmetrics_sq_list->private_sq.vir_kern_addr != NULL) {
+        /* Admin SQ dma mem allocated, so free the DMA memory */
+        dma_free_coherent(&pnvme_dev->pdev->dev, pmetrics_sq_list->
+            private_sq.size, (void *)pmetrics_sq_list->private_sq.
+            vir_kern_addr, pmetrics_sq_list->private_sq.sq_dma_addr);
+    }
+    /* returns failure*/
     return ret_code;
 }
 
@@ -510,7 +538,17 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
             ((void __iomem *)pnvme_dev->nvme_ctrl_space) + NVME_SQ0TBDL +
             ((2 * pmetrics_cq_list->public_cq.q_id + 1) * (4 << cap_dstrd));
 
+    /* returns success */
+    return ret_code;
+
  pcq_out:
+    if (pmetrics_cq_list->private_cq.vir_kern_addr != NULL) {
+        /* Admin CQ dma mem allocated, so free the DMA memory */
+        dma_free_coherent(&pnvme_dev->pdev->dev, pmetrics_cq_list->
+            private_cq.size, (void *)pmetrics_cq_list->private_cq.
+            vir_kern_addr, pmetrics_cq_list->private_cq.cq_dma_addr);
+    }
+    /* returns failure */
     return ret_code;
 }
 
