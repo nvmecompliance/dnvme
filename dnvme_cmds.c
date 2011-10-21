@@ -599,7 +599,7 @@ static void unmap_user_pg_to_dma(struct nvme_device *dev,
  * free_prp_pool:
  * Free's PRP List and virtual List
  */
-static void free_prp_pool(struct nvme_device *dev,
+void free_prp_pool(struct nvme_device *dev,
     struct nvme_prps *prps, __u32 npages)
 {
     const int last_prp = PAGE_SIZE / PRP_Size - 1;

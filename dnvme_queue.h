@@ -61,8 +61,18 @@ enum {
     NVME_CSTS_SHST_CMPLT  = 2 << 2,
 };
 
-/* To use the linked list in queues. */
-extern struct list_head metrics_dev_ll;
+/*
+ * completion q entry structure.
+ */
+struct cq_completion {
+    u32 cmd_specifc;       /* DW 0 all 32 bits     */
+    u32 reserved;          /* DW 1 all 32 bits     */
+    u16 sq_head_ptr;       /* DW 2 lower 16 bits   */
+    u16 sq_identifier;     /* DW 2 higher 16 bits  */
+    u16 cmd_identifier;    /* Cmd identifier       */
+    u8  phase_bit:1;       /* Phase bit            */
+    u16 status_field:15;   /* Status field         */
+};
 
 /**
 * The user selection of IOCTL for creating admin cq eventually calls
@@ -154,5 +164,23 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 */
 int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
         struct  metrics_device_list *pmetrics_device_element);
+
+/**
+ * finds the sq node in the given sq list for the given sq id
+ * @param pmetrics_device_element
+ * @param sq_id
+ * @return pointer to the sq node for given sq id
+ */
+struct metrics_sq *find_sq(struct  metrics_device_list
+        *pmetrics_device_element, u16 sq_id);
+
+/**
+ * finds the cq node in the given cq list for the given cq id
+ * @param pmetrics_device_element
+ * @param cq_id
+ * @return pointer to the cq node for given cq id
+ */
+struct metrics_cq *find_cq(struct  metrics_device_list
+        *pmetrics_device_element, u16 cq_id);
 
 #endif

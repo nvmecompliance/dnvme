@@ -65,25 +65,17 @@ struct rw_generic {
 enum nvme_state {
     ST_ENABLE,              /* Set the NVME Controller to enable state      */
     ST_DISABLE,             /* Controller reset without affecting Admin Q   */
-    ST_DISABLE_COMPLETELY,  /* Completely destroy even Admin Q's            */
-};
-
-/**
-* The parametes in this structue is used for setting the controller a new
-* state.
-*/
-struct nvme_ctrl_state {
-    enum nvme_state new_state; /* New state of the controller requested. */
+    ST_DISABLE_COMPLETELY   /* Completely destroy even Admin Q's            */
 };
 
 /**
  * enum providing the definitions of the NVME commands.
  */
 enum nvme_cmds {
-    CMD_ADMIN, /* Admin Command Set */
-    CMD_NVME, /* NVME Command Set */
-    CMD_AON, /* AON  Command Set */
-    CMD_FENCE, /* last element for loop over-run */
+    CMD_ADMIN,   /* Admin Command Set               */
+    CMD_NVME,    /* NVME Command Set                */
+    CMD_AON,     /* AON  Command Set                */
+    CMD_FENCE,   /* last element for loop over-run  */
 };
 
 /**
@@ -108,7 +100,6 @@ struct nvme_64b_send {
  * check if these versions match.
  */
 struct metrics_driver {
-    enum        nvme_irq_type    irq;   /* Defines the IRQ type used         */
     uint16_t    driver_version;         /* dnvme driver version              */
     uint16_t    api_version;            /* tnvme test application version    */
 };
@@ -217,6 +208,16 @@ struct nvme_reap_inquiry {
     uint16_t    num_remaining;  /* return no of cmds waiting to be reaped */
 };
 
+/**
+ * Interface structure for reap ioctl. Admin Q and all IO Q's are supported.
+ */
+struct nvme_reap {
+    uint16_t q_id;          /* CQ ID to reap commands for             */
+    uint16_t elements;      /* Get the no. of elements to be reaped   */
+    uint16_t num_remaining; /* return no. of cmds waiting for this cq */
+    uint16_t size;          /* Size of buffer to fill data to         */
+    uint8_t  *buffer;       /* Buffer to copy reaped data             */
+};
 
 /**
  * Format of general purpose nvme command DW0-DW9

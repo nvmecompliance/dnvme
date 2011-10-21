@@ -24,6 +24,7 @@
 #include "dnvme_ds.h"
 #include "version.h"
 #include "dnvme_cmds.h"
+#include "ut_reap_inq.h"
 
 #define    DRV_NAME            "dnvme"
 #define    NVME_DEVICE_NAME    "qnvme"
@@ -53,8 +54,16 @@ static struct pci_driver dnvme_pci_driver = {
 */
 static const struct file_operations dnvme_fops_f = {
     .owner = THIS_MODULE,
-    .ioctl = dnvme_ioctl_device,
+    .unlocked_ioctl = dnvme_ioctl_device,
+    .open  = dnvme_device_open,
+    .release = dnvme_device_release,
+    .mmap = dnvme_device_mmap,
 };
+
+/* local functions static declarations */
+static struct  metrics_device_list *lock_device(struct inode *inode);
+static void unlock_device(struct  metrics_device_list *pmetrics_device_element);
+static struct  metrics_device_list *find_device(struct inode *inode);
 
 /* char device specific parameters */
 static int NVME_MAJOR;
@@ -123,6 +132,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     u32  *bar;
     dev_t devno = 0;
     int err;
+    struct metrics_device_list *pmetrics_device_element;
 
     /* Following the Iniitalization steps from LDD 3 */
     LOG_DBG("Start probing for NVME PCI Express Device");
@@ -201,25 +211,211 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     LOG_DBG("PCI BAR 0 = 0x%x", BaseAddress0);
 
     /* Allocate mem fo nvme device with kernel memory */
-    pmetrics_device_list = kmalloc(sizeof(struct metrics_device_list),
+    pmetrics_device_element = kmalloc(sizeof(struct metrics_device_list),
             GFP_KERNEL);
-    if (pmetrics_device_list == NULL) {
+    if (pmetrics_device_element == NULL) {
         LOG_ERR("failed mem allocation for device in device list.");
         return -ENOMEM;
     }
     /* Initialize the current device found */
-    retCode = driver_ioctl_init(pdev, pmetrics_device_list);
+    retCode = driver_ioctl_init(pdev, pmetrics_device_element);
     if (retCode != SUCCESS) {
         LOG_ERR("Failed driver ioctl initializations!!");
         return -EINVAL;
     }
     /* Update info in the metrics list */
-    pmetrics_device_list->pnvme_device->minor_no = nvme_minor_x;
+    pmetrics_device_element->metrics_device->minor_no = nvme_minor_x;
     /* update the device minor number */
     nvme_minor_x = nvme_minor_x + 1;
+
+    /* set device open status to false when initialized */
+    pmetrics_device_element->metrics_device->open_flag = 0;
+
+    /* Initialize the mutex state. */
+    mutex_init(&pmetrics_device_element->metrics_mtx);
+
     /* Add the device to the linked list */
-    list_add_tail(&pmetrics_device_list->metrics_device_hd, &metrics_dev_ll);
+    list_add_tail(&pmetrics_device_element->metrics_device_hd, &metrics_dev_ll);
     return retCode;
+}
+
+/*
+ * find device from the device linked list. Returns pointer to the
+ * device if found otherwise returns NULL.
+ */
+static struct  metrics_device_list *find_device(struct inode *inode)
+{
+    struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
+    int dev_found = 1;
+    /* Loop through the devices available in the metrics list */
+    list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
+            metrics_device_hd) {
+        LOG_DBG("Minor Number in the List = %d", pmetrics_device_element->
+                metrics_device->minor_no);
+        if (iminor(inode) == pmetrics_device_element->metrics_device->
+                minor_no) {
+            LOG_DBG("Found device in the metrics list");
+            return pmetrics_device_element;
+        } else {
+            dev_found = 0;
+        }
+    }
+    /* The specified device could not be found in the list */
+    if (dev_found == 0) {
+        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
+        return NULL;
+    }
+    return NULL;
+}
+
+/*
+ * lock_device function will call find_device and if found device locks my
+ * taking the mutex. This function returns a pointer to successfully found
+ * device.
+ */
+static struct  metrics_device_list *lock_device(struct inode *inode)
+{
+    struct  metrics_device_list *pmetrics_device_element;
+    pmetrics_device_element = find_device(inode);
+    if (pmetrics_device_element == NULL) {
+        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
+        return NULL;
+    }
+    LOG_DBG("Obtain Mutex...");
+    /* Grab the Mutex for this device in the linked list */
+    mutex_lock(&pmetrics_device_element->metrics_mtx);
+    return pmetrics_device_element;
+}
+
+/*
+ * Release the mutex for this device.
+ */
+static void unlock_device(struct  metrics_device_list *pmetrics_device_element)
+{
+    LOG_DBG("Releasing Mutex...");
+    if (mutex_is_locked(&pmetrics_device_element->metrics_mtx)) {
+        mutex_unlock(&pmetrics_device_element->metrics_mtx);
+    }
+}
+
+/*
+ * This operation is always the first operation performed on the device file.
+ * when the user call open fd, this is where it lands.
+ */
+int dnvme_device_open(struct inode *inode, struct file *filp)
+{
+    struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
+    int ret_val = SUCCESS;
+
+    LOG_DBG("Call to open the device...");
+    pmetrics_device_element = lock_device(inode);
+    if (pmetrics_device_element == NULL) {
+        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        ret_val = -ENODEV;
+        goto op_exit;
+    }
+
+    if (pmetrics_device_element->metrics_device->open_flag == 0) {
+        pmetrics_device_element->metrics_device->open_flag = 1;
+        deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
+    } else {
+        LOG_ERR("Attempt to open device multiple times not allowed!!");
+        ret_val =  -EPERM; /* Operation not permitted */
+    }
+
+op_exit:
+    unlock_device(pmetrics_device_element);
+    return ret_val;
+}
+
+/*
+ * This operation is invoked when the file structure is being released. When
+ * the user app close a device then this is where the entry point is. The
+ * driver cleans up any memory it has reference to. This ensures a clean state
+ * of the device.
+ */
+int dnvme_device_release(struct inode *inode, struct file *filp)
+{
+    struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
+    int ret_val = SUCCESS;
+
+    LOG_DBG("\n.....Call to Release the device...\n");
+    pmetrics_device_element = lock_device(inode);
+    if (pmetrics_device_element == NULL) {
+        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        ret_val = -ENODEV;
+        goto rel_exit;
+    }
+    pmetrics_device_element->metrics_device->open_flag = 0;
+    if (deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY)
+            != SUCCESS) {
+        LOG_ERR("Deallocation failed!!");
+        ret_val = -EINVAL;
+    }
+
+rel_exit:
+    LOG_DBG("\n.....Close Successful!!!....Releasing Mutex...\n");
+    unlock_device(pmetrics_device_element);
+    return ret_val;
+}
+
+/*
+ * dnvme_device_mmap - This function maps the contiguous device mapped area
+ * to user space. This is specfic to device which is called though fd.
+ */
+int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+    struct  metrics_device_list *pmetrics_device_element; /* Metrics device */
+    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list               */
+    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list               */
+    unsigned long pfn;
+    struct inode *inode = filp->f_dentry->d_inode;
+    u32 qtype;
+    u16 qid;
+    int ret_val = SUCCESS;
+
+    vma->vm_flags |= VM_IO;
+    LOG_DBG("Device Calling mmap function...");
+
+    pmetrics_device_element = lock_device(inode);
+    if (pmetrics_device_element == NULL) {
+        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        ret_val = -ENODEV;
+        goto mmap_exit;
+    }
+
+    /* Calculate the q id and q type from offset */
+    qtype = (vma->vm_pgoff >> 0x10) & 0x1;
+    qid = vma->vm_pgoff & 0xFFFF;
+
+    LOG_DBG("Q Type = %d", qtype);
+    LOG_DBG("Q ID = 0x%x", qid);
+
+    /* If Q type is 1 implies SQ */
+    if (qtype != 0) {
+        pmetrics_sq_list = find_sq(pmetrics_device_element, qid);
+        if (pmetrics_sq_list == NULL) {
+            ret_val = -EBADSLT;
+            goto mmap_exit;
+        }
+        pfn = virt_to_phys(pmetrics_sq_list->private_sq.vir_kern_addr) >>
+                PAGE_SHIFT;
+    } else {
+        pmetrics_cq_list = find_cq(pmetrics_device_element, qid);
+        if (pmetrics_cq_list == NULL) {
+            ret_val = -EBADSLT;
+            goto mmap_exit;
+        }
+        pfn = virt_to_phys(pmetrics_cq_list->private_cq.vir_kern_addr) >>
+                PAGE_SHIFT;
+    }
+    LOG_DBG("PFN = 0x%lx", pfn);
+    ret_val = remap_pfn_range(vma, vma->vm_start, pfn,
+                    vma->vm_end - vma->vm_start, vma->vm_page_prot);
+
+mmap_exit:
+    unlock_device(pmetrics_device_element);
+    return ret_val;
 }
 
 /*
@@ -232,14 +428,14 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
  * calling process), the ioctl call returns the output of this function.
  *
 */
-int dnvme_ioctl_device(struct inode *inode, struct file *file,
-        unsigned int ioctl_num, unsigned long ioctl_param)
+long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
+        unsigned long ioctl_param)
 {
     struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
     int ret_val = -EINVAL;        /* set ret val to invalid, chk for success */
     struct rw_generic *nvme_data; /* Local struct var for nvme rw dat        */
     int *nvme_dev_err_sts;        /* nvme device error status                */
-    struct nvme_ctrl_state *ctrl_new_state; /* controller new state          */
+    enum nvme_state *ctrl_new_state;          /* controller new state        */
     struct nvme_get_q_metrics *get_q_metrics; /* metrics q params            */
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
@@ -248,31 +444,20 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
     struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params               */
     struct nvme_file    *n_file;         /* dump metrics params              */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
-    int dev_found;
+    struct nvme_reap *reap_data;         /* Actual Reap params               */
+    u16 __user test_number;
+    unsigned char __user *datap = (unsigned char __user *)ioctl_param;
+    struct inode *inode = filp->f_dentry->d_inode;
 
     LOG_DBG("Minor No = %d", iminor(inode));
-    /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
-            metrics_device_hd) {
-        LOG_DBG("Minor Number in the List = %d", pmetrics_device_element->
-                pnvme_device->minor_no);
-        if (iminor(inode) == pmetrics_device_element->pnvme_device->minor_no) {
-            LOG_DBG("Found device in the metrics list");
-            dev_found = 1;
-            break;
-        } else {
-            dev_found = 0;
-        }
-    }
-    /* The specified device could not be found in the list */
-    if (dev_found != 1) {
-        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
-        return -ENOTTY;
+    pmetrics_device_element = lock_device(inode);
+    if (pmetrics_device_element == NULL) {
+        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        ret_val = -ENODEV;
+        goto ictl_exit;
     }
 
-    /*
-     * Given a ioctl_num invoke corresponding function
-     */
+    /* Given a ioctl_num invoke corresponding function */
     switch (ioctl_num) {
     case NVME_IOCTL_ERR_CHK:
         /* check if the device has any errors set in its status
@@ -308,31 +493,30 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
             ret_val = driver_create_acq(create_admn_q, pmetrics_device_element);
         } else {
             LOG_ERR("Unknown Q type specified..");
-            return -EINVAL;
         }
         break;
 
     case NVME_IOCTL_DEVICE_STATE:
         LOG_DBG("IOCTL for nvme controller set/reset Command");
         LOG_NRM("Invoke IOCTL for controller Status Setting");
+
         /* Assign user passed parameters to local struct */
-        ctrl_new_state = (struct nvme_ctrl_state *)ioctl_param;
-        if (ctrl_new_state->new_state == ST_ENABLE) {
+        ctrl_new_state = (enum nvme_state *)ioctl_param;
+        if (*ctrl_new_state == ST_ENABLE) {
             LOG_NRM("Ctrlr is getting ENABLED...");
             ret_val = nvme_ctrl_enable(pmetrics_device_element);
-        } else if ((ctrl_new_state->new_state == ST_DISABLE) ||
-                (ctrl_new_state->new_state == ST_DISABLE_COMPLETELY)) {
+        } else if ((*ctrl_new_state == ST_DISABLE) ||
+                (*ctrl_new_state == ST_DISABLE_COMPLETELY)) {
             LOG_NRM("Controller is going to DISABLE...");
             /* Waiting for the controller to go idle. */
             ret_val = nvme_ctrl_disable(pmetrics_device_element);
             if (ret_val == SUCCESS) {
                 /* Clean Up the Data Structures. */
                 deallocate_all_queues(pmetrics_device_element,
-                        ctrl_new_state->new_state);
+                        *ctrl_new_state);
             }
          } else {
             LOG_ERR("Device State not correctly specified.");
-            return -EINVAL;
         }
         break;
 
@@ -397,11 +581,47 @@ int dnvme_ioctl_device(struct inode *inode, struct file *file,
         ret_val = driver_reap_inquiry(pmetrics_device_element, reap_inq);
         break;
 
+    case NVME_IOCTL_REAP:
+        LOG_DBG("Reap ioctl:");
+        /* Assign user passed parameters to local reap structure */
+        reap_data = (struct nvme_reap *)ioctl_param;
+        /* call reap inquiry driver routine */
+        ret_val = driver_reap_cq(pmetrics_device_element, reap_data);
+
+        break;
+
+    case IOCTL_UNIT_TESTS:
+        /* Get the test_number that user passed */
+        copy_from_user(&test_number, datap, sizeof(u16));
+
+        LOG_DBG("Test Number = %d", test_number);
+        /* Call the Test setup based on user request */
+        switch (test_number) {
+        case 0: /* Unit Test for IOCTL REAP INQUIRY */
+            LOG_DBG("UT Reap Inquiry ioctl:");
+            unit_test_reap_inq(pmetrics_device_element);
+            ret_val = SUCCESS;
+            break;
+        case 1:
+            LOG_DBG("UT Mmap ioctl:");
+            unit_test_mmap(pmetrics_device_element);
+            ret_val = SUCCESS;
+            break;
+        default:
+            LOG_DBG("Invalid Test Setup called....%d", test_number);
+            break;
+        }
+
+        break;
+
     default:
         LOG_DBG("Cannot find IOCTL going to default case");
         break;
     }
 
+ictl_exit:
+    /* Unlock the device */
+    unlock_device(pmetrics_device_element);
     return ret_val;
 }
 
@@ -424,10 +644,11 @@ static void __exit dnvme_exit(void)
     list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
             metrics_device_hd) {
         /* Free up the DMA pool */
-        destroy_dma_pool(pmetrics_device_element->pnvme_device);
+        destroy_dma_pool(pmetrics_device_element->metrics_device);
         /* Clean Up the Data Structures. */
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
-        pdev = pmetrics_device_element->pnvme_device->pdev;
+        mutex_destroy(pmetrics_device_element->metrics_mtx);
+        pdev = pmetrics_device_element->metrics_device->pdev;
         pci_release_regions(pdev);
         /* free up the cq linked list */
         list_del(&pmetrics_device_element->metrics_cq_list);

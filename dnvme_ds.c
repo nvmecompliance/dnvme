@@ -56,8 +56,14 @@ int driver_log(struct nvme_file *n_file)
             /* Get the variable from metrics structure and write to file */
             sprintf(data1, "metrics_device_list[%d]\n", dev++);
             vfs_write(file, data1, strlen(data1), &pos);
-            sprintf(data1, "Minor Number = %d", pmetrics_device->pnvme_device->
-                    minor_no);
+            sprintf(data1, "Minor Number = %d\n",
+                    pmetrics_device->metrics_device->minor_no);
+            vfs_write(file, data1, strlen(data1), &pos);
+            sprintf(data1, "open_flag = %d\n",
+                    pmetrics_device->metrics_device->open_flag);
+            vfs_write(file, data1, strlen(data1), &pos);
+            sprintf(data1, "pdev = 0X%llX\n",
+                    (u64)pmetrics_device->metrics_device->pdev);
             vfs_write(file, data1, strlen(data1), &pos);
             /* Looping through the available CQ list */
             list_for_each_entry(pmetrics_cq_list, &pmetrics_device->
@@ -82,8 +88,11 @@ int driver_log(struct nvme_file *n_file)
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L1"pmetrics_cq_list->private_cq[%d]", i++);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L2"vir_kern_addr = 0x%llX",
+                sprintf(data1, IDNT_L2"vir_kern_addr = 0X%llX",
                         (u64)pmetrics_cq_list->private_cq.vir_kern_addr);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L2"dma_addr_t = 0X%llX",
+                        (u64)pmetrics_cq_list->private_cq.cq_dma_addr);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"contig (0=Y/(!=0)=N) = %d",
                         pmetrics_cq_list->private_cq.contig);
@@ -102,17 +111,39 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L4"type = %d", pmetrics_cq_list->
                         private_cq.prp_persist.type);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L4"vir_prp_list = 0x%llX",
+                sprintf(data1, IDNT_L4"vir_prp_list = 0X%llX",
                         (u64)pmetrics_cq_list->private_cq.prp_persist.
                         vir_prp_list);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L4"prp1 = 0x%llX", (u64)pmetrics_cq_list->
+                sprintf(data1, IDNT_L4"prp1 = 0X%llX", (u64)pmetrics_cq_list->
                         private_cq.prp_persist.prp1);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L4"prp2 = 0x%llX", (u64)pmetrics_cq_list->
+                sprintf(data1, IDNT_L4"prp2 = 0X%llX", (u64)pmetrics_cq_list->
                         private_cq.prp_persist.prp2);
                 vfs_write(file, data1, strlen(data1), &pos);
-             } /* End of CQ list */
+                sprintf(data1, IDNT_L4"first dma = 0X%llX",
+                        (u64)pmetrics_cq_list->private_cq.prp_persist.
+                        first_dma);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"data_dir = %d", pmetrics_cq_list->
+                        private_cq.prp_persist.data_dir);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"data_buf_addr = 0X%llX",
+                        (u64)pmetrics_cq_list->private_cq.prp_persist.
+                        data_buf_addr);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"data_buf_size = %d",
+                        pmetrics_cq_list->private_cq.prp_persist.
+                        data_buf_size);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"sq = 0X%llX", (u64)pmetrics_cq_list->
+                        private_cq.prp_persist.sg);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"dma_mapped_pgs = 0X%llX",
+                        (u64)pmetrics_cq_list->private_cq.prp_persist.
+                        dma_mapped_pgs);
+                vfs_write(file, data1, strlen(data1), &pos);
+            } /* End of CQ list */
             /* Reset Q cnt */
             i = 0;
             /* looping through available sq list */
@@ -165,19 +196,40 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L4"type = %d", pmetrics_sq_list->
                         private_sq.prp_persist.type);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L4"vir_prp_list = 0x%llX",
+                sprintf(data1, IDNT_L4"vir_prp_list = 0X%llX",
                         (u64)pmetrics_sq_list->private_sq.prp_persist.
                         vir_prp_list);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L4"prp1 = 0x%llX", (u64)pmetrics_sq_list->
+                sprintf(data1, IDNT_L4"prp1 = 0X%llX", (u64)pmetrics_sq_list->
                         private_sq.prp_persist.prp1);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L4"prp2 = 0x%llX", (u64)pmetrics_sq_list->
+                sprintf(data1, IDNT_L4"prp2 = 0X%llX", (u64)pmetrics_sq_list->
                         private_sq.prp_persist.prp2);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"first dma = 0X%llX",
+                        (u64)pmetrics_sq_list->private_sq.prp_persist.
+                        first_dma);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"data_dir = %d", pmetrics_sq_list->
+                        private_sq.prp_persist.data_dir);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"data_buf_addr = 0X%llX",
+                        (u64)pmetrics_sq_list->private_sq.prp_persist.
+                        data_buf_addr);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"data_buf_size = %d",
+                        pmetrics_sq_list->private_sq.prp_persist.
+                        data_buf_size);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"sg = 0X%llX", (u64)pmetrics_sq_list->
+                        private_sq.prp_persist.sg);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"dma_mapped_pgs = 0X%llX",
+                        (u64)pmetrics_sq_list->private_sq.prp_persist.
+                        dma_mapped_pgs);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L3"cmd track list = ");
                 vfs_write(file, data1, strlen(data1), &pos);
-
                 /* Looping through the cmds if any */
                 list_for_each_entry(pcmd_track_list,
                     &(pmetrics_sq_list->private_sq.cmd_track_list),
@@ -206,15 +258,36 @@ int driver_log(struct nvme_file *n_file)
                     sprintf(data1, IDNT_L6"type = %d",
                         pcmd_track_list->prp_nonpersist.type);
                     vfs_write(file, data1, strlen(data1), &pos);
-                    sprintf(data1, IDNT_L6"vir_prp_list = 0x%llX",
+                    sprintf(data1, IDNT_L6"vir_prp_list = 0X%llX",
                         (u64)pcmd_track_list->prp_nonpersist.vir_prp_list);
                     vfs_write(file, data1, strlen(data1), &pos);
-                    sprintf(data1, IDNT_L6"prp1 = 0x%llX",
+                    sprintf(data1, IDNT_L6"prp1 = 0X%llX",
                         (u64)pcmd_track_list->prp_nonpersist.prp1);
                     vfs_write(file, data1, strlen(data1), &pos);
-                    sprintf(data1, IDNT_L6"prp2 = 0x%llX",
+                    sprintf(data1, IDNT_L6"prp2 = 0X%llX",
                         (u64)pcmd_track_list->prp_nonpersist.prp2);
                     vfs_write(file, data1, strlen(data1), &pos);
+                    sprintf(data1, IDNT_L6"first dma = 0X%llX",
+                             (u64)pcmd_track_list->prp_nonpersist.first_dma);
+                     vfs_write(file, data1, strlen(data1), &pos);
+                     sprintf(data1, IDNT_L6"data_dir = %d",
+                             pcmd_track_list->prp_nonpersist.data_dir);
+                     vfs_write(file, data1, strlen(data1), &pos);
+                     sprintf(data1, IDNT_L6"data_buf_addr = 0X%llX",
+                             (u64)pcmd_track_list->prp_nonpersist.
+                             data_buf_addr);
+                     vfs_write(file, data1, strlen(data1), &pos);
+                     sprintf(data1, IDNT_L6"data_buf_size = %d",
+                             pcmd_track_list->prp_nonpersist.
+                             data_buf_size);
+                     vfs_write(file, data1, strlen(data1), &pos);
+                     sprintf(data1, IDNT_L6"sg = 0X%llX",
+                             (u64)pcmd_track_list->prp_nonpersist.sg);
+                     vfs_write(file, data1, strlen(data1), &pos);
+                     sprintf(data1, IDNT_L6"dma_mapped_pgs = 0X%llX",
+                             (u64)pcmd_track_list->prp_nonpersist.
+                             dma_mapped_pgs);
+                     vfs_write(file, data1, strlen(data1), &pos);
                 } /* End of cmd track list */
             } /* End of SQ metrics list */
         } /* End of file writing */

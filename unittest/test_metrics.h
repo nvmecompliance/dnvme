@@ -24,3 +24,4 @@ void ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid);
 void ioctl_send_identify_cmd(int file_desc);
 
 
+void ioctl_reap_inquiry(int file_desc, int cq_id);
