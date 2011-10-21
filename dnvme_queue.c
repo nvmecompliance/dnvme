@@ -289,12 +289,12 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     return ret_code;
 
  asq_out:
-     if (pmetrics_sq_list->private_sq.vir_kern_addr != NULL) {
-         /* Admin SQ dma mem allocated, so free the DMA memory */
-         dma_free_coherent(&pnvme_dev->pdev->dev, asq_depth,
-                 (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
-                 pmetrics_sq_list->private_sq.sq_dma_addr);
-     }
+    if (pmetrics_sq_list->private_sq.vir_kern_addr != NULL) {
+        /* Admin SQ dma mem allocated, so free the DMA memory */
+        dma_free_coherent(&pnvme_dev->pdev->dev, asq_depth,
+                (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
+                pmetrics_sq_list->private_sq.sq_dma_addr);
+    }
     /* returns failure*/
     return ret_code;
 }

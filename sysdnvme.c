@@ -597,7 +597,8 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     case NVME_IOCTL_GET_DRIVER_METRICS:
         LOG_DBG("Return Driver Metrics ioctl..");
-        ret_val = copy_to_user(datap, &g_metrics_drv, sizeof(struct metrics_driver));
+        ret_val = copy_to_user(datap, &g_metrics_drv, sizeof(struct
+                metrics_driver));
         break;
 
     case IOCTL_UNIT_TESTS:
