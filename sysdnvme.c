@@ -435,7 +435,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     int ret_val = -EINVAL;        /* set ret val to invalid, chk for success */
     struct rw_generic *nvme_data; /* Local struct var for nvme rw dat        */
     int *nvme_dev_err_sts;        /* nvme device error status                */
-    struct nvme_ctrl_state *ctrl_new_state; /* controller new state          */
+    enum nvme_state *ctrl_new_state;          /* controller new state        */
     struct nvme_get_q_metrics *get_q_metrics; /* metrics q params            */
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
@@ -499,20 +499,21 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     case NVME_IOCTL_DEVICE_STATE:
         LOG_DBG("IOCTL for nvme controller set/reset Command");
         LOG_NRM("Invoke IOCTL for controller Status Setting");
+
         /* Assign user passed parameters to local struct */
-        ctrl_new_state = (struct nvme_ctrl_state *)ioctl_param;
-        if (ctrl_new_state->new_state == ST_ENABLE) {
+        ctrl_new_state = (enum nvme_state *)ioctl_param;
+        if (*ctrl_new_state == ST_ENABLE) {
             LOG_NRM("Ctrlr is getting ENABLED...");
             ret_val = nvme_ctrl_enable(pmetrics_device_element);
-        } else if ((ctrl_new_state->new_state == ST_DISABLE) ||
-                (ctrl_new_state->new_state == ST_DISABLE_COMPLETELY)) {
+        } else if ((*ctrl_new_state == ST_DISABLE) ||
+                (*ctrl_new_state == ST_DISABLE_COMPLETELY)) {
             LOG_NRM("Controller is going to DISABLE...");
             /* Waiting for the controller to go idle. */
             ret_val = nvme_ctrl_disable(pmetrics_device_element);
             if (ret_val == SUCCESS) {
                 /* Clean Up the Data Structures. */
                 deallocate_all_queues(pmetrics_device_element,
-                        ctrl_new_state->new_state);
+                        *ctrl_new_state);
             }
          } else {
             LOG_ERR("Device State not correctly specified.");

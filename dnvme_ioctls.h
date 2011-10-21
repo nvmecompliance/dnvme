@@ -87,8 +87,7 @@ enum {
 * third parameter give the size of data and type of data that is passed to
 * this ioctl from user level to kernel level.
 */
-#define NVME_IOCTL_DEVICE_STATE _IOWR('A', NVME_DEVICE_STATE,\
-        struct nvme_ctrl_state)
+#define NVME_IOCTL_DEVICE_STATE _IOWR('A', NVME_DEVICE_STATE, enum nvme_state)
 
 /**
 * @def NVME_IOCTL_GET_Q_METRICS

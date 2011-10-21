@@ -138,14 +138,12 @@ void ioctl_check_device(int file_desc)
 void ioctl_enable_ctrl(int file_desc)
 {
     int ret_val = -1;
-    struct nvme_ctrl_state ctrl_data;
-
-    ctrl_data.new_state = ST_ENABLE;
+    enum nvme_state new_state = ST_ENABLE;
 
     printf("User Call to Enable Ctrlr:\n");
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, &ctrl_data);
-       if(ret_val < 0)
+    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, &new_state);
+    if(ret_val < 0)
         printf("enable Failed!\n");
     else
         printf("enable SUCCESS\n");
@@ -154,14 +152,10 @@ void ioctl_enable_ctrl(int file_desc)
 void ioctl_disable_ctrl(int file_desc, enum nvme_state new_state)
 {
     int ret_val = -1;
-    struct nvme_ctrl_state ctrl_data;
-
-    ctrl_data.new_state = new_state;
-
     printf("User Call to Disable Ctrlr:\n");
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, &ctrl_data);
-       if(ret_val < 0)
+    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, &new_state);
+    if(ret_val < 0)
         printf("Disable Failed!\n");
     else
         printf("Disable SUCCESS\n");

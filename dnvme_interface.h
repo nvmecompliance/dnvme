@@ -65,15 +65,7 @@ struct rw_generic {
 enum nvme_state {
     ST_ENABLE,              /* Set the NVME Controller to enable state      */
     ST_DISABLE,             /* Controller reset without affecting Admin Q   */
-    ST_DISABLE_COMPLETELY,  /* Completely destroy even Admin Q's            */
-};
-
-/**
-* The parametes in this structue is used for setting the controller a new
-* state.
-*/
-struct nvme_ctrl_state {
-    enum nvme_state new_state; /* New state of the controller requested. */
+    ST_DISABLE_COMPLETELY   /* Completely destroy even Admin Q's            */
 };
 
 /**
