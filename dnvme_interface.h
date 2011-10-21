@@ -1,8 +1,6 @@
 #ifndef _DNVME_INTERFACE_H_
 #define _DNVME_INTERFACE_H_
 
-#define    DRIVER_VERSION       0x00010000
-
 /**
 * These are the enum types used for branching to
 * required offset as specified by either PCI space
@@ -66,15 +64,7 @@ struct rw_generic {
 enum nvme_state {
     ST_ENABLE,              /* Set the NVME Controller to enable state      */
     ST_DISABLE,             /* Controller reset without affecting Admin Q   */
-    ST_DISABLE_COMPLETELY,  /* Completely destroy even Admin Q's            */
-};
-
-/**
-* The parametes in this structue is used for setting the controller a new
-* state.
-*/
-struct nvme_ctrl_state {
-    enum nvme_state new_state; /* New state of the controller requested. */
+    ST_DISABLE_COMPLETELY   /* Completely destroy even Admin Q's            */
 };
 
 /**
@@ -191,14 +181,6 @@ struct nvme_prep_cq {
     uint16_t    elements;   /* Total number of entries that need kernal mem */
     uint16_t    cq_id;      /* Existing or non-existing CQ ID.              */
     uint8_t     contig;     /* Indicates if SQ is contig or not, 1 = contig */
-};
-
-/**
- * Interface structure for Ring Submission Q doorbell. The id passed is for SQ
- * to ring its doorbell.
- */
-struct nvme_ring_sqxtdbl {
-    uint16_t    sq_id;  /* The SQ ID of the SQ to ring doorbell */
 };
 
 /**

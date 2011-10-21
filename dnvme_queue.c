@@ -555,8 +555,8 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 * tail_ptr with virtual pointer, and write the tail pointer value to SqxTDBL
 * already in dbs.
 */
-int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
-        struct  metrics_device_list *pmetrics_device_element)
+int nvme_ring_sqx_dbl(u16 *ring_sqx, struct  metrics_device_list
+        *pmetrics_device_element)
 {
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
     struct nvme_device *pnvme_dev;
@@ -568,7 +568,7 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
     list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
             metrics_sq_list, sq_list_hd) {
         /* Check if the Q Id matches */
-        if (ring_sqx->sq_id == pmetrics_sq_list->public_sq.sq_id) {
+        if (*ring_sqx == pmetrics_sq_list->public_sq.sq_id) {
             LOG_ERR("SQ_ID= %d found in the linked list.",
                     pmetrics_sq_list->public_sq.sq_id);
              LOG_DBG("\tVirt Tail Ptr = 0x%x",
@@ -590,7 +590,7 @@ int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
              return SUCCESS;
         }
     }
-    LOG_DBG("SQ ID = %d not found to ring its doorbell", ring_sqx->sq_id);
+    LOG_DBG("SQ ID = %d not found to ring its doorbell", *ring_sqx);
     /* If it falls here no SQ ID is found */
     return -EINVAL;
 }

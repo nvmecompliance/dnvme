@@ -28,7 +28,6 @@
 
 #define    DRV_NAME             "dnvme"
 #define    NVME_DEVICE_NAME     "qnvme"
-#define    DRV_VERSION          "1.0"
 
 /*
 * Define the PCI storage express as
@@ -442,12 +441,12 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     int ret_val = -EINVAL;        /* set ret val to invalid, chk for success */
     struct rw_generic *nvme_data; /* Local struct var for nvme rw data       */
     int *nvme_dev_err_sts;        /* nvme device error status                */
-    struct nvme_ctrl_state *ctrl_new_state; /* controller new state          */
-    struct nvme_get_q_metrics *get_q_metrics; /* metrics q parameters        */
-    struct nvme_create_admn_q *create_admn_q; /* create admn q parameters    */
+    enum nvme_state *ctrl_new_state;          /* controller new state        */
+    struct nvme_get_q_metrics *get_q_metrics; /* metrics q params            */
+    struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
     struct nvme_prep_cq *prep_cq;   /* CQ params for preparing IO CQ         */
-    struct nvme_ring_sqxtdbl *ring_sqx;  /* Ring SQx door-bell parameters    */
+    u16   *ring_sqx;                /* SQ ID to ring the door-bell           */
     struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd parameters           */
     struct nvme_file    *n_file;         /* dump metrics parameters          */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry parameters          */
@@ -506,20 +505,21 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     case NVME_IOCTL_DEVICE_STATE:
         LOG_DBG("IOCTL for nvme controller set/reset Command");
         LOG_NRM("Invoke IOCTL for controller Status Setting");
+
         /* Assign user passed parameters to local struct */
-        ctrl_new_state = (struct nvme_ctrl_state *)ioctl_param;
-        if (ctrl_new_state->new_state == ST_ENABLE) {
+        ctrl_new_state = (enum nvme_state *)ioctl_param;
+        if (*ctrl_new_state == ST_ENABLE) {
             LOG_NRM("Ctrlr is getting ENABLED...");
             ret_val = nvme_ctrl_enable(pmetrics_device_element);
-        } else if ((ctrl_new_state->new_state == ST_DISABLE) ||
-                (ctrl_new_state->new_state == ST_DISABLE_COMPLETELY)) {
+        } else if ((*ctrl_new_state == ST_DISABLE) ||
+                (*ctrl_new_state == ST_DISABLE_COMPLETELY)) {
             LOG_NRM("Controller is going to DISABLE...");
             /* Waiting for the controller to go idle. */
             ret_val = nvme_ctrl_disable(pmetrics_device_element);
             if (ret_val == SUCCESS) {
                 /* Clean Up the Data Structures. */
                 deallocate_all_queues(pmetrics_device_element,
-                        ctrl_new_state->new_state);
+                        *ctrl_new_state);
             }
          } else {
             LOG_ERR("Device State not correctly specified.");
@@ -536,7 +536,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     case NVME_IOCTL_PREPARE_SQ_CREATION:
         LOG_DBG("Driver Preparation for IO SQ");
-        /* Assign user passed parameters to q metrics structure. */
+        /* Assign user passed parameters to prep_sq structure. */
         prep_sq = (struct nvme_prep_sq *)ioctl_param;
         /* Call alloc_sq function to add a node in liked list */
         ret_val = driver_nvme_prep_sq(prep_sq, pmetrics_device_element);
@@ -544,7 +544,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     case NVME_IOCTL_PREPARE_CQ_CREATION:
         LOG_DBG("Driver Preparation for IO CQ");
-        /* Assign user passed parameters to q metrics structure. */
+        /* Assign user passed parameters to prep_cq structure. */
         prep_cq = (struct nvme_prep_cq *)ioctl_param;
         /* Call alloc_sq function to add a node in liked list */
         ret_val = driver_nvme_prep_cq(prep_cq, pmetrics_device_element);
@@ -552,15 +552,15 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     case NVME_IOCTL_RING_SQ_DOORBELL:
         LOG_DBG("Driver Call to Ring SQx Doorbell");
-        /* Assign user passed parameters to q metrics structure. */
-        ring_sqx = (struct nvme_ring_sqxtdbl *)ioctl_param;
+        /* Assign user passed parameters to sqx to be rung */
+        ring_sqx = (u16 *)ioctl_param;
         /* Call the ring doorbell driver function */
         ret_val = nvme_ring_sqx_dbl(ring_sqx, pmetrics_device_element);
         break;
 
     case NVME_IOCTL_SEND_64B_CMD:
         LOG_DBG("IOCTL NVME_IOCTL_SEND_64B_CMD Command");
-        /* Assign user passed parameters to local struct pointrs */
+        /* Assign user passed parameters to local struct pointers */
         nvme_64b_send = (struct nvme_64b_send *)ioctl_param;
         ret_val =  driver_send_64b(pmetrics_device_element, nvme_64b_send);
         /* Display success or fail */
@@ -677,7 +677,7 @@ static void __exit dnvme_exit(void)
 MODULE_DESCRIPTION("Kernel Device Driver for NVME PCI Express card");
 MODULE_AUTHOR("T Sravan Kumar <sravan.kumar.thokala@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
+MODULE_VERSION(DRIVER_VERSION_STR(DRIVER_VERSION));
 MODULE_ALIAS("platform:"DRV_NAME);
 
 module_init(dnvme_init);

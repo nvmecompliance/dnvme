@@ -1,7 +1,8 @@
 #ifndef _DNVME_IOCTLS_H_
 #define _DNVME_IOCTLS_H_
 
-#define    API_VERSION          0x00010000
+/* 0.1.15 */
+#define    API_VERSION          0x00000115
 
 /**
 * Enumeration types which provide common interface between
@@ -90,8 +91,7 @@ enum {
 * third parameter give the size of data and type of data that is passed to
 * this ioctl from user level to kernel level.
 */
-#define NVME_IOCTL_DEVICE_STATE _IOWR('A', NVME_DEVICE_STATE,\
-        struct nvme_ctrl_state)
+#define NVME_IOCTL_DEVICE_STATE _IOWR('A', NVME_DEVICE_STATE, enum nvme_state)
 
 /**
 * @def NVME_IOCTL_GET_Q_METRICS
@@ -154,8 +154,7 @@ enum {
 * parameter give the size of data and type of data that is passed to this ioctl
 * from user level to kernel level.
 */
-#define NVME_IOCTL_RING_SQ_DOORBELL _IOWR('A', NVME_RING_SQ_DOORBELL,\
-        struct nvme_ring_sqxtdbl)
+#define NVME_IOCTL_RING_SQ_DOORBELL _IOWR('A', NVME_RING_SQ_DOORBELL, uint16_t)
 
 /**
 * @def NVME_IOCTL_DUMP_METRICS

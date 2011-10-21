@@ -138,14 +138,12 @@ void ioctl_check_device(int file_desc)
 void ioctl_enable_ctrl(int file_desc)
 {
     int ret_val = -1;
-    struct nvme_ctrl_state ctrl_data;
-
-    ctrl_data.new_state = ST_ENABLE;
+    enum nvme_state new_state = ST_ENABLE;
 
     printf("User Call to Enable Ctrlr:\n");
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, &ctrl_data);
-       if(ret_val < 0)
+    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, &new_state);
+    if(ret_val < 0)
         printf("enable Failed!\n");
     else
         printf("enable SUCCESS\n");
@@ -154,14 +152,10 @@ void ioctl_enable_ctrl(int file_desc)
 void ioctl_disable_ctrl(int file_desc, enum nvme_state new_state)
 {
     int ret_val = -1;
-    struct nvme_ctrl_state ctrl_data;
-
-    ctrl_data.new_state = new_state;
-
     printf("User Call to Disable Ctrlr:\n");
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, &ctrl_data);
-       if(ret_val < 0)
+    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, &new_state);
+    if(ret_val < 0)
         printf("Disable Failed!\n");
     else
         printf("Disable SUCCESS\n");
@@ -377,15 +371,13 @@ void display_contents(uint64_t *kadr, int elem)
     }
 }
 
-int test_regression()
+int test_regression(int file_desc)
 {
-    int file_desc;
     uint32_t sq_id = 0;
     char *tmpfile1 = "/tmp/file_name1.txt";
     char *tmpfile2 = "/tmp/file_name2.txt";
     char *tmpfile3 = "/tmp/file_name3.txt";
     uint64_t *kadr;
-    int fd2;
     int fd3;
 
     printf("\n******\t Sprint 2 Demo \t******\n");
@@ -393,15 +385,6 @@ int test_regression()
     /*printf("Ensure you have permissions to device..\n\
     else \n do \"chmod 777 /dev/qnvme0\" \n");*/
     printf("Starting Test Application...\n");
-
-    file_desc = open(DEVICE_FILE_NAME, 0);
-    if (file_desc < 0) {
-        printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
-        exit(-1);
-    }
-    printf("Device File Successfully Opened = %d\n", file_desc);
-    printf("\nPress any key to continue..");
-    getchar();
 
     printf("Try opening an already opened device...\n");
     fd3 = open(DEVICE_FILE_NAME, 0);
@@ -530,19 +513,6 @@ int test_regression()
     printf("\nPress any key to continue..");
     getchar();
 
-    printf("Call to close the file_desc.");
-    close(file_desc);
-    printf("\nPress any key to continue..");
-    getchar();
-
-    fd2 = open(DEVICE_FILE_NAME, 0);
-    if (fd2 < 0) {
-        printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
-        exit(-1);
-    }
-    printf("Call to close the fd.");
-    close(fd2);
-
     printf("\nEnd of Regression Testing...");
     printf("\nPress any key to continue..");
     getchar();
@@ -602,7 +572,7 @@ int main(void)
 
     test_drv_metrics(file_desc);
 
-    //test_regression();
+    test_regression(file_desc);
     test_reap(file_desc);
 
     printf("Call to close the file_desc.");

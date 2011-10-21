@@ -162,8 +162,8 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 * @param pmetrics_device_element
 * @return SUCCESS or FAIL
 */
-int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
-        struct  metrics_device_list *pmetrics_device_element);
+int nvme_ring_sqx_dbl(u16 *ring_sqx, struct  metrics_device_list
+        *pmetrics_device_element);
 
 /**
  * finds the sq node in the given sq list for the given sq id
