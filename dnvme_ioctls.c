@@ -619,15 +619,6 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 }
 
 /*
-* driver_default_ioctl - Default if none of the switch
-* in ioctl gets called.
-*/
-int driver_default_ioctl(struct file *file, unsigned long buffer,
-    size_t length)
-{
-    return 0;
-}
-/*
  * nvme_get_q_metrics will return the q metrics from the global data
  * structures if the q_id send down matches any q_id for this device.
  * If the Q id does not exist in the list then it returns error.

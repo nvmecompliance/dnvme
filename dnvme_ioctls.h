@@ -1,6 +1,8 @@
 #ifndef _DNVME_IOCTLS_H_
 #define _DNVME_IOCTLS_H_
 
+#define    API_VERSION          0x00010000
+
 /**
 * Enumeration types which provide common interface between
 * kernel driver and user app layer ioctl functions.
@@ -21,6 +23,7 @@ enum {
     NVME_DUMP_METRICS,     /** <enum Log data from Metrics structure    */
     NVME_REAP_INQUIRY,     /** <enum Invoke Reap inquiry                */
     NVME_REAP,             /** <enum Invoke actual reap algo            */
+    NVME_GET_DRIVER_METRICS, /** <enum return driver version            */
     UNIT_TESTS,            /* Generic IOCTL to set up UT scenarios      */
 };
 
@@ -183,6 +186,18 @@ enum {
 * data and type of data that is passed to this ioctl from user level to kernel.
 */
 #define NVME_IOCTL_REAP _IOWR('A', NVME_REAP, struct nvme_reap)
+
+/**
+* @def NVME_IOCTL_GET_DRIVER_METRICS
+* define a unique value to return driver metrics ioctl. The 'A' value
+* is the group to which this IOCTL type belongs to,generally from (0-255)the
+* second parameter is type within the group defined in the enum. The third
+* parameter give the size of data and type of data that is passed to this ioctl
+* from user level to kernel level.
+ */
+#define NVME_IOCTL_GET_DRIVER_METRICS _IOWR('A', NVME_GET_DRIVER_METRICS,\
+        struct metrics_driver)
+
 
 /**
  * @def IOCTL_UNIT_TESTS

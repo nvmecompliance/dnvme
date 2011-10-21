@@ -1,6 +1,8 @@
 #ifndef _DNVME_INTERFACE_H_
 #define _DNVME_INTERFACE_H_
 
+#define    DRIVER_VERSION       0x00010000
+
 /**
 * These are the enum types used for branching to
 * required offset as specified by either PCI space
@@ -25,13 +27,12 @@ enum nvme_acc_type {
 };
 
 /**
- * These enums define the type of interrupt scheme that the overall
- * system uses.
- */
+* These enums define the type of interrupt scheme that the overall
+* system uses.
+*/
 enum nvme_irq_type {
     INT_PIN,
-    INT_MSI,
-    INT_SINGLE,
+    INT_MSI_SINGLE,
     INT_MSI_MULTI,
     INT_MSIX,
     INT_NONE,
@@ -110,8 +111,8 @@ struct nvme_64b_send {
  * check if these versions match.
  */
 struct metrics_driver {
-    uint16_t    driver_version;         /* dnvme driver version              */
-    uint16_t    api_version;            /* tnvme test application version    */
+    uint32_t    driver_version;         /* dnvme driver version              */
+    uint32_t    api_version;            /* tnvme test application version    */
 };
 
 /**

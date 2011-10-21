@@ -26,9 +26,6 @@ static int deallocate_metrics_sq(struct device *dev,
         struct  metrics_device_list *pmetrics_device);
 static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node);
 
-/* device metrics linked list */
-struct metrics_driver g_metrics_drv;
-
 /* Conditional compilation for QEMU related modifications. */
 #ifdef QEMU
 /*
@@ -891,7 +888,7 @@ struct metrics_cq *find_cq(struct  metrics_device_list
 
 /*
  * Reap the number of elements specified for the given CQ id and send
- * the reaped elements back. This is the main place and only palce where
+ * the reaped elements back. This is the main place and only place where
  * head_ptr is updated. The pbit_new_entry is inverted when Q wraps.
  */
 int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
@@ -900,6 +897,7 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     int ret_val = SUCCESS;
     u16 num_could_reap = 0;
     struct metrics_cq  *pmetrics_cq_node;
+    u16 comp_entry_size = 16;
 
     pmetrics_cq_node = find_cq(pmetrics_device, reap_data->q_id);
     if (pmetrics_cq_node == NULL) {
@@ -907,7 +905,11 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
         ret_val = -EBADSLT; /* Invalid slot */
         goto rp_exit;
     }
-
+    /* If IO CQ set the completion Q entry size */
+    if (pmetrics_cq_node->public_cq.q_id != 0) {
+        comp_entry_size = (pmetrics_cq_node->private_cq.size) /
+                        (pmetrics_cq_node->public_cq.elements);
+    }
     num_could_reap = reap_inquiry(pmetrics_cq_node);
     if (reap_data->elements > num_could_reap) {
         LOG_ERR("CouldReap:ReqReap::%d:%d", num_could_reap,
@@ -916,6 +918,32 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
         ret_val = -E2BIG; /* Argument too large */
         goto rp_exit;
     }
+
+    /* Set all CE elements for reaping */
+    if (reap_data->elements == 0) {
+        reap_data->elements = num_could_reap;
+    }
+
+    LOG_DBG("reap_data->elements = %d", reap_data->elements);
+    LOG_DBG("reap_data->size = %d", reap_data->size);
+    LOG_DBG("num_could_reap * comp_entry_size  = %d",
+            num_could_reap * comp_entry_size);
+
+    /* Check how many really can be reaped based on size and elements */
+    if ((reap_data->elements <=  num_could_reap) &&
+            (reap_data->size >= num_could_reap * comp_entry_size)) {
+        reap_data->num_remaining = num_could_reap - reap_data->elements;
+    } else {
+        reap_data->num_remaining = num_could_reap - (reap_data->size/
+                comp_entry_size);
+    }
+    LOG_DBG("Head Ptr Before = %d", pmetrics_cq_node->public_cq.head_ptr);
+    LOG_DBG("Remaining elements to be reaped = %d", reap_data->num_remaining);
+    pmetrics_cq_node->public_cq.head_ptr = (pmetrics_cq_node->public_cq.
+            head_ptr + (num_could_reap - reap_data->num_remaining)) %
+            (pmetrics_cq_node->public_cq.elements);
+
+    LOG_DBG("Head Ptr After = %d", pmetrics_cq_node->public_cq.head_ptr);
 
 rp_exit:
     return ret_val;
