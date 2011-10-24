@@ -25,6 +25,9 @@ static int deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device);
 static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node);
+static void pos_cq_head_ptr(struct metrics_cq  *pmetrics_cq_node, u16 num_reaped);
+static void copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
+        u16 comp_entry_size, u16 num_reaped, u8 __user *buffer);
 
 /* Conditional compilation for QEMU related modifications. */
 #ifdef QEMU
@@ -64,70 +67,42 @@ static inline __u64 READQ(const volatile void __iomem *addr)
 #endif
 
 /*
-*  jit_timer_fn - Timer handler routine which gets invoked when the
-*  timer expires for the set Time out value.
-*/
-void jit_timer_fn(unsigned long arg)
-{
-    unsigned long *data = (unsigned long *)arg;
-    *data = 0;
-    LOG_NRM("Inside Timer Handler...");
-}
-
-/*
 * nvme_ctrlrdy_capto - This function is used for checking if the controller
 * is ready to process commands after CC.EN is set to 1. This will wait a
 * min of CAP.TO seconds before failing.
 */
 int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
 {
-    u32 timer_delay;    /* Timer delay read from CAP.TO register          */
-    unsigned long time_out_flag = 1;
-    /* Time Out flag for timer handler                */
-    struct timer_list asq_timer; /* asq timer declaration                  */
+    u64 timer_delay;    /* Timer delay read from CAP.TO register          */
+    u64 ini, end;
 
     /* As the TO is in lower 32 of 64 bit cap readl is good enough */
     timer_delay = readl(&pnvme_dev->nvme_ctrl_space->cap) & NVME_TO_MASK;
-
     /* Modify TO as it is specified in 500ms units, timer needs in jiffies */
     timer_delay >>= 24;
-    timer_delay *= NVME_MSEC_2_JIFFIES;
-
-    init_timer(&asq_timer);
-
-    /* register the Timer function */
-    asq_timer.data     = (unsigned long)&time_out_flag;
-    asq_timer.function = jit_timer_fn;
-    asq_timer.expires  = timer_delay;
-
+    timer_delay = timer_delay * 500;
     LOG_NRM("Checking NVME Device Status (CSTS.RDY = 1)...");
-    LOG_NRM("Timer Expires in %ld ms", asq_timer.expires);
-
-    /* Add timer just before the status check */
-    add_timer(&asq_timer);
-
+    LOG_NRM("Timer Expires in %lld ms", timer_delay);
+    ini = get_jiffies_64(); /* Read Jiffies for timer */
     /* Check if the device status set to ready */
     while (!(readl(&pnvme_dev->nvme_ctrl_space->csts) & NVME_CSTS_RDY)) {
         LOG_DBG("Waiting...");
         msleep(100);
-
+        end = get_jiffies_64();
+        if (end < ini) {
+            /* Roll over */
+            ini = MAX_64_SIZE - ini;
+            end = ini + end;
+        }
         /* Check if the time out occured */
-        if (time_out_flag == 0) {
+        if (jiffies_to_msecs(end -ini) > timer_delay) {
             LOG_ERR("ASQ Setup Failed before Timeout");
             LOG_NRM("Check if Admin Completion Queue is Created First");
-
-            /* Delete the timer once failed */
-            del_timer(&asq_timer);
-
             /* set return invalid/failed */
             return -EINVAL;
         }
     }
-    /* Timer function is done so delete before leaving*/
-    del_timer(&asq_timer);
-
     LOG_NRM("NVME Controller is Ready to process commands");
-
     return SUCCESS;
 }
 
@@ -789,10 +764,10 @@ static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node)
         /* do sync and update */
     }
 
-    LOG_DBG("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
+    LOG_NRM("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
             pmetrics_cq_node->public_cq.q_id, tmp_pbit, comp_entry_size);
-    LOG_DBG("CQ Hd Ptr = %d", pmetrics_cq_node->public_cq.head_ptr);
-
+    LOG_NRM("CQ Hd Ptr = %d", pmetrics_cq_node->public_cq.head_ptr);
+    LOG_NRM("Rp Inq. Tail Ptr before = %d", pmetrics_cq_node->public_cq.tail_ptr);
     /* loop through the entries in the cq */
     while (1) {
         cq_entry = (struct cq_completion *)q_head_ptr;
@@ -812,7 +787,10 @@ static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node)
             break;
         }
     } /* end of while loop */
+    LOG_NRM("Rp Inq. Tail Ptr After = %d", pmetrics_cq_node->public_cq.tail_ptr);
+    LOG_NRM("cq.elements = %d", pmetrics_cq_node->public_cq.elements);
     LOG_DBG("Number of elements remaining = %d", num_remaining);
+
     return num_remaining;
 }
 /*
@@ -887,6 +865,44 @@ struct metrics_cq *find_cq(struct  metrics_device_list
 }
 
 /*
+ * Copy the cq data to user buffer for the elements reaped.
+ */
+static void copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
+        u16 comp_entry_size, u16 num_reaped, u8 __user *buffer)
+{
+    while (num_reaped) {
+        copy_to_user(buffer, cq_head_ptr, comp_entry_size * sizeof(u8));
+        cq_head_ptr += comp_entry_size;
+        buffer += comp_entry_size;
+        /* Q wrapped around */
+        if (cq_head_ptr >= (pmetrics_cq_node->private_cq.vir_kern_addr +
+                pmetrics_cq_node->private_cq.size)) {
+            cq_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr;
+        }
+        num_reaped--;
+    } /* end of while loop */
+}
+
+/*
+ * move the cq head pointer to point to location of the elements that is
+ * to be reaped.
+ */
+static void pos_cq_head_ptr(struct metrics_cq  *pmetrics_cq_node, u16 num_reaped)
+{
+    pmetrics_cq_node->public_cq.head_ptr += num_reaped;
+    if (pmetrics_cq_node->public_cq.head_ptr >= (pmetrics_cq_node->
+            public_cq.elements)) {
+        pmetrics_cq_node->public_cq.pbit_new_entry =
+                !pmetrics_cq_node->public_cq.pbit_new_entry;
+        pmetrics_cq_node->public_cq.head_ptr =
+                pmetrics_cq_node->public_cq.head_ptr %
+                pmetrics_cq_node->public_cq.elements;
+    }
+    LOG_NRM("Head Ptr After = %d", pmetrics_cq_node->public_cq.head_ptr);
+    LOG_NRM("Tail Ptr After = %d", pmetrics_cq_node->public_cq.tail_ptr);
+}
+
+/*
  * Reap the number of elements specified for the given CQ id and send
  * the reaped elements back. This is the main place and only place where
  * head_ptr is updated. The pbit_new_entry is inverted when Q wraps.
@@ -910,16 +926,11 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
         comp_entry_size = (pmetrics_cq_node->private_cq.size) /
                         (pmetrics_cq_node->public_cq.elements);
     }
-    num_could_reap = reap_inquiry(pmetrics_cq_node);
-    if (reap_data->elements > num_could_reap) {
-        LOG_ERR("CouldReap:ReqReap::%d:%d", num_could_reap,
-                reap_data->elements);
-        LOG_ERR("requested reap elements can't be satisfied...");
-        ret_val = -E2BIG; /* Argument too large */
-        goto rp_exit;
-    }
+    LOG_NRM("Tail Ptr Before = %d", pmetrics_cq_node->public_cq.tail_ptr);
 
-    /* Set all CE elements for reaping */
+    num_could_reap = reap_inquiry(pmetrics_cq_node);
+    LOG_NRM("Num Could Reap = %d", num_could_reap);
+    /* Set all CE elements for reaping as reap_data->elements is set to 0 */
     if (reap_data->elements == 0) {
         reap_data->elements = num_could_reap;
     }
@@ -929,21 +940,46 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     LOG_DBG("num_could_reap * comp_entry_size  = %d",
             num_could_reap * comp_entry_size);
 
-    /* Check how many really can be reaped based on size and elements */
-    if ((reap_data->elements <=  num_could_reap) &&
-            (reap_data->size >= num_could_reap * comp_entry_size)) {
-        reap_data->num_remaining = num_could_reap - reap_data->elements;
-    } else {
-        reap_data->num_remaining = num_could_reap - (reap_data->size/
-                comp_entry_size);
-    }
-    LOG_DBG("Head Ptr Before = %d", pmetrics_cq_node->public_cq.head_ptr);
-    LOG_DBG("Remaining elements to be reaped = %d", reap_data->num_remaining);
-    pmetrics_cq_node->public_cq.head_ptr = (pmetrics_cq_node->public_cq.
-            head_ptr + (num_could_reap - reap_data->num_remaining)) %
-            (pmetrics_cq_node->public_cq.elements);
+    if (num_could_reap != 0) {
+        /* Check how many can be reaped based on size and elements */
+        if ((reap_data->elements <=  num_could_reap) &&
+                (reap_data->size >= num_could_reap * comp_entry_size)) {
+            reap_data->num_remaining = num_could_reap - reap_data->elements;
+        } else {
+            if (num_could_reap > (reap_data->size/comp_entry_size)) {
+                reap_data->num_remaining = num_could_reap - (reap_data->size/
+                    comp_entry_size);
+            } else {
+                reap_data->num_remaining = 0;
+            }
+        }
 
-    LOG_DBG("Head Ptr After = %d", pmetrics_cq_node->public_cq.head_ptr);
+        LOG_NRM("Head Ptr Before = %d", pmetrics_cq_node->public_cq.head_ptr);
+        LOG_NRM("Remaining elements to be reaped = %d",
+                reap_data->num_remaining);
+
+        reap_data->num_reaped = num_could_reap - reap_data->num_remaining;
+
+        copy_cq_data(pmetrics_cq_node,
+                (pmetrics_cq_node->private_cq.vir_kern_addr +
+                (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr)),
+                comp_entry_size, reap_data->num_reaped, reap_data->buffer);
+
+        pos_cq_head_ptr(pmetrics_cq_node, reap_data->num_reaped);
+
+    } else {
+        LOG_DBG("All elements reaped, CQ is empty...");
+        reap_data->num_remaining = 0;
+        reap_data->num_reaped = 0;
+        if (pmetrics_cq_node->public_cq.head_ptr !=
+                pmetrics_cq_node->public_cq.tail_ptr) {
+            LOG_ERR("Tail Poiner and Head Pointer are not synced...");
+            LOG_NRM("Head Ptr = %d", pmetrics_cq_node->public_cq.head_ptr);
+            LOG_NRM("Tail Ptr = %d", pmetrics_cq_node->public_cq.tail_ptr);
+            ret_val = -EINVAL;
+            goto rp_exit;
+        }
+    }
 
 rp_exit:
     return ret_val;

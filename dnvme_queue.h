@@ -20,9 +20,9 @@
 #define NVME_TO_MASK    0xFF000000
 
 /*
-* Each unit in TO is 500 ms, converting ms to jiffies
+* Max 64 bits
 */
-#define NVME_MSEC_2_JIFFIES (500 * HZ / 1000)
+#define MAX_64_SIZE     0xFFFFFFFFFFFFFFFF
 
 /*
  * Maximum AQ entries allowed.
@@ -97,14 +97,6 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
 */
 int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
         struct  metrics_sq  *pmetrics_sq_list);
-
-/**
-* This is the timer handler which will be invoked by the kernel when the timer
-* expires in the timer.expires field. This function will set a flag which is
-* used by the create admn sq routine to exit.
-* @param arg
-*/
-void jit_timer_fn(unsigned long arg);
 
 /**
 * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN

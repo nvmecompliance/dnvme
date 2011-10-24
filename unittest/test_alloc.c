@@ -97,8 +97,9 @@ void ioctl_reap_cq(int file_desc, int cq_id, int elements, int size)
         printf("\nreap inquiry failed!\n");
     }
     else {
-        printf("\t\tReaped on CQ ID = %d, Num_Remaining = %d\n",
-                rp_cq.q_id, rp_cq.num_remaining);
+        printf("\n\tCQ ID = %d, No Request = %d, No Reaped = %d No Rem = %d",
+                rp_cq.q_id, rp_cq.elements, rp_cq.num_reaped,
+                rp_cq.num_remaining);
     }
 }
 

@@ -81,6 +81,6 @@ void test_drv_metrics(int file_desc)
     if (ret_val < 0) {
         printf("\tDrv metrics failed!\n");
     }
-    printf("\nDrv Version = %d\n", get_drv_metrics.driver_version);
-    printf("Api Version = %d\n", get_drv_metrics.api_version);
+    printf("\nDrv Version = 0x%X\n", get_drv_metrics.driver_version);
+    printf("Api Version = 0x%X\n", get_drv_metrics.api_version);
 }

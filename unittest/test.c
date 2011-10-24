@@ -539,21 +539,30 @@ void test_reap(int file_desc)
     //set_reap_cq(file_desc, cq_id, 10, 10 * 16);
 
     ioctl_prep_cq(file_desc, 4, 100, 1);
+    ioctl_prep_cq(file_desc, 5, 100, 1);
 
     printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
     ioctl_ut_reap_inq(file_desc);
 
-    cq_id = 4;
-    elements = 2;
+    cq_id = 5;
+    elements = 50;
     size = elements * 16; // 16 CE entry
     set_reap_cq(file_desc, cq_id, elements, size);
-    ioctl_ut_reap_inq(file_desc);
-    set_reap_cq(file_desc, cq_id, elements, size - 10);
-    ioctl_ut_reap_inq(file_desc);
-    set_reap_cq(file_desc, cq_id, elements, size + 10);
-    ioctl_ut_reap_inq(file_desc);
-    set_reap_cq(file_desc, cq_id, 0, size);
+    set_reap_cq(file_desc, cq_id, elements, size);
 
+
+    cq_id = 4;
+    elements = 1;
+    size = elements * 16; // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size); // Reap 1
+    set_reap_cq(file_desc, cq_id, elements, size); // Reap next
+
+    //cq_id = 0;
+    //elements = 10;
+    //size = elements * 16; // 16 Admin entry
+    //set_reap_cq(file_desc, cq_id, elements, size);
+
+    printf("\nCheck Reap Outputs...");
     printf("\nPress any key to continue..");
     getchar();
 }

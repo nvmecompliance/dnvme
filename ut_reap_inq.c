@@ -128,7 +128,7 @@ void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device)
                 }
             }
             /* Set Head Pointer in between the Q */
-            pmetrics_cq_node->public_cq.head_ptr = 98;
+            pmetrics_cq_node->public_cq.head_ptr = 50;
         }
         /* Test: CQ tail ptr is first elemnet CQ ID = 6 */
         if (pmetrics_cq_node->public_cq.q_id == 6) {
