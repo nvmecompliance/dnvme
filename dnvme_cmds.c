@@ -21,7 +21,8 @@ static int pages_to_sg(struct page **,
 static int setup_prps(struct nvme_device *, struct scatterlist *,
     __s32, struct nvme_prps *, __u8, __u16);
 static void unmap_user_pg_to_dma(struct nvme_device *, struct nvme_prps *);
-static void free_prp_pool(struct nvme_device *, struct nvme_prps *, __u32);
+static void free_prp_pool(struct nvme_device *,
+    struct nvme_prps *, __u32);
 
 /* prep_send64b_cmd:
  * Prepares the 64 byte command to be sent
@@ -85,7 +86,8 @@ int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     struct cmd_track  *pcmd_track_list;
 
     /* Fill the cmd_track structure */
-    pcmd_track_list = kmalloc(sizeof(struct cmd_track), GFP_KERNEL);
+    pcmd_track_list = kmalloc(sizeof(struct cmd_track),
+        GFP_ATOMIC | __GFP_ZERO);
     if (pcmd_track_list == NULL) {
         LOG_ERR("Failed to alloc memory for the command track list");
         return -ENOMEM;
@@ -96,8 +98,11 @@ int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     pcmd_track_list->persist_q_id = persist_q_id;
     pcmd_track_list->opcode = opcode;
     pcmd_track_list->cmd_set = cmd_type;
-    memcpy(&pcmd_track_list->prp_nonpersist, prps, sizeof(struct nvme_prps));
-
+    /* non_persist PRP's not filled for create/delete conitig/discontig IOQ */
+    if (!persist_q_id) {
+        memcpy(&pcmd_track_list->prp_nonpersist, prps,
+            sizeof(struct nvme_prps));
+    }
 
     /* Add an element to the end of the list */
     list_add_tail(&pcmd_track_list->cmd_list_hd,
@@ -111,7 +116,7 @@ int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
  * Delete command track list completley per SQ
  */
 
-void empty_cmd_track_list(struct  nvme_device *pnvme_device,
+void empty_cmd_track_list(struct  nvme_device *nvme_device,
     struct  metrics_sq  *pmetrics_sq)
 {
     /* pointer to one element of cmd track linked list */
@@ -125,15 +130,27 @@ void empty_cmd_track_list(struct  nvme_device *pnvme_device,
         pcmd_track_element =
             list_entry(pos, struct cmd_track, cmd_list_hd);
         /* Unampping PRP's and User pages */
-        unmap_user_pg_to_dma(pnvme_device,
+        unmap_user_pg_to_dma(nvme_device,
             &pcmd_track_element->prp_nonpersist);
-        free_prp_pool(pnvme_device,
+        free_prp_pool(nvme_device,
             &pcmd_track_element->prp_nonpersist,
                 pcmd_track_element->prp_nonpersist.npages);
         list_del(pos);
         kfree(pcmd_track_element);
     } /* End of cmd_track_list */
 
+}
+
+/*
+ * del_prp_persist:
+ * Deletes the persist entry of PRP structures of SQ/CQ
+ */
+void del_prp_persist(struct nvme_device *nvme_device, struct nvme_prps *prps)
+{
+    /* First unmap the dma */
+    unmap_user_pg_to_dma(nvme_device, prps);
+    /* free prp list pointed by this non contig cq */
+    free_prp_pool(nvme_device, prps, prps->npages);
 }
 
 /*
@@ -232,10 +249,6 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
         LOG_DBG("P2 Entry: %llx", (unsigned long long) prps->prp2);
     }
 #endif
-
-/*     Unampping PRP's and User pages
-    unmap_user_pg_to_dma(nvme_dev, &prps);
-    free_prp_pool(nvme_dev, &prps, prps.npages);*/
 
     /* Adding node inside cmd_track list for pmetrics_sq */
     err = add_cmd_track_node(pmetrics_sq, persist_q_id, prps,
@@ -570,7 +583,7 @@ error:
  * unmap_user_pg_to_dma:
  * Unmaps mapped DMA pages and frees the pinned down pages
  */
-static void unmap_user_pg_to_dma(struct nvme_device *dev,
+static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
     struct nvme_prps *prps)
 {
     int i;
@@ -580,12 +593,12 @@ static void unmap_user_pg_to_dma(struct nvme_device *dev,
     }
 
     /* Unammping Kernel Virtual Address */
-    if (prps->vir_kern_addr) {
+    if (prps->vir_kern_addr && prps->type != NO_PRP) {
         vunmap(prps->vir_kern_addr);
     }
 
     if (prps->type != NO_PRP) {
-        dma_unmap_sg(&dev->pdev->dev, prps->sg, prps->dma_mapped_pgs,
+        dma_unmap_sg(&nvme_dev->pdev->dev, prps->sg, prps->dma_mapped_pgs,
             prps->data_dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
         for (i = 0; i < prps->dma_mapped_pgs; i++) {
@@ -599,7 +612,7 @@ static void unmap_user_pg_to_dma(struct nvme_device *dev,
  * free_prp_pool:
  * Free's PRP List and virtual List
  */
-void free_prp_pool(struct nvme_device *dev,
+static void free_prp_pool(struct nvme_device *nvme_dev,
     struct nvme_prps *prps, __u32 npages)
 {
     const int last_prp = PAGE_SIZE / PRP_Size - 1;
@@ -619,7 +632,7 @@ void free_prp_pool(struct nvme_device *dev,
             if (i < (npages - 1)) {
                 next_prp_dma = le64_to_cpu(prp_vlist[last_prp]);
             }
-            dma_pool_free(dev->prp_page_pool, prp_vlist, prp_dma);
+            dma_pool_free(nvme_dev->prp_page_pool, prp_vlist, prp_dma);
             prp_dma = next_prp_dma;
         }
         kfree(prps->vir_prp_list);

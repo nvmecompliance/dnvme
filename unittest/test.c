@@ -376,9 +376,9 @@ void display_contents(uint64_t *kadr, int elem)
 int test_regression(int file_desc)
 {
        uint32_t sq_id = 0;
-       char *tmpfile1 = "/tmp/file_name1.txt";
-       char *tmpfile2 = "/tmp/file_name2.txt";
-       char *tmpfile3 = "/tmp/file_name3.txt";
+       char *tmpfile1 = "/tmp/regression_file1.txt";
+       char *tmpfile2 = "/tmp/regression_file2.txt";
+       char *tmpfile3 = "/tmp/regression_file3.txt";
        uint64_t *kadr;
        int fd2;
        int fd3;
@@ -513,18 +513,15 @@ int test_regression(int file_desc)
        printf("\nPress any key to continue..");
        getchar();
 
-       printf("Call to close the file_desc.");
-       close(file_desc);
-       printf("\nPress any key to continue..");
-       getchar();
-
        fd2 = open(DEVICE_FILE_NAME, 0);
        if (fd2 < 0) {
            printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
-           exit(-1);
+           printf("Test Suceeded");
+       } else {
+           printf("Call to close the fd.");
+           close(fd2);
        }
-       printf("Call to close the fd.");
-       close(fd2);
+
 
        printf("\nEnd of Regression Testing...");
        printf("\nPress any key to continue..");
@@ -532,20 +529,10 @@ int test_regression(int file_desc)
        return 0;
 }
 
-int main(int argc, char *argv[])
+int main()
 {
-    int file_desc,test_case;
-    char *tmpfile1 = "/tmp/file_name1.txt";
-    char *tmpfile2 = "/tmp/file_name2.txt";
-    char *tmpfile3 = "/tmp/file_name3.txt";
-    char *tmpfile4 = "/tmp/file_name4.txt";
+    int file_desc,test_case,i;
 
-    if (argc != 2) {
-        printf("Usage: %s test_case_num \n",argv[0]);
-        return 1;
-    }
-
-    test_case = atoi(argv[1]); /* convert strings to integers */
     printf("\n*****\t Demo \t*****\n");
 
     printf("Starting Test Application...\n");
@@ -557,112 +544,127 @@ int main(int argc, char *argv[])
     }
     printf("Device File Successfully Opened = %d\n", file_desc);
 
-    switch(test_case) {
-    case 1:
-        printf("Test1: Initializing the state of the device to Run tests\n");
-        printf("Calling Contoller State to set to Disable state\n");
-        ioctl_disable_ctrl(file_desc, ST_DISABLE);
-        test_admin(file_desc);
-        printf("\n.Test PASS if creation is success.");
-        printf("Calling Contoller State to set to Enable state\n");
-        ioctl_enable_ctrl(file_desc);
-        printf("Writing the Registers of NVME space\n");
-        ioctl_write_data(file_desc);
-        printf("Test to initialize the state of controller done\n");
-        break;
-    case 2:
-        printf("Test2: Disabling the controller completley\n");
-        ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
-        printf("Calling Dump Metrics to tmpfile4\n");
-        ioctl_dump(file_desc, tmpfile4);
-        /* NOTE:- Disable Controller not called in unit tests since Disable
-        * is an asyn request to the HW and as of now we dont have any means
-        * to wait till CQ entries are posted
-        * TODO : will be called when IOCTL_REAP is implemented
-        */
-        break;
-    case 3:
-        printf("Test3: Sending Create Discontig IOSQ with ID 1"
-        " and contig IOCQ with ID 1\n");
-        printf("\n Preparing contig CQ with ID 1\n");
-        printf("\n\tCQ ID = 1\n");
-        ioctl_prep_cq(file_desc, 1, 20, 1);
-
-        printf("\n Preparing Discontig SQ with ID 1\n");
-        printf("\n\tSD_ID : CQ ID = 1 : 1\n");
-        ioctl_prep_sq(file_desc, 1, 1, 65472, 0);
-
-        printf("Calling Dump Metrics to tmpfile1\n");
-        ioctl_dump(file_desc, tmpfile1);
-
-        printf("Executing SEND 64 byte command both for SQ and CQ\n");
-        ioctl_create_contig_iocq(file_desc);
-        ioctl_create_discontig_iosq(file_desc);
-
-        printf("Calling Dump Metrics to tmpfile2\n");
-        ioctl_dump(file_desc, tmpfile2);
-
-        printf("Ringing Doorbell for SQID 0\n");
-        ioctl_tst_ring_dbl(file_desc, 0);
-        printf("Test to Create Discontig/Contig IO Queues Done\n");
-        break;
-    case 4:
-        printf("Test4: Sending Create contig IOSQ with ID 2 and linking "
-        "to already created CQ ID1\n");
-
-        printf("\n Preparing contig SQ with ID 2\n");
-        printf("\n\tSD_ID : CQ ID = 2 : 1\n");
-        ioctl_prep_sq(file_desc, 2, 1, 256, 1);
-
-        printf("Calling Dump Metrics to tmpfile1\n");
-        ioctl_dump(file_desc, tmpfile1);
-
-        printf("Executing SEND 64 byte command\n");
-        ioctl_create_contig_iosq(file_desc);
-
-        printf("Calling Dump Metrics to tmpfile2\n");
-        ioctl_dump(file_desc, tmpfile2);
-
-        printf("Ringing Doorbell for SQID 0\n");
-        ioctl_tst_ring_dbl(file_desc, 0);
-        printf("Test to Create contig IOSQ Done\n");
-        break;
-    case 5: /* Delete the Queues */
-        printf("Test5: Sending Delete IOSQ for ID 1 and 2 "
-        "also deleteing IOCQ ID1\n");
-
-        printf("Executing SEND 64 byte commands 3 at a time!\n");
-        printf("Deleting IOSQ 1\n");
-        ioctl_delete_ioq(file_desc, 0x00, 1);
-        printf("Deleting IOSQ 2\n");
-        ioctl_delete_ioq(file_desc, 0x00, 2);
-        printf("Deleting IOCQ 1\n");
-        ioctl_delete_ioq(file_desc, 0x04, 1);
-
-        printf("Ringing Doorbell for SQID 0\n");
-        ioctl_tst_ring_dbl(file_desc, 0);
-        printf("Test to Create contig IOSQ Done\n");
-        break;
-    case 6: /* Send the identify command */
-        printf("Test6: Sending Identify Command\n");
-        ioctl_send_identify_cmd(file_desc);
-        printf("Ringing Doorbell for SQID 0\n");
-        ioctl_tst_ring_dbl(file_desc, 0);
-        printf("Test to send identify command Done\n");
-        break;
-
-    case 7: /* Send an IO command */
-        printf("Test7: Sending IO Command\n");
-
-        printf("Test to send IO command Done\n");
-        break;
-    case 8: /* Regression testing */
-        test_regression(file_desc);
-        break;
-    default:
-        printf("Undefined case!");
+    /* Maximum possible entries */
+    uint8_t *read_buffer = (void *) calloc(READ_BUFFER_SIZE, sizeof(char));
+    if (read_buffer == NULL) {
+        printf("Calloc Failed");
+        return 0;
     }
+    do {
+        printf("Enter a valid test case number:");
+        scanf ("%d", &test_case);
+    	switch(test_case) {
+        case 1:
+            printf("Test1: Initializing the state of the device to Run tests\n");
+            printf("Calling Contoller State to set to Disable state\n");
+            ioctl_disable_ctrl(file_desc, ST_DISABLE);
+            test_admin(file_desc);
+            printf("\n.Test PASS if creation is success.");
+            printf("Calling Contoller State to set to Enable state\n");
+            ioctl_enable_ctrl(file_desc);
+            printf("Writing the Registers of NVME space\n");
+            ioctl_write_data(file_desc);
+            printf("Test to initialize the state of controller done\n");
+            break;
+        case 2:
+            printf("Test2: Disabling the controller completley\n");
+            ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+            /* NOTE:- Disable Controller not called in unit tests since Disable
+            * is an asyn request to the HW and as of now we dont have any means
+            * to wait till CQ entries are posted
+            * TODO : will be called when IOCTL_REAP is implemented
+            */
+            break;
+        case 3:
+            printf("Test3: Sending Create Discontig IOSQ with ID 1"
+            " and contig IOCQ with ID 1\n");
+            printf("\n Preparing contig CQ with ID 1\n");
+            printf("\n\tCQ ID = 1\n");
+            ioctl_prep_cq(file_desc, 1, 20, 1);
+
+            printf("\n Preparing Discontig SQ with ID 1\n");
+            printf("\n\tSD_ID : CQ ID = 1 : 1\n");
+            ioctl_prep_sq(file_desc, 1, 1, 65472, 0);
+
+            printf("Executing SEND 64 byte command both for SQ and CQ\n");
+            ioctl_create_contig_iocq(file_desc);
+            ioctl_create_discontig_iosq(file_desc);
+
+
+            printf("Ringing Doorbell for SQID 0\n");
+            ioctl_tst_ring_dbl(file_desc, 0);
+
+            printf("Test to Create Discontig/Contig IO Queues Done\n");
+            break;
+        case 4:
+            printf("Test4: Sending Create contig IOSQ with ID 2 and linking "
+            "to already created CQ ID1\n");
+
+            printf("\n Preparing contig SQ with ID 2\n");
+            printf("\n\tSD_ID : CQ ID = 2 : 1\n");
+            ioctl_prep_sq(file_desc, 2, 1, 256, 1);
+
+            printf("Executing SEND 64 byte command\n");
+            ioctl_create_contig_iosq(file_desc);
+
+
+            printf("Ringing Doorbell for SQID 0\n");
+            ioctl_tst_ring_dbl(file_desc, 0);
+            printf("Test to Create contig IOSQ Done\n");
+        break;
+        case 5: /* Delete the Queues */
+            printf("Test5: Sending Delete IOSQ for ID 1 and 2 "
+            "also deleteing IOCQ ID1\n");
+
+            printf("Executing SEND 64 byte commands 3 at a time!\n");
+            printf("Deleting IOSQ 1\n");
+            ioctl_delete_ioq(file_desc, 0x00, 1);
+            printf("Deleting IOSQ 2\n");
+            ioctl_delete_ioq(file_desc, 0x00, 2);
+            printf("Deleting IOCQ 1\n");
+            ioctl_delete_ioq(file_desc, 0x04, 1);
+
+            printf("Ringing Doorbell for SQID 0\n");
+            ioctl_tst_ring_dbl(file_desc, 0);
+            printf("Test to Create contig IOSQ Done\n");
+            break;
+        case 6: /* Send the identify command */
+            printf("Test6: Sending Identify Command\n");
+            ioctl_send_identify_cmd(file_desc);
+            printf("Ringing Doorbell for SQID 0\n");
+            ioctl_tst_ring_dbl(file_desc, 0);
+            printf("Test to send identify command Done\n");
+            break;
+        case 7: /* Send an IO write command */
+            printf("Test7: Sending IO Write Command\n");
+            ioctl_send_nvme_write(file_desc);
+            printf("Ringing Doorbell for SQID 2\n");
+            ioctl_tst_ring_dbl(file_desc, 2);
+            printf("Test to send IO Write command Done\n");
+            break;
+        case 8: /* Send an IO read command */
+            printf("Test8: Sending IO Read Command\n");
+            ioctl_send_nvme_read(file_desc, read_buffer);
+            printf("Ringing Doorbell for SQID 2\n");
+            ioctl_tst_ring_dbl(file_desc, 2);
+            printf("Test to send IO Read command Done\n");
+            break;
+        case 9: /* Reading contents of the read buffer */
+        	printf("\nReadin Data:\n");
+            for (i = 0; i < READ_BUFFER_SIZE; i++) {
+               printf("%x ",*(uint8_t *)(read_buffer +i) );
+            }
+            break;
+        case 10: /* Regression testing */
+            test_regression(file_desc);
+            break;
+        default:
+            printf("Undefined case!");
+        }
+    } while (test_case < 11);
+    free(read_buffer);
     printf("\n\n****** END OF DEMO ******\n\n");
+    close(file_desc);
     return 0;
 }
 

@@ -292,12 +292,12 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     return ret_code;
 
 asq_out:
-     if (pmetrics_sq_list->private_sq.vir_kern_addr != NULL) {
-         /* Admin SQ dma mem allocated, so free the DMA memory */
-         dma_free_coherent(&pnvme_dev->pdev->dev, asq_depth,
-                 (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
-                 pmetrics_sq_list->private_sq.sq_dma_addr);
-     }
+    if (pmetrics_sq_list->private_sq.vir_kern_addr != NULL) {
+        /* Admin SQ dma mem allocated, so free the DMA memory */
+        dma_free_coherent(&pnvme_dev->pdev->dev, asq_depth,
+            (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
+                pmetrics_sq_list->private_sq.sq_dma_addr);
+    }
     /* returns failure*/
     return ret_code;
 }
@@ -609,13 +609,10 @@ static int deallocate_metrics_cq(struct device *dev,
 {
     /* Delete memory for all metrics_cq for current id here */
     if (pmetrics_cq_list->private_cq.contig == 0) {
-        /* First unmap the dma */
-        unmap_user_pg_to_dma(pmetrics_device->metrics_device,
-                &pmetrics_cq_list->private_cq.prp_persist);
-        /* free prp list pointed by this non contig cq */
-        free_prp_pool(pmetrics_device->metrics_device,
-                &pmetrics_cq_list->private_cq.prp_persist,
-                pmetrics_cq_list->private_cq.prp_persist.npages);
+        /* Deletes the PRP persist entry */
+        del_prp_persist(pmetrics_device->metrics_device,
+            &pmetrics_cq_list->private_cq.prp_persist);
+
     } else {
         /* Contiguous CQ, so free the DMA memory */
         dma_free_coherent(dev, pmetrics_cq_list->private_cq.size,
@@ -645,26 +642,19 @@ static int deallocate_metrics_sq(struct device *dev,
     /* Clean the Cmd track list */
     empty_cmd_track_list(pmetrics_device->metrics_device, pmetrics_sq_list);
 
-    /* Clean up memory for all metrics_sq for current id here */
     if (pmetrics_sq_list->private_sq.contig == 0) {
-        /* free the prp pool pointed by this non contig sq. */
-        LOG_DBG("DMA Free for non-contig sq id = %d", pmetrics_sq_list->
-                public_sq.sq_id);
-        /* First unmap the dma */
-        unmap_user_pg_to_dma(pmetrics_device->metrics_device,
-                &pmetrics_sq_list->private_sq.prp_persist);
-        /* free prp list pointed by this non contig cq */
-        free_prp_pool(pmetrics_device->metrics_device,
-                &pmetrics_sq_list->private_sq.prp_persist,
-                pmetrics_sq_list->private_sq.prp_persist.npages);
+        /* Deletes the PRP persist entry */
+        del_prp_persist(pmetrics_device->metrics_device,
+            &pmetrics_sq_list->private_sq.prp_persist);
     } else {
         LOG_DBG("DMA Free for contig sq id = %d", pmetrics_sq_list->
-                public_sq.sq_id);
+            public_sq.sq_id);
         /* Contiguous SQ, so free the DMA memory */
         dma_free_coherent(dev, pmetrics_sq_list->private_sq.size,
-                (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
+            (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
                 pmetrics_sq_list->private_sq.sq_dma_addr);
     }
+
     /* Delete the current sq entry from the list */
     list_del_init(&pmetrics_sq_list->sq_list_hd);
     kfree(pmetrics_sq_list);

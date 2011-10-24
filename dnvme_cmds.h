@@ -75,12 +75,12 @@ int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
 /**
  * empty_cmd_track_list:
  * Delete command track list completley per SQ
- * @param pnvme_device
+ * @param nvme_device
  * @param pmetrics_sq
  * @return void
  */
-void empty_cmd_track_list(struct  nvme_device *pnvme_device,
-    struct  metrics_sq  *pmetrics_sq);
+void empty_cmd_track_list(struct  nvme_device *nvme_device,
+    struct  metrics_sq *pmetrics_sq);
 
 /**
  * destroy_dma_pool:
@@ -89,5 +89,14 @@ void empty_cmd_track_list(struct  nvme_device *pnvme_device,
  * @return void
  */
 void destroy_dma_pool(struct nvme_device *nvme_dev);
+
+/**
+ * del_prp_persist:
+ * Deletes the persist entry of PRP structures of SQ/CQ
+ * @param nvme_dev
+ * @param prps
+ * @return void
+ */
+void del_prp_persist(struct nvme_device *nvme_device, struct nvme_prps *prps);
 
 #endif

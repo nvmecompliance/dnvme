@@ -687,9 +687,10 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         goto err;
     }
 
+    nvme_gen_cmd = (struct nvme_gen_cmd *) nvme_cmd_ker;
+    memset(&prps, 0, sizeof(prps));
     /* Initialize PRP Type to NO_PRP */
     prps.type = NO_PRP;
-    nvme_gen_cmd = (struct nvme_gen_cmd *) nvme_cmd_ker;
 
     /* Handling special condition for opcodes 0x00,0x01,0x04
      * and 0x05 of NVME Admin command set */
@@ -734,7 +735,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                 /* Contig flag out of sync with what cmd says */
                 goto data_err;
             }
-            ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
+            ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
                     nvme_create_sq->sqid, DISCONTG_IO_Q, PRP_PRESENT);
             if (ret_code < 0) {
@@ -743,16 +744,15 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             }
         } else {
             /* Contig IOSQ creation */
-            ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
+            ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
                     PERSIST_QID_0, CONTG_IO_Q, PRP_ABSENT);
             if (ret_code < 0) {
                 LOG_ERR("Failure to prepare 64 byte command");
                 goto err;
             }
-            /* TODO:- Renaming asq_dma_addr to sq_dma_addr */
             nvme_gen_cmd->prp1 =
-                p_cmd_sq->private_sq.asq_dma_addr;
+                p_cmd_sq->private_sq.sq_dma_addr;
         }
         /* Fill the persistent entry structure */
         memcpy(&p_cmd_sq->private_sq.prp_persist, &prps, sizeof(prps));
@@ -801,7 +801,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                 goto data_err;
             }
 
-            ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
+            ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
                     nvme_create_cq->cqid, DISCONTG_IO_Q, PRP_PRESENT);
             if (ret_code < 0) {
@@ -810,16 +810,15 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             }
         } else {
             /* Contig IOCQ creation */
-            ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
+            ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
                     PERSIST_QID_0, CONTG_IO_Q, PRP_ABSENT);
             if (ret_code < 0) {
                 LOG_ERR("Failure to prepare 64 byte command");
                 goto err;
             }
-            /* TODO:- Renaming acq_dma_addr to cq_dma_addr */
             nvme_gen_cmd->prp1 =
-                p_cmd_cq->private_cq.acq_dma_addr;
+                p_cmd_cq->private_cq.cq_dma_addr;
         }
 
         /* Fill the persistent entry structure */
@@ -835,8 +834,8 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             goto err;
         }
 
-        ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device, pmetrics_sq,
-            nvme_64b_send, &prps, nvme_gen_cmd, nvme_del_q->qid,
+        ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
+            pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd, nvme_del_q->qid,
                 0, PRP_ABSENT);
 
         if (ret_code < 0) {
@@ -854,8 +853,8 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             goto err;
         }
 
-        ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device, pmetrics_sq,
-            nvme_64b_send, &prps, nvme_gen_cmd, nvme_del_q->qid,
+        ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
+            pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd, nvme_del_q->qid,
                 0, PRP_ABSENT);
 
         if (ret_code < 0) {
@@ -866,11 +865,11 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     } else {
         /* For rest of the commands */
         if (nvme_64b_send->data_buf_ptr == NULL) {
-            ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
+            ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
                     PERSIST_QID_0, DATA_BUF, PRP_ABSENT);
         } else {
-            ret_code = prep_send64b_cmd(pmetrics_device->pnvme_device,
+            ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
                     PERSIST_QID_0, DATA_BUF, PRP_PRESENT);
         }
@@ -895,7 +894,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             (pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size)),
                 nvme_cmd_ker, cmd_buf_size);
 
-        dma_sync_sg_for_device(pmetrics_device->pnvme_device->dmadev,
+        dma_sync_sg_for_device(pmetrics_device->metrics_device->dmadev,
             pmetrics_sq->private_sq.prp_persist.sg,
                 pmetrics_sq->private_sq.prp_persist.dma_mapped_pgs,
                     pmetrics_sq->private_sq.prp_persist.data_dir);
