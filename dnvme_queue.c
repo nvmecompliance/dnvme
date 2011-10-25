@@ -992,6 +992,7 @@ static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
         if (type == METRICS_CQ) {
             ret_val = remove_cq_node(pmetrics_device, pcmd_node->persist_q_id);
             if (ret_val != SUCCESS) {
+                LOG_ERR("CQ Removal failed...");
                 goto algo_q_out;
             }
         } else if (type == METRICS_SQ) {
@@ -1110,10 +1111,6 @@ static int process_reap_algos(struct cq_completion *cq_entry,
             ret_val = process_algo_gen(pmetrics_sq_node, pcmd_node->unique_id,
                     pmetrics_device);
         }
-    } else {
-        /* This is not an error and so don't set error here.. */
-        LOG_DBG("Didn't find command during lookup...");
-        LOG_DBG("Copy to user and continue to next CE element...");
     }
 
 pr_rp_out:
