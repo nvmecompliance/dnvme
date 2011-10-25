@@ -541,8 +541,8 @@ void test_reap(int file_desc)
 {
     int size, elements;
     int cq_id;
-    char *tmpfile1 = "/tmp/file_name1.txt";
-    char *tmpfile2 = "/tmp/file_name2.txt";
+    char *tmpfile1 = "/tmp/file_name5.txt";
+    char *tmpfile2 = "/tmp/file_name6.txt";
 
     set_admn(file_desc);
 
@@ -570,10 +570,9 @@ void test_reap(int file_desc)
 
     // Admin Reaping.
     cq_id = 0;
-    elements = 1;
+    elements = 2;
     size = elements * 16; // 16 CE entry
     set_reap_cq(file_desc, cq_id, elements, size);
-
     set_reap_cq(file_desc, cq_id, elements, size);
 
     cq_id = 5;

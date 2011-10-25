@@ -779,6 +779,7 @@ static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
         dma_sync_sg_for_cpu(dev, pmetrics_cq_node->private_cq.prp_persist.sg,
                 pmetrics_cq_node->private_cq.prp_persist.dma_mapped_pgs,
                 pmetrics_cq_node->private_cq.prp_persist.data_dir);
+        /* TODO: Point to discontig Q memory here */
     }
 
     LOG_NRM("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
@@ -1089,12 +1090,21 @@ static int process_reap_algos(struct cq_completion *cq_entry,
     struct metrics_sq *pmetrics_sq_node = NULL;
     struct cmd_track *pcmd_node = NULL;
 
+    /* find sq node for given sq id in CE */
     pmetrics_sq_node = find_sq(pmetrics_device, cq_entry->sq_identifier);
     if (pmetrics_sq_node == NULL) {
         LOG_ERR("SQ ID = %d does not exist", cq_entry->sq_identifier);
         ret_val = -EBADSLT; /* Invalid slot */
         goto pr_rp_out;
     }
+    /* Make dis-contiguous Q coherent */
+    if (pmetrics_sq_node->private_sq.contig != 0) {
+        dma_sync_sg_for_cpu(&pmetrics_device->metrics_device->pdev->dev,
+                pmetrics_sq_node->private_sq.prp_persist.sg,
+                pmetrics_sq_node->private_sq.prp_persist.dma_mapped_pgs,
+                pmetrics_sq_node->private_sq.prp_persist.data_dir);
+    }
+    /* Find command in sq node */
     pcmd_node = find_cmd(pmetrics_sq_node, cq_entry->cmd_identifier);
     if (pcmd_node != NULL) {
         /* Command Node exists */
