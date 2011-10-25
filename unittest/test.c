@@ -554,14 +554,10 @@ void test_reap(int file_desc)
     printf("\nPress any key to continue..");
     getchar();
 
-    //printf("\tReap on Admin CQ...\n");
-    //cq_id = 0;
-    //set_reap_cq(file_desc, cq_id, 10, 10 * 16);
+    ioctl_prep_cq(file_desc, 4, 100, 1);
+    ioctl_prep_cq(file_desc, 5, 100, 1);
 
-    //ioctl_prep_cq(file_desc, 4, 100, 1);
-    //ioctl_prep_cq(file_desc, 5, 100, 1);
-
-    test_prp(file_desc);
+    //test_prp(file_desc);
 
     printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile1\n");
     ioctl_dump(file_desc, tmpfile1);
@@ -569,15 +565,17 @@ void test_reap(int file_desc)
     getchar();
 
     printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
-    //ioctl_ut_reap_inq(file_desc);
+    ioctl_ut_reap_inq(file_desc);
     ioctl_ut_reap(file_desc);
 
+    // Admin Reaping.
     cq_id = 0;
     elements = 1;
     size = elements * 16; // 16 CE entry
     set_reap_cq(file_desc, cq_id, elements, size);
 
-#if 0
+    set_reap_cq(file_desc, cq_id, elements, size);
+
     cq_id = 5;
     elements = 2;
     size = elements * 16; // 16 CE entry
@@ -595,12 +593,6 @@ void test_reap(int file_desc)
     size = elements * 16; // 16 CE entry
     set_reap_cq(file_desc, cq_id, elements, size); // Reap 1
     set_reap_cq(file_desc, cq_id, elements, size); // Reap next
-
-    //cq_id = 0;
-    //elements = 10;
-    //size = elements * 16; // 16 Admin entry
-    //set_reap_cq(file_desc, cq_id, elements, size);
-#endif
 
     printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile2\n");
     ioctl_dump(file_desc, tmpfile2);

@@ -1075,7 +1075,6 @@ static int process_admin_cmd(struct metrics_sq *pmetrics_sq_node,
                 pmetrics_device);
         break;
     }
-
     return ret_val;
 }
 
