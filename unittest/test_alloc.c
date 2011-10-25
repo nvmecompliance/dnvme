@@ -16,6 +16,16 @@
 
 #include "test_metrics.h"
 
+struct cq_completion {
+        uint32_t cmd_specifc;       /* DW 0 all 32 bits     */
+        uint32_t reserved;          /* DW 1 all 32 bits     */
+        uint16_t sq_head_ptr;       /* DW 2 lower 16 bits   */
+        uint16_t sq_identifier;     /* DW 2 higher 16 bits  */
+        uint16_t cmd_identifier;    /* Cmd identifier       */
+        uint8_t  phase_bit:1;       /* Phase bit            */
+        uint16_t status_field:15;   /* Status field         */
+    };
+
 void ioctl_prep_sq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint16_t elem, uint8_t contig)
 {
     int ret_val = -1;
@@ -81,6 +91,21 @@ void ioctl_reap_inquiry(int file_desc, int cq_id)
     }
 }
 
+void display_cq_data(unsigned char *cq_buffer, int reap_ele)
+{
+    struct cq_completion *cq_entry;
+    while (reap_ele) {
+        cq_entry = (struct cq_completion *)cq_buffer;
+        printf("\n\t\tCmd Id = %d", cq_entry->cmd_identifier);
+        printf("\n\t\tCmd Spec = %d", cq_entry->cmd_specifc);
+        printf("\n\t\tPhase Bit = %d", cq_entry->phase_bit);
+        printf("\n\t\tSQ Head Ptr = %d", cq_entry->sq_head_ptr);
+        printf("\n\t\tSQ ID = %d", cq_entry->sq_identifier);
+        printf("\n\t\tStatus = %d\n", cq_entry->status_field);
+        reap_ele--;
+        cq_buffer += sizeof(struct cq_completion);
+    }
+}
 
 void ioctl_reap_cq(int file_desc, int cq_id, int elements, int size)
 {
@@ -100,6 +125,7 @@ void ioctl_reap_cq(int file_desc, int cq_id, int elements, int size)
         printf("\n\tCQ ID = %d, No Request = %d, No Reaped = %d No Rem = %d",
                 rp_cq.q_id, rp_cq.elements, rp_cq.num_reaped,
                 rp_cq.num_remaining);
+        display_cq_data(rp_cq.buffer, rp_cq.num_reaped);
     }
 }
 

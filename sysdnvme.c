@@ -451,7 +451,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct nvme_file    *n_file;         /* dump metrics parameters          */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry parameters          */
     struct nvme_reap *reap_data;         /* Actual Reap parameters           */
-    u16 __user test_number;
+    u16 test_number;
     unsigned char __user *datap = (unsigned char __user *)ioctl_param;
     struct inode *inode = filp->f_dentry->d_inode;
 
@@ -616,6 +616,11 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         case 1:
             LOG_DBG("UT Mmap ioctl:");
             unit_test_mmap(pmetrics_device_element);
+            ret_val = SUCCESS;
+            break;
+        case 2:
+            LOG_DBG("UT Reap Admin");
+            unit_test_reap(pmetrics_device_element);
             ret_val = SUCCESS;
             break;
         default:

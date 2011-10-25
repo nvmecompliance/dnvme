@@ -94,7 +94,7 @@ int submit_command(struct  metrics_device_list *pmetrics_device, __u16 q_id,
                     (__le64) prp_vlist);
             }
 
-            LOG_DBG("PRP List: %llx", (unsigned long long) prp_vlist[i]);
+          /*LOG_DBG("PRP List: %llx", (unsigned long long) prp_vlist[i]);*/
         }
 
     } else if (prps.type == PRP1) {
@@ -179,7 +179,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
         goto error;
     }
 
-#ifdef TEST_PRP_DEBUG
+#ifdef TEST_PRP_DEBUG1
     for (index = 0, sg_test = *sgp; index < count;
         index++, sg_test = sg_next(sg_test)) {
         LOG_DBG("SG Page offset: %u, SG Page len: %u",
@@ -392,11 +392,11 @@ prp_list:
         dma_addr += PAGE_SIZE;
         buf_len -= PAGE_SIZE;
 
-        LOG_DBG("PRP List: Buf_len %d", buf_len);
+        /*LOG_DBG("PRP List: Buf_len %d", buf_len);
         LOG_DBG("PRP List: dma_len %u", dma_len);
         LOG_DBG("PRP List: PRP entry %llx",
             (unsigned long long) (dma_addr - PAGE_SIZE));
-
+        */
         if (buf_len <= 0) {
             LOG_DBG("No. of PRP Pages: %u", prp_page);
             prps->npages = prp_page;

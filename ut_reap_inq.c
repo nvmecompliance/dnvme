@@ -9,6 +9,45 @@
 
 #undef TEST_IO_SQ
 
+void unit_test_reap(struct  metrics_device_list *pmetrics_device)
+{
+    struct metrics_cq  *pmetrics_cq_node;   /* ptr to cq node   */
+    struct cq_completion *cq_entry;         /* cq entry format  */
+    u8 *q_head_ptr;                         /* head ptr in cq   */
+    u16 tmpbit = 1;
+    u16 num = 0;
+
+    /* find admin q. */
+    pmetrics_cq_node = find_cq(pmetrics_device, 0);
+
+    /* point the head ptr to corresponding head ptr */
+    q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr +
+            (16 * pmetrics_cq_node->public_cq.head_ptr);
+    num = 0;
+    tmpbit = 1;
+    while (1) {
+        cq_entry = (struct cq_completion *)q_head_ptr;
+        cq_entry->phase_bit = tmpbit;
+        cq_entry->sq_identifier = 0;
+        cq_entry->status_field = 16;
+        num++;
+        cq_entry->cmd_identifier = num;
+        q_head_ptr += 16;
+        if ((q_head_ptr == pmetrics_cq_node->private_cq.vir_kern_addr +
+                            pmetrics_cq_node->private_cq.size) ||
+                            (num == 4)) {
+            q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr;
+            tmpbit = 0;
+        }
+        if (num == 4) {
+            LOG_NRM("Entries in Q = %d", num);
+            break;
+        }
+    }
+
+    /* Set Head Pointer in between the Q */
+    pmetrics_cq_node->public_cq.head_ptr = 0;
+}
 /*
  * Function to set up completion q entries as if they are really placed by
  * the h/w.

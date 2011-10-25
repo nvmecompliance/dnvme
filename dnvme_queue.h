@@ -175,4 +175,12 @@ struct metrics_sq *find_sq(struct  metrics_device_list
 struct metrics_cq *find_cq(struct  metrics_device_list
         *pmetrics_device_element, u16 cq_id);
 
+/*
+ * Find the command node for the given sq node and cmd id.
+ * @param pmetrics_sq_node
+ * @param cmd_id
+ * @return pointer to cmd node for given cmd id.
+ */
+struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id);
+
 #endif

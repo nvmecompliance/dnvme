@@ -24,10 +24,23 @@ static int deallocate_metrics_cq(struct device *dev,
 static int deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device);
-static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node);
-static void pos_cq_head_ptr(struct metrics_cq  *pmetrics_cq_node, u16 num_reaped);
-static void copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
-        u16 comp_entry_size, u16 num_reaped, u8 __user *buffer);
+static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
+        struct device *dev);
+static void pos_cq_head_ptr(struct metrics_cq  *pmetrics_cq_node,
+        u16 num_reaped);
+static int process_reap_algos(struct cq_completion *cq_entry,
+        struct  metrics_device_list *pmetrics_device);
+
+static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
+        struct cmd_track *pcmd_node, u8 status,
+        struct  metrics_device_list *pmetrics_device,
+        enum metrics_type type);
+static int process_algo_gen(struct metrics_sq *pmetrics_sq_node,
+        u16 cmd_id, struct  metrics_device_list *pmetrics_device);
+
+static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
+        u16 comp_entry_size, u16 num_reaped, u8 __user *buffer,
+        struct  metrics_device_list *pmetrics_device);
 
 /* Conditional compilation for QEMU related modifications. */
 #ifdef QEMU
@@ -95,7 +108,7 @@ int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
             end = ini + end;
         }
         /* Check if the time out occured */
-        if (jiffies_to_msecs(end -ini) > timer_delay) {
+        if (jiffies_to_msecs(end - ini) > timer_delay) {
             LOG_ERR("ASQ Setup Failed before Timeout");
             LOG_NRM("Check if Admin Completion Queue is Created First");
             /* set return invalid/failed */
@@ -609,7 +622,6 @@ static int deallocate_metrics_cq(struct device *dev,
  * from the sq list are deleted. The cmds tracked are dropped and nodes in
  * command list are deleted.
  */
-
 static int deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device)
@@ -673,6 +685,7 @@ static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
 
     return SUCCESS;
 }
+
 /*
  *  deallocate_all_queues - This function will start freeing up the memory for
  * the queues (SQ and CQ) allocated during the prepare queues. The parameter
@@ -741,7 +754,8 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
  *  commands in the Completion Queue that are waiting to be reaped for any
  *  given q_id.
  */
-static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node)
+static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
+        struct device *dev)
 {
     u8 tmp_pbit;                    /* Local phase bit      */
     u8 *q_head_ptr = NULL;          /* mem head ptr in cq   */
@@ -761,13 +775,17 @@ static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node)
         q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr +
               (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr);
     } else {
-        /* do sync and update */
+        /* do sync and update when pointer to discontig Q is reaped inq */
+        dma_sync_sg_for_cpu(dev, pmetrics_cq_node->private_cq.prp_persist.sg,
+                pmetrics_cq_node->private_cq.prp_persist.dma_mapped_pgs,
+                pmetrics_cq_node->private_cq.prp_persist.data_dir);
     }
 
     LOG_NRM("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
             pmetrics_cq_node->public_cq.q_id, tmp_pbit, comp_entry_size);
     LOG_NRM("CQ Hd Ptr = %d", pmetrics_cq_node->public_cq.head_ptr);
-    LOG_NRM("Rp Inq. Tail Ptr before = %d", pmetrics_cq_node->public_cq.tail_ptr);
+    LOG_NRM("Rp Inq. Tail Ptr before = %d", pmetrics_cq_node->public_cq.
+            tail_ptr);
     /* loop through the entries in the cq */
     while (1) {
         cq_entry = (struct cq_completion *)q_head_ptr;
@@ -787,7 +805,8 @@ static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node)
             break;
         }
     } /* end of while loop */
-    LOG_NRM("Rp Inq. Tail Ptr After = %d", pmetrics_cq_node->public_cq.tail_ptr);
+    LOG_NRM("Rp Inq. Tail Ptr After = %d", pmetrics_cq_node->public_cq.
+            tail_ptr);
     LOG_NRM("cq.elements = %d", pmetrics_cq_node->public_cq.elements);
     LOG_DBG("Number of elements remaining = %d", num_remaining);
 
@@ -813,7 +832,8 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         ret_val = -ENODEV;
         goto rpi_exit;
     }
-    num_remaining = reap_inquiry(pmetrics_cq_node);
+    num_remaining = reap_inquiry(pmetrics_cq_node,
+            &pmetrics_device->metrics_device->pdev->dev);
     /* Copy to user the remaining elements in this q */
     if (copy_to_user(&reap_inq->num_remaining, &num_remaining,
             sizeof(u16)) < 0) {
@@ -865,13 +885,258 @@ struct metrics_cq *find_cq(struct  metrics_device_list
 }
 
 /*
+ * Find the command node for the given sq node and cmd id. If the cmd node
+ * is found in the list, returns pointer to the cmd node otherwise returns
+ * NULL.
+ */
+
+struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id)
+{
+    struct cmd_track *pcmd_track_list;
+    list_for_each_entry(pcmd_track_list, &pmetrics_sq_node->private_sq.
+            cmd_track_list, cmd_list_hd) {
+        if (cmd_id == pcmd_track_list->unique_id) {
+            LOG_DBG("Cmd Id = %d exists", cmd_id);
+            return pcmd_track_list;
+        }
+    }
+    return NULL;
+}
+
+/*
+ * Free the given cmd id node from the command track list.
+ */
+static int remove_cmd_node(struct metrics_sq *pmetrics_sq_node, u16 cmd_id)
+{
+    int ret_val = SUCCESS;
+    struct cmd_track *pcmd_node;
+
+    pcmd_node = find_cmd(pmetrics_sq_node, cmd_id);
+    if (pcmd_node == NULL) {
+        LOG_ERR("Cmd id = %d does not exist", cmd_id);
+        ret_val = -EBADSLT; /* Invalid slot */
+        goto rem_cmd_out;
+    }
+    list_del_init(&pcmd_node->cmd_list_hd);
+    kfree(pcmd_node);
+
+rem_cmd_out:
+    return ret_val;
+}
+
+/*
+ * Remove the given sq node from the linked list.
+ */
+static int remove_sq_node(struct  metrics_device_list
+        *pmetrics_device, u16 sq_id)
+{
+    struct  metrics_sq  *pmetrics_sq_node;
+    int ret_val = SUCCESS;
+
+    pmetrics_sq_node = find_sq(pmetrics_device, sq_id);
+    if (pmetrics_sq_node == NULL) {
+        LOG_ERR("SQ ID = %d does not exist", sq_id);
+        ret_val = -EBADSLT; /* Invalid slot */
+        goto rem_sq_out;
+    }
+
+    deallocate_metrics_sq(&pmetrics_device->metrics_device->pdev->dev,
+            pmetrics_sq_node, pmetrics_device);
+
+rem_sq_out:
+    return ret_val;
+}
+
+/*
+ * remove the given cq node from the linked list.
+ */
+static int remove_cq_node(struct  metrics_device_list
+        *pmetrics_device, u16 cq_id)
+{
+    struct  metrics_cq  *pmetrics_cq_node;
+    int ret_val = SUCCESS;
+
+    pmetrics_cq_node = find_cq(pmetrics_device, cq_id);
+    if (pmetrics_cq_node == NULL) {
+        LOG_ERR("CQ ID = %d does not exist", cq_id);
+        ret_val = -EBADSLT; /* Invalid slot */
+        goto rem_cq_out;
+    }
+
+    deallocate_metrics_cq(&pmetrics_device->metrics_device->pdev->dev,
+            pmetrics_cq_node, pmetrics_device);
+
+rem_cq_out:
+    return ret_val;
+}
+
+/*
+ * Process Algorithm for IO Qs.
+ */
+static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
+        struct cmd_track *pcmd_node, u8 status,
+        struct  metrics_device_list *pmetrics_device,
+        enum metrics_type type)
+{
+    int ret_val = SUCCESS;
+
+    LOG_DBG("Persist Q Id = %d", pcmd_node->persist_q_id);
+    LOG_DBG("Unique Cmd Id = %d", pcmd_node->unique_id);
+    LOG_DBG("Status = %d", status);
+
+    if (status != SUCCESS) {
+        if (pcmd_node->persist_q_id == 0) {
+            LOG_ERR("Trying to delete ACQ is blunder!!!");
+            ret_val = -EINVAL;
+            goto algo_q_out;
+        }
+        if (type == METRICS_CQ) {
+            ret_val = remove_cq_node(pmetrics_device, pcmd_node->persist_q_id);
+            if (ret_val != SUCCESS) {
+                goto algo_q_out;
+            }
+        } else if (type == METRICS_SQ) {
+            ret_val = remove_sq_node(pmetrics_device, pcmd_node->persist_q_id);
+            if (ret_val != SUCCESS) {
+                LOG_ERR("SQ Removal failed...");
+                goto algo_q_out;
+            }
+        }
+    }
+    ret_val = remove_cmd_node(pmetrics_sq_node, pcmd_node->unique_id);
+    if (ret_val != SUCCESS) {
+        LOG_ERR("Cmd Removal failed...");
+        goto algo_q_out;
+    }
+
+algo_q_out:
+    return ret_val;
+}
+/*
+ * Process General Algorithm.
+ */
+static int process_algo_gen(struct metrics_sq *pmetrics_sq_node,
+        u16 cmd_id, struct  metrics_device_list *pmetrics_device)
+{
+    int ret_val = SUCCESS;
+
+    struct cmd_track *pcmd_node;
+
+    pcmd_node = find_cmd(pmetrics_sq_node, cmd_id);
+    if (pcmd_node == NULL) {
+        LOG_ERR("Command id = %d does not exist", cmd_id);
+        ret_val = -EBADSLT; /* Invalid slot */
+        goto algo_gen_out;
+    }
+
+    unmap_user_pg_to_dma(pmetrics_device->metrics_device, &pcmd_node->
+            prp_nonpersist);
+    free_prp_pool(pmetrics_device->metrics_device, &pcmd_node->prp_nonpersist,
+            pcmd_node->prp_nonpersist.npages);
+
+    ret_val = remove_cmd_node(pmetrics_sq_node, cmd_id);
+
+algo_gen_out:
+     return ret_val;
+}
+
+/*
+ * Process Admin Commands.
+ */
+static int process_admin_cmd(struct metrics_sq *pmetrics_sq_node,
+        struct cmd_track *pcmd_node, u8 status,
+        struct  metrics_device_list *pmetrics_device)
+{
+    int ret_val = SUCCESS;
+
+    switch (pcmd_node->opcode) {
+    case 0x00:
+        /* Delete IO SQ */
+        ret_val = process_algo_q(pmetrics_sq_node, pcmd_node, !status,
+                pmetrics_device, METRICS_SQ);
+        break;
+    case 0x01:
+        /* Create IO SQ */
+        ret_val = process_algo_q(pmetrics_sq_node, pcmd_node, status,
+                pmetrics_device, METRICS_SQ);
+        break;
+    case 0x04:
+        /* Delete IO CQ */
+        ret_val = process_algo_q(pmetrics_sq_node, pcmd_node, !status,
+                pmetrics_device, METRICS_CQ);
+        break;
+    case 0x05:
+        /* Create IO CQ */
+        ret_val = process_algo_q(pmetrics_sq_node, pcmd_node, status,
+                pmetrics_device, METRICS_CQ);
+        break;
+    default:
+        ret_val = process_algo_gen(pmetrics_sq_node, pcmd_node->unique_id,
+                pmetrics_device);
+        break;
+    }
+
+    return ret_val;
+}
+
+/*
+ * Process various algorithms depending on the Completion entry in a CQ
+ * This works for both Admin and IO CQ entries.
+ */
+static int process_reap_algos(struct cq_completion *cq_entry,
+        struct  metrics_device_list *pmetrics_device)
+{
+    int ret_val = SUCCESS;
+    struct metrics_sq *pmetrics_sq_node = NULL;
+    struct cmd_track *pcmd_node = NULL;
+
+    pmetrics_sq_node = find_sq(pmetrics_device, cq_entry->sq_identifier);
+    if (pmetrics_sq_node == NULL) {
+        LOG_ERR("SQ ID = %d does not exist", cq_entry->sq_identifier);
+        ret_val = -EBADSLT; /* Invalid slot */
+        goto pr_rp_out;
+    }
+    pcmd_node = find_cmd(pmetrics_sq_node, cq_entry->cmd_identifier);
+    if (pcmd_node != NULL) {
+        /* Command Node exists */
+        LOG_DBG("Cmd node exists...");
+        if (pcmd_node->cmd_set == CMD_ADMIN) {
+            LOG_DBG("Admin Command Set...");
+            ret_val = process_admin_cmd(pmetrics_sq_node, pcmd_node, cq_entry->
+                    status_field, pmetrics_device);
+        } else {
+            LOG_DBG("NVM or AON Cmd processing...");
+            ret_val = process_algo_gen(pmetrics_sq_node, pcmd_node->unique_id,
+                    pmetrics_device);
+        }
+    } else {
+        /* This is not an error and so don't set error here.. */
+        LOG_DBG("Didn't find command during lookup...");
+        LOG_DBG("Copy to user and continue to next CE element...");
+    }
+
+pr_rp_out:
+    return ret_val;
+}
+
+/*
  * Copy the cq data to user buffer for the elements reaped.
  */
-static void copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
-        u16 comp_entry_size, u16 num_reaped, u8 __user *buffer)
+static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
+        u16 comp_entry_size, u16 num_reaped, u8 __user *buffer,
+        struct  metrics_device_list *pmetrics_device)
 {
+    int ret_val = SUCCESS;
     while (num_reaped) {
-        copy_to_user(buffer, cq_head_ptr, comp_entry_size * sizeof(u8));
+        if (process_reap_algos((struct cq_completion *)cq_head_ptr,
+                pmetrics_device)) {
+            ret_val = -EINVAL;
+            goto cp_cq_out;
+        }
+        if (copy_to_user(buffer, cq_head_ptr, comp_entry_size * sizeof(u8))) {
+            ret_val = -EFAULT;
+            goto cp_cq_out;
+        }
         cq_head_ptr += comp_entry_size;
         buffer += comp_entry_size;
         /* Q wrapped around */
@@ -881,13 +1146,17 @@ static void copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
         }
         num_reaped--;
     } /* end of while loop */
+
+cp_cq_out:
+    return ret_val;
 }
 
 /*
  * move the cq head pointer to point to location of the elements that is
  * to be reaped.
  */
-static void pos_cq_head_ptr(struct metrics_cq  *pmetrics_cq_node, u16 num_reaped)
+static void pos_cq_head_ptr(struct metrics_cq  *pmetrics_cq_node,
+        u16 num_reaped)
 {
     pmetrics_cq_node->public_cq.head_ptr += num_reaped;
     if (pmetrics_cq_node->public_cq.head_ptr >= (pmetrics_cq_node->
@@ -928,7 +1197,8 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     }
     LOG_NRM("Tail Ptr Before = %d", pmetrics_cq_node->public_cq.tail_ptr);
 
-    num_could_reap = reap_inquiry(pmetrics_cq_node);
+    num_could_reap = reap_inquiry(pmetrics_cq_node, &pmetrics_device->
+            metrics_device->pdev->dev);
     LOG_NRM("Num Could Reap = %d", num_could_reap);
     /* Set all CE elements for reaping as reap_data->elements is set to 0 */
     if (reap_data->elements == 0) {
@@ -960,20 +1230,27 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
 
         reap_data->num_reaped = num_could_reap - reap_data->num_remaining;
 
-        copy_cq_data(pmetrics_cq_node,
+        ret_val = copy_cq_data(pmetrics_cq_node,
                 (pmetrics_cq_node->private_cq.vir_kern_addr +
                 (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr)),
-                comp_entry_size, reap_data->num_reaped, reap_data->buffer);
-
+                comp_entry_size, reap_data->num_reaped, reap_data->buffer,
+                pmetrics_device);
+        if (ret_val < 0) {
+            LOG_ERR("Reap copy error out!!");
+            goto rp_exit;
+        }
         pos_cq_head_ptr(pmetrics_cq_node, reap_data->num_reaped);
 
+        /* Write to the CQ head door bell register */
+        writel(pmetrics_cq_node->public_cq.head_ptr, pmetrics_cq_node->
+                private_cq.dbs);
     } else {
         LOG_DBG("All elements reaped, CQ is empty...");
         reap_data->num_remaining = 0;
         reap_data->num_reaped = 0;
         if (pmetrics_cq_node->public_cq.head_ptr !=
                 pmetrics_cq_node->public_cq.tail_ptr) {
-            LOG_ERR("Tail Poiner and Head Pointer are not synced...");
+            LOG_ERR("Tail Pointer and Head Pointer are not in sync...");
             LOG_NRM("Head Ptr = %d", pmetrics_cq_node->public_cq.head_ptr);
             LOG_NRM("Tail Ptr = %d", pmetrics_cq_node->public_cq.tail_ptr);
             ret_val = -EINVAL;

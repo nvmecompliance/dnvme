@@ -256,6 +256,20 @@ int ioctl_ut_reap_inq(int file_desc)
     return 0;
 }
 
+
+int ioctl_ut_reap(int file_desc)
+{
+    uint16_t tmp;
+
+    tmp = 2; // Reap Inquiry Unit Test setup.
+    if (ioctl(file_desc, IOCTL_UNIT_TESTS, &tmp) < 0) {
+        printf("\n\nTest = %d Setup failed...", tmp);
+        return -1;
+    }
+    return 0;
+}
+
+
 int ioctl_ut_mmap(int file_desc)
 {
     uint16_t tmp;
@@ -428,7 +442,6 @@ int test_regression(int file_desc)
     printf("\nPress any key to continue..");
     getchar();
 
-
     test_prep_sq(file_desc);
     printf("\n...Test PASS if all Preparation fails...");
     printf("\nPress any key to continue..");
@@ -528,28 +541,54 @@ void test_reap(int file_desc)
 {
     int size, elements;
     int cq_id;
+    char *tmpfile1 = "/tmp/file_name1.txt";
+    char *tmpfile2 = "/tmp/file_name2.txt";
 
     set_admn(file_desc);
 
     printf("\nSet IO Q Size before proceeding....\n");
     ioctl_write_data(file_desc);
 
+    test_prep_sq(file_desc);
+    printf("\n...Test PASS if all Preparation fails...");
+    printf("\nPress any key to continue..");
+    getchar();
+
     //printf("\tReap on Admin CQ...\n");
     //cq_id = 0;
     //set_reap_cq(file_desc, cq_id, 10, 10 * 16);
 
-    ioctl_prep_cq(file_desc, 4, 100, 1);
-    ioctl_prep_cq(file_desc, 5, 100, 1);
+    //ioctl_prep_cq(file_desc, 4, 100, 1);
+    //ioctl_prep_cq(file_desc, 5, 100, 1);
+
+    test_prp(file_desc);
+
+    printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile1\n");
+    ioctl_dump(file_desc, tmpfile1);
+    printf("\nPress any key to continue..");
+    getchar();
 
     printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
-    ioctl_ut_reap_inq(file_desc);
+    //ioctl_ut_reap_inq(file_desc);
+    ioctl_ut_reap(file_desc);
 
+    cq_id = 0;
+    elements = 1;
+    size = elements * 16; // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size);
+
+#if 0
     cq_id = 5;
-    elements = 50;
+    elements = 2;
     size = elements * 16; // 16 CE entry
     set_reap_cq(file_desc, cq_id, elements, size);
     set_reap_cq(file_desc, cq_id, elements, size);
 
+    cq_id = 5;
+    elements = 5;
+    size = elements * 16; // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size);
+    set_reap_cq(file_desc, cq_id, elements, size);
 
     cq_id = 4;
     elements = 1;
@@ -561,6 +600,12 @@ void test_reap(int file_desc)
     //elements = 10;
     //size = elements * 16; // 16 Admin entry
     //set_reap_cq(file_desc, cq_id, elements, size);
+#endif
+
+    printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile2\n");
+    ioctl_dump(file_desc, tmpfile2);
+    printf("\nPress any key to continue..");
+    getchar();
 
     printf("\nCheck Reap Outputs...");
     printf("\nPress any key to continue..");
@@ -581,7 +626,7 @@ int main(void)
 
     test_drv_metrics(file_desc);
 
-    test_regression(file_desc);
+    //test_regression(file_desc);
     test_reap(file_desc);
 
     printf("Call to close the file_desc.");

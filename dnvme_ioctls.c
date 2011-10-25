@@ -266,8 +266,9 @@ int driver_generic_write(struct rw_generic *nvme_data,
     * Pointer for user data to be copied to user space from
     * kernel space. Initialize with user passed data pointer.
     */
-    unsigned char __user *datap = (unsigned char __user *)nvme_data->buffer;
+    unsigned char *datap;
 
+    /* TODO Clean up kmalloc mem */
     LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
     /* get the device from the list */
@@ -275,7 +276,7 @@ int driver_generic_write(struct rw_generic *nvme_data,
     nvme_dev = pmetrics_device_element->metrics_device;
 
     /* allocate kernel memory to datap that is requested from user app */
-    datap = kzalloc((nvme_data->nBytes * sizeof(u8)) , GFP_KERNEL);
+    datap = kzalloc(nvme_data->nBytes , GFP_KERNEL);
     /*
     * Check if allocation of memory is not null else return
     * no memory.
