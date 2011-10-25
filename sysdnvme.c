@@ -445,8 +445,8 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct nvme_file    *n_file;         /* dump metrics params              */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
     struct nvme_reap *reap_data;         /* Actual Reap params               */
-    u16 __user test_number;
-    unsigned char __user *datap = (unsigned char __user *)ioctl_param;
+    u16 test_number;
+
     struct inode *inode = filp->f_dentry->d_inode;
 
     LOG_DBG("Minor No = %d", iminor(inode));
@@ -591,9 +591,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case IOCTL_UNIT_TESTS:
-        /* Get the test_number that user passed */
-        copy_from_user(&test_number, datap, sizeof(u16));
-
+        test_number = (u16) ioctl_param;
         LOG_DBG("Test Number = %d", test_number);
         /* Call the Test setup based on user request */
         switch (test_number) {
@@ -611,7 +609,6 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
             LOG_DBG("Invalid Test Setup called....%d", test_number);
             break;
         }
-
         break;
 
     default:

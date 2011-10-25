@@ -38,12 +38,29 @@ int driver_log(struct nvme_file *n_file)
     struct  metrics_cq  *pmetrics_cq_list;        /* CQ linked list         */
     struct  metrics_device_list *pmetrics_device; /* Metrics device list    */
     struct  cmd_track  *pcmd_track_list;          /* cmd track linked list  */
-    unsigned char __user *filename =
-            (unsigned char __user *)n_file->file_name; /* user file name    */
+    u8 *filename;
+    int ret_code = 0;
 
-    /* copy the file name sent from user */
-    copy_from_user((u8 *)filename, (u8 *)n_file->file_name,
-            n_file->flen * sizeof(u8));
+    /* Allocating memory for the data in kernel space */
+    filename = kmalloc(n_file->flen, GFP_KERNEL | __GFP_ZERO);
+
+    /*
+     * Check if allocation of memory is not null else return
+     * no memory.
+     */
+    if (!filename) {
+        LOG_ERR("Unable to allocate kernel memory");
+        return -ENOMEM;
+    }
+
+    /* Copying userspace buffer to kernel memory */
+    if (copy_from_user(filename, (void __user *) n_file->file_name,
+        n_file->flen)) {
+        LOG_ERR("Invalid copy from user space");
+        ret_code = -EFAULT;
+        goto err;
+    }
+
     LOG_DBG("File Name in Driver = %s", filename);
     oldfs = get_fs();
     set_fs(KERNEL_DS);
@@ -295,5 +312,7 @@ int driver_log(struct nvme_file *n_file)
     }
     set_fs(oldfs);
     filp_close(file, NULL); /* Close the file */
-    return SUCCESS;
+err:
+    kfree(filename);
+    return ret_code;
 }

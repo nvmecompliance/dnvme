@@ -817,8 +817,7 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         struct nvme_reap_inquiry *reap_inq)
 {
     struct metrics_cq  *pmetrics_cq_node;   /* ptr to cq node       */
-    u16 __user num_remaining = (u16 __user)reap_inq->num_remaining;
-                                            /* user buffer ptr      */
+    u16 num_remain;
     int ret_val = SUCCESS;
 
     /* Find given CQ in list */
@@ -829,13 +828,14 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         ret_val = -ENODEV;
         goto rpi_exit;
     }
-    num_remaining = reap_inquiry(pmetrics_cq_node);
+    num_remain = reap_inquiry(pmetrics_cq_node);
     /* Copy to user the remaining elements in this q */
-    if (copy_to_user(&reap_inq->num_remaining, &num_remaining,
-            sizeof(u16)) < 0) {
+    if (copy_to_user(&reap_inq->num_remaining, &num_remain,
+        sizeof(u16))) {
         LOG_ERR("Error copying to user buffer returning");
-        ret_val = -EAGAIN;
+        ret_val = -EFAULT;
     }
+
  rpi_exit:
     return ret_val;
 }

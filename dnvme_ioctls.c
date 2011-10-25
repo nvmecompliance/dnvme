@@ -29,21 +29,15 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
 {
     /* Local variable declaration. */
     u16 data; /* Unsigned 16 bit data. */
-    int ret_code = -EINVAL; /* initialize ret code to invalid */
-    struct pci_dev *pdev;
-    /*
-    * Pointer for user data to be copied to user space from
-    * kernel space. Initialize with user passed data pointer.
-    */
-    int __user *datap = (int __user *)status;
+    int ret_code;
+    int ker_status = -1;
 
-    /* get the device from the list */
-    pdev = pmetrics_device_element->metrics_device->pdev;
     /*
     * Read a word (16bit value) from the configuration register
     * and pass it to user.
     */
-    ret_code = pci_read_config_word(pdev, PCI_DEVICE_STATUS, &data);
+    ret_code = pci_read_config_word(pmetrics_device_element->
+        metrics_device->pdev, PCI_DEVICE_STATUS, &data);
     /*
     * Check the return code to know if pci read is success.
     */
@@ -55,42 +49,40 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
     /*
     * Get the Device Status from the PCI Header.
     */
-    *status = device_status_pci(data);
+    ker_status = device_status_pci(data);
 
     /* Print out to kernel log the device status */
-    if (*status == SUCCESS) {
+    if (ker_status == SUCCESS) {
         LOG_NRM("PCI Device Status SUCCESS (STS)");
     } else {
         LOG_ERR("PCI Device Status FAIL (STS)");
     }
 
-    *status = (*status == SUCCESS) ? device_status_next(pdev) : FAIL;
+    ker_status = (ker_status == SUCCESS) ? device_status_next
+        (pmetrics_device_element->metrics_device->pdev) : FAIL;
 
     /* Print out to kernel log the device status */
-    if (*status == SUCCESS) {
+    if (ker_status == SUCCESS) {
         LOG_NRM("NEXT Capability Status SUCCESS.");
     } else {
         LOG_ERR("NEXT Capabilty status FAIL");
     }
 
-    *status = (*status == SUCCESS) ? nvme_controller_status(pdev) : FAIL;
+    ker_status = (ker_status == SUCCESS) ? nvme_controller_status
+        (pmetrics_device_element->metrics_device->pdev) : FAIL;
+
     /* Print out to kernel log the device status */
-    if (*status == SUCCESS) {
+    if (ker_status == SUCCESS) {
         LOG_NRM("NVME Controller Status SUCCESS (CSTS)");
     } else {
         LOG_ERR("iNVME Controller Status FAIL (CSTS)");
     }
 
-    /*
-    *  Efficient way to copying data to user buffer datap
-    *  using in a single copy function call.
-    *  First parameter is copy to user buffer,
-    *  second parameter is copy from location,
-    *  third parameter give the number of bytes to copy.
-    */
-    ret_code = copy_to_user(status, datap, sizeof(status));
-
-    return ret_code;
+    if (copy_to_user((void __user *) status, &ker_status, sizeof(int))) {
+        LOG_ERR("Invalid copy to user space");
+        return -EFAULT;
+    }
+    return 0;
 }
 
 /*
@@ -105,9 +97,17 @@ int driver_generic_read(struct rw_generic *nvme_data,
     int ret_code = -EINVAL; /* to verify if return code is success. */
     struct pci_dev *pdev;
     struct nvme_device *nvme_dev;
-    unsigned char __user *datap = (unsigned char __user *)nvme_data->buffer;
+    void *datap;
 
     LOG_DBG("Inside Generic Read Function of the IOCTLs");
+
+    /* Allocating memory for the read in kernel space */
+    datap = kmalloc(nvme_data->nBytes, GFP_KERNEL | __GFP_ZERO);
+
+    if (!datap) {
+        LOG_ERR("Unable to allocate kernel memory");
+        return -ENOMEM;
+    }
 
     /* get the device from the list */
     pdev = pmetrics_device_element->metrics_device->pdev;
@@ -135,7 +135,8 @@ int driver_generic_read(struct rw_generic *nvme_data,
             if ((nvme_data->offset + index) > MAX_PCI_EXPRESS_CFG) {
                 LOG_ERR("Offset is more than the PCI Express");
                 LOG_ERR("Extended config space...");
-                return -EINVAL;
+                ret_code = -EINVAL;
+                goto err;
             }
             /*
             * Check the access width and access the PCI space as per
@@ -145,9 +146,9 @@ int driver_generic_read(struct rw_generic *nvme_data,
                     && (nvme_data->nBytes % 4 == 0)) {
                 /* Read dword from the PCI register space. */
                 ret_code = pci_read_config_dword(pdev,
-                (nvme_data->offset + index), (u32 *)&datap[index]);
+                (nvme_data->offset + index), (u32 *) (datap + index));
                     LOG_NRM("Reading PCI offset, data = 0x%x, 0x%x",
-                        (nvme_data->offset + index), (u32)datap[index]);
+                        (nvme_data->offset + index), *(u32 *) (datap + index));
 
                 /* increment by dword size */
                 index += 4;
@@ -155,18 +156,18 @@ int driver_generic_read(struct rw_generic *nvme_data,
                         && (nvme_data->nBytes % 2 == 0)) {
                 /* Read a word from the PCI register space. */
                 ret_code = pci_read_config_word(pdev,
-                (nvme_data->offset + index), (u16 *)&datap[index]);
+                (nvme_data->offset + index), (u16 *) (datap + index));
                 LOG_NRM("Reading PCI offset, data = 0x%x, 0x%x",
-                    (nvme_data->offset + index), (u16)datap[index]);
+                    (nvme_data->offset + index), *(u16 *) (datap + index));
 
                 /* increment by word size */
                 index += 2;
             } else if (nvme_data->acc_type == BYTE_LEN) {
                 /* Read a byte from the PCI register space. */
                 ret_code = pci_read_config_byte(pdev,
-                    (nvme_data->offset + index), (u8 *) &datap[index]);
+                    (nvme_data->offset + index), (u8 *) (datap + index));
                 LOG_NRM("Reading PCI offset, data = 0x%x, 0x%x",
-                    (nvme_data->offset + index), (u8)datap[index]);
+                    (nvme_data->offset + index), *(u8 *) (datap + index));
 
                 /* increment by byte size */
                 index++;
@@ -174,13 +175,14 @@ int driver_generic_read(struct rw_generic *nvme_data,
                 LOG_ERR("PCI space accessed by DWORD, WORD or BYTE");
                 LOG_ERR("Wrong PCI access width specified or");
                 LOG_ERR("Wrong no. of bytes specified.");
-                return -EINVAL;
+                ret_code = -EINVAL;
+                goto err;
             }
 
             /* Check if reading is successful */
             if (ret_code < 0) {
                 LOG_ERR("pci_read_config failed");
-                return ret_code;
+                goto err;
             }
         }
         /* done required reading then break and return.     */
@@ -200,7 +202,8 @@ int driver_generic_read(struct rw_generic *nvme_data,
            ) {
             LOG_ERR("Offset or nBytes is not DWORD Aligned");
             LOG_ERR("Provide them on 4 bytes Boundary");
-            return -EINVAL;
+            ret_code = -EINVAL;
+            goto err;
         } else if ((nvme_data->acc_type == QUAD_LEN) &&
                 (((nvme_data->nBytes % 8) != 0) ||
                 ((nvme_data->offset % 4) != 0))
@@ -212,11 +215,13 @@ int driver_generic_read(struct rw_generic *nvme_data,
             LOG_ERR("Offset is not DWORD Aligned");
             LOG_ERR("nbytes is not QUAD Aligned");
             LOG_ERR("Provide them on 8 bytes Boundary");
-            return -EINVAL;
+            ret_code = -EINVAL;
+            goto err;
         } else if ((nvme_data->acc_type == WORD_LEN) &&
                   ((nvme_data->nBytes % 2) != 0)) {
             LOG_ERR("nBytes is not WORD aligned");
-            return -EINVAL;
+            ret_code = -EINVAL;
+            goto err;
         }
 
         /* Read NVME register space. */
@@ -226,28 +231,25 @@ int driver_generic_read(struct rw_generic *nvme_data,
 
         if (ret_code < 0) {
             LOG_ERR("Read NVME Space failed");
-            return -EINVAL;
+            goto err;
         }
         /* done with nvme space reading break from this case .*/
         break;
 
     default:
         LOG_DBG("Could not find switch case using default");
+        ret_code = -EINVAL;
+        goto err;
     }
 
-    /*
-    *  Efficient way to copying data to user buffer datap
-    *  using in a single copy function call.
-    *  First parameter is copy to user buffer,
-    *  second parameter is copy from location,
-    *  third parameter give the number of bytes to copy.
-    */
-    ret_code = copy_to_user(&nvme_data->buffer[0], datap,
-        nvme_data->nBytes * sizeof(u8));
-    if (ret_code < 0) {
-        LOG_ERR("Error copying to user buffer returning");
+    if (copy_to_user((void __user *) nvme_data->buffer, datap,
+        nvme_data->nBytes)) {
+        LOG_ERR("Invalid copy to user space");
+        ret_code = -EFAULT;
     }
 
+err:
+    kfree(datap);
     return ret_code;
 }
 
@@ -262,11 +264,7 @@ int driver_generic_write(struct rw_generic *nvme_data,
     int ret_code = -EINVAL; /* return code to verify if written success. */
     struct pci_dev *pdev;
     struct nvme_device *nvme_dev;
-    /*
-    * Pointer for user data to be copied to user space from
-    * kernel space. Initialize with user passed data pointer.
-    */
-    unsigned char __user *datap = (unsigned char __user *)nvme_data->buffer;
+    void* datap;
 
     LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
@@ -274,22 +272,25 @@ int driver_generic_write(struct rw_generic *nvme_data,
     pdev = pmetrics_device_element->metrics_device->pdev;
     nvme_dev = pmetrics_device_element->metrics_device;
 
-    /* allocate kernel memory to datap that is requested from user app */
-    datap = kzalloc((nvme_data->nBytes * sizeof(u8)) , GFP_KERNEL);
+    /* Allocating memory for the data in kernel space */
+    datap = kmalloc(nvme_data->nBytes, GFP_KERNEL | __GFP_ZERO);
+
     /*
     * Check if allocation of memory is not null else return
     * no memory.
     */
     if (!datap) {
-        LOG_ERR("Unable to allocate kernel memory in driver generic write");
+        LOG_ERR("Unable to allocate kernel memory");
         return -ENOMEM;
     }
-    /*
-    * copy from user data buffer to kernel data buffer at single place
-    * using copy_from_user for efficiency.
-    */
-    copy_from_user((u8 *)datap, (u8 *)nvme_data->buffer,
-        nvme_data->nBytes * sizeof(u8));
+
+    /* Copying userspace buffer to kernel memory */
+    if (copy_from_user(datap, (void __user *) nvme_data->buffer,
+        nvme_data->nBytes)) {
+        LOG_ERR("Invalid copy from user space");
+        ret_code = -EFAULT;
+        goto err;
+    }
 
     /*
     * Switch based on the type of requested write determined by nvme_data->data
@@ -311,41 +312,40 @@ int driver_generic_write(struct rw_generic *nvme_data,
                 && (nvme_data->nBytes % 4 == 0)) {
                 /* Write a word to PCI register space. */
                 ret_code = pci_write_config_dword(pdev,
-                    (nvme_data->offset + index), datap[index]);
+                    (nvme_data->offset + index), *(u32 *) (datap + index));
                 LOG_NRM("Writing to PCI offset, data = 0x%x, 0x%x",
-                    (nvme_data->offset + index), (u32)datap[index]);
+                    (nvme_data->offset + index), *(u32 *) (datap + index));
                 /* increment by dword size */
                 index += 4;
             } else if ((nvme_data->acc_type == WORD_LEN)
                 && (nvme_data->nBytes % 2 == 0)) {
                 /* Write a word to PCI register space. */
                 ret_code = pci_write_config_word(pdev,
-                    (nvme_data->offset + index), datap[index]);
+                    (nvme_data->offset + index), *(u16 *) (datap + index));
                 LOG_NRM("Writing to PCI offset, data = 0x%x, 0x%x",
-                    (nvme_data->offset + index), (u16)datap[index]);
+                    (nvme_data->offset + index), *(u16 *) (datap + index));
                 /* increment by word size */
                 index += 2;
             } else if (nvme_data->acc_type == BYTE_LEN) {
                 /* Write a byte from to PCI register space. */
                 ret_code = pci_write_config_byte(pdev,
-                    (nvme_data->offset + index), datap[index]);
+                    (nvme_data->offset + index), *(u8 *) (datap + index));
 
                 LOG_NRM("Writing to PCI offset, data = 0x%x, 0x%x",
-                    (nvme_data->offset + index), (u8)datap[index]);
+                    (nvme_data->offset + index), *(u8 *) (datap + index));
                 /* increment by byte size */
                 index++;
             } else {
                 LOG_ERR("PCI space accessed by DWORD, WORD or BYTE");
                 LOG_ERR("Wrong PCI access width specified or ");
                 LOG_ERR("Wrong no of bytes specified");
-                return -EINVAL;
+                ret_code = -EINVAL;
+                goto err;
             }
-            /* Check if reading is successful */
+            /* Check if writing is successful */
             if (ret_code < 0) {
-                LOG_ERR("pci_read_config failed");
-                LOG_ERR("Unable to write to location = 0x%x data = 0%x",
-                    (nvme_data->offset + index), datap[index]);
-                return ret_code;
+                LOG_ERR("pci_write_config failed");
+                goto err;
             }
         }
         /* Done writing user requested data, returning. */
@@ -363,18 +363,21 @@ int driver_generic_write(struct rw_generic *nvme_data,
             ) {
                 LOG_ERR("Either Offset or nBytes is not DWORD Aligned");
                 LOG_ERR("Provide them on 4 bytes Boundary");
-                return -EINVAL;
+                ret_code = -EINVAL;
+                goto err;
             } else if ((nvme_data->acc_type == QUAD_LEN) &&
                 (((nvme_data->nBytes % 8) != 0) ||
                 ((nvme_data->offset % 4) != 0))
                 ) {
                 LOG_ERR("Either Offset or nBytes is not QUAD Aligned");
                 LOG_ERR("Provide them on 8 bytes Boundary");
-                return -EINVAL;
+                ret_code = -EINVAL;
+                goto err;
             } else if ((nvme_data->acc_type == WORD_LEN) &&
                 ((nvme_data->nBytes % 2) != 0)) {
                 LOG_ERR("nBytes is not WORD aligned");
-                return -EINVAL;
+                ret_code = -EINVAL;
+                goto err;
             }
 
         /*
@@ -384,14 +387,19 @@ int driver_generic_write(struct rw_generic *nvme_data,
         ret_code = write_nvme_reg_generic(nvme_dev->nvme_ctrl_space,
                 (u8 *)datap, nvme_data->nBytes, nvme_data->offset,
                 nvme_data->acc_type);
-
+        if (ret_code < 0) {
+            LOG_ERR("Write NVME Space failed");
+        }
         /* done with nvme space writing break from this case .*/
         break;
 
     default:
         LOG_DBG("Could not find switch case using default");
+        ret_code = -EINVAL;
     }
 
+err:
+    kfree(datap);
     return ret_code;
 }
 
@@ -679,6 +687,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     /* Allocating memory for the command in kernel space */
     nvme_cmd_ker = kmalloc(cmd_buf_size, GFP_ATOMIC | __GFP_ZERO);
 
+    /* TODO : add hanler for invalid memory */
     /* Copying userspace buffer to kernel memory */
     if (copy_from_user(nvme_cmd_ker,
         (void __user *) nvme_64b_send->cmd_buf_ptr, cmd_buf_size)) {
@@ -939,9 +948,21 @@ int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
     u16 q_id;               /* tmp variable for q id          */
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
+    void *datap,*temp_ptr = NULL;
 
-    u8 __user *datap = (u8 __user *)get_q_metrics->buffer;
-                                            /* lcl usr buff  */
+    /* Allocating memory for the data in kernel space */
+    datap = kmalloc(get_q_metrics->nBytes, GFP_KERNEL | __GFP_ZERO);
+
+    /*
+    * Check if allocation of memory is not null else return
+    * no memory.
+    */
+    if (!datap) {
+        LOG_ERR("Unable to allocate kernel memory");
+        return -ENOMEM;
+    }
+
+
     /* Get the q_id to lcl var */
     q_id = get_q_metrics->q_id;
 
@@ -966,19 +987,17 @@ int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
                               pmetrics_sq_list->public_sq.elements);
                 if (get_q_metrics->nBytes < sizeof(struct nvme_gen_sq)) {
                     LOG_ERR("Not sufficient buffer size to copy SQ metrics");
-                    return -EINVAL;
+                    ret_code = -EINVAL;
+                    goto err;
                 }
                 /* Copy to user space linked pointer buffer */
-                memcpy((u8 *)&datap[0], (u8 *)&pmetrics_sq_list->public_sq,
-                        sizeof(struct nvme_gen_sq));
-                /* Copy data to user space */
-                ret_code = copy_to_user(&get_q_metrics->buffer[0], datap,
-                        sizeof(struct nvme_gen_sq));
-                return ret_code;
+                /* TODO:can omit datap completley in this case */
+                memcpy((u8 *)datap, (u8 *)&pmetrics_sq_list->public_sq,
+                    get_q_metrics->nBytes);
+                temp_ptr = datap;
+                break;
             }
         }
-        LOG_DBG("SQ_ID = %d not found in the list", q_id);
-        return -EINVAL;
     } else if (get_q_metrics->type == METRICS_CQ) {
         /* Determine the CQ Metrics */
         LOG_DBG("CQ Metrics requested.");
@@ -999,26 +1018,41 @@ int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
                               pmetrics_cq_list->public_cq.elements);
                 if (get_q_metrics->nBytes < sizeof(struct nvme_gen_cq)) {
                     LOG_ERR("Not sufficient buffer size to copy CQ metrics");
-                    return -EINVAL;
+                    ret_code = -EINVAL;
+                    goto err;
                 }
+                /* TODO:can omit datap completley in this case */
                 /* Copy to user space linked pointer buffer */
-                memcpy((u8 *)&datap[0], (u8 *)&pmetrics_cq_list->public_cq,
-                        sizeof(struct nvme_gen_cq));
-                /* Copy data to user space */
-                ret_code = copy_to_user(&get_q_metrics->buffer[0], datap,
-                        get_q_metrics->nBytes * sizeof(u8));
-                return ret_code;
+                memcpy((u8 *)datap, (u8 *)&pmetrics_cq_list->public_cq,
+                    get_q_metrics->nBytes);
+                temp_ptr = datap;
+                break;
             }
         }
-        LOG_DBG("CQ_ID = %d not found in the list", q_id);
-        return -EINVAL;
     } else {
         /* The Q type is not SQ or CQ, so error out */
         LOG_ERR("Error in metrics Type...");
         LOG_ERR("Metrics Type: METRICS_SQ/METRICS_CQ only");
-        return -EINVAL;
+        ret_code = -EINVAL;
+        goto err;
     }
-    return SUCCESS;
+
+    if (temp_ptr == NULL) {
+        LOG_ERR("Required QID not found in the list");
+        ret_code = -EINVAL;
+        goto err;
+    }
+
+    /* Copy data to user space */
+    if (copy_to_user((void __user *) get_q_metrics->buffer, datap,
+        get_q_metrics->nBytes)) {
+        LOG_ERR("Invalid copy to user space");
+        ret_code = -EFAULT;
+    }
+
+err:
+    kfree(datap);
+    return ret_code;
 }
 
 /*
