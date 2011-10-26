@@ -24,7 +24,7 @@ static int deallocate_metrics_cq(struct device *dev,
 static int deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device);
-static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
+static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
         struct device *dev);
 static void pos_cq_head_ptr(struct metrics_cq  *pmetrics_cq_node,
         u16 num_reaped);
@@ -210,7 +210,7 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     * As the qsize send is in number of entries this computes the no. of bytes
     * computed.
     */
-    asq_depth = qsize*sizeof(u8)*64;
+    asq_depth = qsize * 64;
 
     LOG_DBG("ASQ Depth: 0x%x", asq_depth);
 
@@ -315,7 +315,7 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
     * As the qsize send is in number of entries this computes the no. of bytes
     * computed.
     */
-    acq_depth = qsize*sizeof(u8)*16;
+    acq_depth = qsize * 16;
     LOG_DBG("ACQ Depth: 0x%x", acq_depth);
     /*
      * The function dma_alloc_coherent  maps the dma address for ACQ which gets
@@ -752,7 +752,7 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
  *  commands in the Completion Queue that are waiting to be reaped for any
  *  given q_id.
  */
-static int reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
+static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
         struct device *dev)
 {
     u8 tmp_pbit;                    /* Local phase bit      */
@@ -1134,7 +1134,7 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
             goto cp_cq_out;
         }
         /* Copy to user here */
-        if (copy_to_user(buffer, cq_head_ptr, comp_entry_size * sizeof(u8))) {
+        if (copy_to_user(buffer, cq_head_ptr, comp_entry_size)) {
             ret_val = -EFAULT;
             goto cp_cq_out;
         }
