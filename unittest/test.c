@@ -532,9 +532,9 @@ int test_regression(int file_desc)
     return 0;
 }
 
-void set_reap_cq(int file_desc, int cq_id, int elements, int size)
+void set_reap_cq(int file_desc, int cq_id, int elements, int size, int disp)
 {
-    ioctl_reap_cq(file_desc, cq_id, elements, size);
+    ioctl_reap_cq(file_desc, cq_id, elements, size, disp);
 }
 
 void test_reap(int file_desc)
@@ -569,29 +569,30 @@ void test_reap(int file_desc)
     ioctl_ut_reap(file_desc);
 
     // Admin Reaping.
+    // Num Could Reap = 4.
     cq_id = 0;
     elements = 2;
     size = elements * 16; // 16 CE entry
-    set_reap_cq(file_desc, cq_id, elements, size);
-    set_reap_cq(file_desc, cq_id, elements, size);
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
 
     cq_id = 5;
     elements = 2;
     size = elements * 16; // 16 CE entry
-    set_reap_cq(file_desc, cq_id, elements, size);
-    set_reap_cq(file_desc, cq_id, elements, size);
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
 
     cq_id = 5;
     elements = 5;
     size = elements * 16; // 16 CE entry
-    set_reap_cq(file_desc, cq_id, elements, size);
-    set_reap_cq(file_desc, cq_id, elements, size);
+    set_reap_cq(file_desc, cq_id, elements, size, 0);
+    set_reap_cq(file_desc, cq_id, elements, size, 0);
 
     cq_id = 4;
     elements = 1;
     size = elements * 16; // 16 CE entry
-    set_reap_cq(file_desc, cq_id, elements, size); // Reap 1
-    set_reap_cq(file_desc, cq_id, elements, size); // Reap next
+    set_reap_cq(file_desc, cq_id, elements, size, 0); // Reap 1
+    set_reap_cq(file_desc, cq_id, elements, size, 0); // Reap next
 
     printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile2\n");
     ioctl_dump(file_desc, tmpfile2);
@@ -601,6 +602,115 @@ void test_reap(int file_desc)
     printf("\nCheck Reap Outputs...");
     printf("\nPress any key to continue..");
     getchar();
+}
+
+void reset_for_reap(int file_desc)
+{
+    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+    set_admn(file_desc);
+    ioctl_write_data(file_desc);
+    ioctl_prep_cq(file_desc, 4, 100, 1);
+    ioctl_prep_cq(file_desc, 5, 100, 1);
+
+    printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
+    ioctl_ut_reap_inq(file_desc);
+    ioctl_ut_reap(file_desc);
+}
+
+void reap_params_mod16(int file_desc, int elements)
+{
+    int size;
+    int cq_id;
+
+    reset_for_reap(file_desc);
+
+    // Num Could Reap = 51. Size is equal
+     cq_id = 5;
+     size = (elements * 16); // 16 CE entry
+     set_reap_cq(file_desc, cq_id, elements, size, 1);
+     printf("\nPress any key to continue..");
+     getchar();
+
+     reset_for_reap(file_desc);
+
+     // Num Could Reap = 51. Size is less %16
+     cq_id = 5;
+     size = (elements * 16) - 16 * 10; // 16 CE entry
+     set_reap_cq(file_desc, cq_id, elements, size, 1);
+     printf("\nPress any key to continue..");
+     getchar();
+
+     reset_for_reap(file_desc);
+
+     // Num Could Reap = 51. Size is more %16
+     cq_id = 5;
+     size = (elements * 16) + 16 * 2; // 16 CE entry
+     set_reap_cq(file_desc, cq_id, elements, size, 1);
+     printf("\nPress any key to continue..");
+     getchar();
+}
+
+void reap_params_mod17(int file_desc, int elements)
+{
+    int size;
+    int cq_id;
+
+    reset_for_reap(file_desc);
+
+    // Num Could Reap = 51. Size is equal
+    cq_id = 5;
+    size = (elements * 16); // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reset_for_reap(file_desc);
+    // Num Could Reap = 51. Size is less %17
+    cq_id = 5;
+    size = (elements * 16) - 17 * 10; // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reset_for_reap(file_desc);
+
+    // Num Could Reap = 51. Size is more %17
+    cq_id = 5;
+    size = (elements * 16) + 17 * 2; // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+}
+
+void test_reap_regression(int file_desc)
+{
+    // Num Could Reap = 51
+    reap_params_mod16(file_desc, 53);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reap_params_mod16(file_desc, 50);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reap_params_mod16(file_desc, 51);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    // Num Could Reap = 51
+    reap_params_mod17(file_desc, 53);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reap_params_mod17(file_desc, 50);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reap_params_mod17(file_desc, 51);
+    printf("\nPress any key to continue..");
+    getchar();
+
+
 }
 
 int main(void)
@@ -618,7 +728,8 @@ int main(void)
     test_drv_metrics(file_desc);
 
     //test_regression(file_desc);
-    test_reap(file_desc);
+    //test_reap(file_desc);
+    test_reap_regression(file_desc);
 
     printf("Call to close the file_desc.");
     close(file_desc);

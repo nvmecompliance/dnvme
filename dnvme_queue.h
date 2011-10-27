@@ -20,11 +20,6 @@
 #define NVME_TO_MASK    0xFF000000
 
 /*
-* Max 64 bits
-*/
-#define MAX_64_SIZE     0xFFFFFFFFFFFFFFFF
-
-/*
  * Maximum AQ entries allowed.
  */
 #define MAX_AQ_ENTRIES   4096

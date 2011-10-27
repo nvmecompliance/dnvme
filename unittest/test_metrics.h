@@ -15,7 +15,7 @@ void ioctl_create_prp_more_than_two_page(int file_desc);
 void ioctl_create_list_of_prp(int file_desc);
 void ioctl_create_fill_list_of_prp(int file_desc);
 void ioctl_reap_inquiry(int file_desc, int cq_id);
-void ioctl_reap_cq(int file_desc, int cq_id, int elements, int size);
+void ioctl_reap_cq(int file_desc, int cq_id, int elements, int size, int display);
 void ioctl_disable_ctrl(int file_desc, enum nvme_state new_state);
 void ioctl_enable_ctrl(int file_desc);
 void set_admn(int file_desc);
