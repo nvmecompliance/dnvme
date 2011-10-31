@@ -687,19 +687,34 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     /* Allocating memory for the command in kernel space */
     nvme_cmd_ker = kmalloc(cmd_buf_size, GFP_ATOMIC | __GFP_ZERO);
 
-    /* TODO : add hanler for invalid memory */
+    if (!nvme_cmd_ker) {
+        LOG_ERR("Unable to allocate kernel memory");
+        ret_code = -ENOMEM;
+        goto ret;
+    }
+
     /* Copying userspace buffer to kernel memory */
     if (copy_from_user(nvme_cmd_ker,
         (void __user *) nvme_64b_send->cmd_buf_ptr, cmd_buf_size)) {
         LOG_ERR("Invalid copy from user space");
         ret_code = -EFAULT;
-        goto err;
+        goto free;
     }
 
     nvme_gen_cmd = (struct nvme_gen_cmd *) nvme_cmd_ker;
     memset(&prps, 0, sizeof(prps));
     /* Initialize PRP Type to NO_PRP */
     prps.type = NO_PRP;
+    /* Copy and Increment the CMD ID */
+    nvme_gen_cmd->command_id = pmetrics_sq->private_sq.unique_cmd_id++;
+
+    /* Send a copy of the unique ID back to userspace */
+    if (copy_to_user((void __user *) (nvme_64b_send->cmd_buf_ptr + 0x02),
+        &nvme_gen_cmd->command_id, 0x02)) {
+        LOG_ERR("Invalid copy to user space");
+        ret_code = -EFAULT;
+        goto err;
+    }
 
     /* Handling special condition for opcodes 0x00,0x01,0x04
      * and 0x05 of NVME Admin command set */
@@ -723,7 +738,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             ret_code = -EPERM;
             goto data_err;
         }
-
+        /* Sanity Checks */
         if (((nvme_create_sq->sq_flags & 0x01) &&
             (p_cmd_sq->private_sq.contig == 0)) ||
                 (!(nvme_create_sq->sq_flags & 0x01) &&
@@ -736,7 +751,14 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                     p_cmd_sq->private_sq.vir_kern_addr == NULL)) {
             /* Contig flag out of sync with what cmd says */
             goto data_err;
+        } else if ((p_cmd_sq->private_sq.bit_mask & 0x01) == 0) {
+            /* Avoid duplicate Queue creation */
+            LOG_ERR("Required Queue already created!");
+            ret_code = -EINVAL;
+            goto err;
         }
+        /* Resetting the unique QID bitmask flag */
+        p_cmd_sq->private_sq.bit_mask = (p_cmd_sq->private_sq.bit_mask & ~(1));
 
         if (p_cmd_sq->private_sq.contig == 0) {
             /* Creation of Discontiguous IO SQ */
@@ -755,7 +777,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             /* Contig IOSQ creation */
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
-                    PERSIST_QID_0, CONTG_IO_Q, PRP_ABSENT);
+                    nvme_create_sq->sqid, CONTG_IO_Q, PRP_ABSENT);
             if (ret_code < 0) {
                 LOG_ERR("Failure to prepare 64 byte command");
                 goto err;
@@ -801,7 +823,14 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                     p_cmd_cq->private_cq.vir_kern_addr == NULL)) {
             /* Contig flag out of sync with what cmd says */
             goto data_err;
+        } else if ((p_cmd_cq->private_cq.bit_mask & 0x01) == 0) {
+            /* Avoid duplicate Queue creation */
+            LOG_ERR("Required Queue already created!");
+            ret_code = -EINVAL;
+            goto err;
         }
+        /* Resetting the unique QID bitmask flag */
+        p_cmd_cq->private_cq.bit_mask = (p_cmd_cq->private_cq.bit_mask & ~(1));
 
         if (p_cmd_cq->private_cq.contig == 0) {
             /* Discontig IOCQ creation */
@@ -809,7 +838,6 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                 /* Contig flag out of sync with what cmd says */
                 goto data_err;
             }
-
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
                     nvme_create_cq->cqid, DISCONTG_IO_Q, PRP_PRESENT);
@@ -821,7 +849,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             /* Contig IOCQ creation */
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
-                    PERSIST_QID_0, CONTG_IO_Q, PRP_ABSENT);
+                    nvme_create_cq->cqid, CONTG_IO_Q, PRP_ABSENT);
             if (ret_code < 0) {
                 LOG_ERR("Failure to prepare 64 byte command");
                 goto err;
@@ -889,10 +917,6 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         }
     } /* Different sceanrios of commands */
 
-    /* Copy and Increment the CMD ID */
-    nvme_gen_cmd->command_id = pmetrics_sq->private_sq.unique_cmd_id++;
-
-
     /* Copying the command in to appropriate SQ and handling sync issues */
     if (pmetrics_sq->private_sq.contig) {
         memcpy((pmetrics_sq->private_sq.vir_kern_addr +
@@ -917,9 +941,12 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
     kfree(nvme_cmd_ker);
     return 0;
+
 data_err:
     LOG_ERR("Global Metrics inconsistent");
 err:
+    pmetrics_sq->private_sq.unique_cmd_id--;
+free:
     kfree(nvme_cmd_ker);
 ret:
     return ret_code;
@@ -1133,6 +1160,11 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
 
     /* Adding Command Tracking list */
     INIT_LIST_HEAD(&(pmetrics_sq_node->private_sq.cmd_track_list));
+
+    /* Setting the bit-mask for unique ID creation */
+    pmetrics_sq_node->private_sq.bit_mask =
+        (pmetrics_sq_node->private_sq.bit_mask | 0x01);
+
     /* Add this element to the end of the list */
     list_add_tail(&pmetrics_sq_node->sq_list_hd,
             &pmetrics_device_element->metrics_sq_list);
@@ -1191,6 +1223,10 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
 
     /* Set the pbit_new_entry for IO CQ here. */
     pmetrics_cq_node->public_cq.pbit_new_entry = 1;
+
+    /* Setting the bit-mask for unique ID creation */
+    pmetrics_cq_node->private_cq.bit_mask =
+        (pmetrics_cq_node->private_cq.bit_mask | 0x01);
 
     /* Add this element to the end of the list */
     list_add_tail(&pmetrics_cq_node->cq_list_hd,

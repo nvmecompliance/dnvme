@@ -446,6 +446,7 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     }
     prps->prp1 = cpu_to_le64(dma_addr);
     buf_len -= (PAGE_SIZE - offset);
+
     if (buf_len <= 0) {
         prps->type = PRP1;
         return 0;
@@ -587,6 +588,7 @@ static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
     struct nvme_prps *prps)
 {
     int i;
+    struct page *pg;
 
     if (!prps) {
         return;
@@ -602,7 +604,11 @@ static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
             prps->data_dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
         for (i = 0; i < prps->dma_mapped_pgs; i++) {
-            put_page(sg_page(&prps->sg[i]));
+            pg = sg_page(&prps->sg[i]);
+            if (!prps->data_dir) {
+                set_page_dirty_lock(pg);
+            }
+            put_page(pg);
         }
         kfree(prps->sg);
     }

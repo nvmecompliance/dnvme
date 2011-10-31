@@ -69,8 +69,13 @@ void ioctl_write_data(int file_desc)
     test_data.offset = 0x14;
     test_data.nBytes = 4;
     test_data.acc_type = DWORD_LEN;
+    test_data.buffer = NULL;
 
-    test_data.buffer = malloc(sizeof(char) * test_data.nBytes);
+    test_data.buffer = malloc(test_data.nBytes);
+    if (test_data.buffer == NULL) {
+        printf("malloc failed!");
+        goto err;
+    }
     test_data.buffer[0] = 0x01;
     test_data.buffer[1] = 0x00;
     test_data.buffer[2] = 0x46;
@@ -83,6 +88,11 @@ void ioctl_write_data(int file_desc)
             printf("ioctl_set_msg failed:%d\n", ret_val);
             exit(-1);
    }
+
+   free(test_data.buffer);
+
+err:
+    return;
 }
 
 void ioctl_create_acq(int file_desc)
@@ -532,6 +542,8 @@ int test_regression(int file_desc)
 int main()
 {
     int file_desc,test_case,i;
+    char *tmpfile1 = "/tmp/temp_file1.txt";
+    char *tmpfile2 = "/tmp/temp_file2.txt";
 
     printf("\n*****\t Demo \t*****\n");
 
@@ -545,11 +557,13 @@ int main()
     printf("Device File Successfully Opened = %d\n", file_desc);
 
     /* Maximum possible entries */
-    uint8_t *read_buffer = (void *) calloc(READ_BUFFER_SIZE, sizeof(char));
-    if (read_buffer == NULL) {
-        printf("Calloc Failed");
+    void *read_buffer;
+
+    if (posix_memalign(&read_buffer, 4096, READ_BUFFER_SIZE)) {
+        printf("Memalign Failed");
         return 0;
     }
+
     do {
         printf("Enter a valid test case number:");
         scanf ("%d", &test_case);
@@ -590,6 +604,8 @@ int main()
             ioctl_create_contig_iocq(file_desc);
             ioctl_create_discontig_iosq(file_desc);
 
+            printf("\nCalling Dump Metrics to tmpfile1\n");
+            ioctl_dump(file_desc, tmpfile1);
 
             printf("Ringing Doorbell for SQID 0\n");
             ioctl_tst_ring_dbl(file_desc, 0);
@@ -607,7 +623,8 @@ int main()
             printf("Executing SEND 64 byte command\n");
             ioctl_create_contig_iosq(file_desc);
 
-
+            printf("\nCalling Dump Metrics to tmpfile2\n");
+            ioctl_dump(file_desc, tmpfile2);
             printf("Ringing Doorbell for SQID 0\n");
             ioctl_tst_ring_dbl(file_desc, 0);
             printf("Test to Create contig IOSQ Done\n");
