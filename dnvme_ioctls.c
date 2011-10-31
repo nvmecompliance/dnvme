@@ -576,17 +576,15 @@ int driver_ioctl_init(struct pci_dev *pdev,
     pmetrics_device_list->metrics_device->prp_page_pool = dma_pool_create
             ("prp page", &pmetrics_device_list->metrics_device->pdev->dev,
                     PAGE_SIZE, PAGE_SIZE, 0);
-
-    /* Used to create Coherent DMA mapping for PRP List */
-    pmetrics_device_list->metrics_device->prp_page_pool =
-        dma_pool_create("prp page",
-            &pmetrics_device_list->metrics_device->pdev->dev,
-                PAGE_SIZE, PAGE_SIZE, 0);
     if (NULL == pmetrics_device_list->metrics_device->prp_page_pool) {
         LOG_ERR("Creation of DMA Pool failed");
         ret_val = -ENOMEM;
         goto iocinit_out;
      }
+
+    /* Initialize Meta DMA Pool flag to zero */
+    pmetrics_device_list->metrics_device->mpool_flag = 0;
+    pmetrics_device_list->metrics_device->meta_unique_cnt = 0;
 
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)pmetrics_device_list->metrics_device->nvme_ctrl_space);
@@ -601,6 +599,161 @@ iocinit_out:
         dma_pool_destroy(pmetrics_device_list->metrics_device->prp_page_pool);
     }
     return ret_val;
+}
+
+/*
+ * Allocate a dma pool for the requested size. Initialize the DMA pool pointer
+ * with DWORD alignment and associate it with the active device.
+ */
+int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
+        u16 alloc_size)
+{
+    int ret_val = SUCCESS;
+
+    /* First Check if the meta pool already exists */
+    if (pmetrics_device_elem->metrics_device->mpool_flag != 0) {
+        LOG_ERR("Meta Pool already exists!!");
+        return -EINVAL;
+    }
+
+    /* Allocate memory for the metrics meta node */
+    pmetrics_device_elem->pmetrics_meta = kmalloc(sizeof(struct
+            metrics_meta_data), GFP_KERNEL | __GFP_ZERO);
+    if (pmetrics_device_elem->pmetrics_meta == NULL) {
+        LOG_ERR("Memory allocation for metrics_data failed");
+        ret_val = -ENOMEM;
+        goto meta_cr_out;
+    }
+    /* Initialize meta data linked list for this device. */
+    INIT_LIST_HEAD(&(pmetrics_device_elem->pmetrics_meta->meta_trk_list));
+    /* To create coherent DMA mapping for meta data buffer creation */
+    pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr = dma_pool_create
+            ("meta buff", &pmetrics_device_elem->metrics_device->pdev->dev,
+                    sizeof(__u32), alloc_size, 0);
+    if (pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr == NULL) {
+        LOG_ERR("Creation of DMA Pool failed at meta-data");
+        ret_val = -ENOMEM;
+        goto meta_cr_out;
+    }
+    /* Set pool created to true. */
+    pmetrics_device_elem->metrics_device->mpool_flag = 1;
+
+    return ret_val;
+
+meta_cr_out:
+    if (pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr != NULL) {
+        dma_pool_destroy(pmetrics_device_elem->pmetrics_meta->
+                meta_dmapool_ptr);
+    }
+    if (pmetrics_device_elem->pmetrics_meta != NULL) {
+        kfree(pmetrics_device_elem->pmetrics_meta);
+    }
+    return ret_val;
+}
+
+/*
+ * alloc a meta buffer node when user request and allocate a consistent
+ * dma memory from the meta dma pool. Add this node into the meta data
+ * linked list.
+ */
+int metabuff_alloc(struct metrics_device_list *pmetrics_device_element,
+        u16 meta_id)
+{
+    struct metrics_meta *pmeta_data = NULL;
+    int ret_val = SUCCESS;
+
+    /* Check if parameters passed to this function are valid */
+    if ((pmetrics_device_element->pmetrics_meta == NULL) ||
+            (pmetrics_device_element->pmetrics_meta->
+                    meta_dmapool_ptr == NULL)) {
+        LOG_ERR("Meta data pool is not created...");
+        LOG_ERR("Call to Create the meta data pool first...");
+        ret_val = -EINVAL;
+        goto meta_err;
+    }
+    /* Check if this id is already created. */
+    if (find_meta_node(pmetrics_device_element, meta_id) != NULL) {
+        LOG_ERR("Meta ID already exists!!");
+        ret_val = -EINVAL;
+        goto meta_err;
+    }
+
+    /* Allocate memory to metrics_meta for each node */
+    pmeta_data = kmalloc(sizeof(struct metrics_meta), GFP_KERNEL | __GFP_ZERO);
+    if (pmeta_data == NULL) {
+        LOG_ERR("Allocation of Meta data mem failed");
+        ret_val = -ENOMEM;
+        goto meta_err;
+    }
+
+    /* Assign the user passed id for tracking this meta id */
+    pmeta_data->meta_id = meta_id;
+
+    /* Allocated the dma memory and assign to vir_kern_addr */
+    pmeta_data->vir_kern_addr = dma_pool_alloc(pmetrics_device_element->
+            pmetrics_meta->meta_dmapool_ptr, GFP_ATOMIC, &pmeta_data->
+            meta_dma_addr);
+    if (pmeta_data->vir_kern_addr == NULL) {
+        LOG_ERR("DMA Allocation failed for meta data buffer.");
+        ret_val = -ENOMEM;
+        goto meta_alloc_out;
+    }
+
+    /* Increment the meta unique count in the device */
+    pmetrics_device_element->metrics_device->meta_unique_cnt++;
+
+    /* Add the meta data node into the linked list */
+    list_add_tail(&pmeta_data->meta_list_hd, &pmetrics_device_element->
+            pmetrics_meta->meta_trk_list);
+
+    return ret_val;
+
+meta_alloc_out:
+    if (pmeta_data->vir_kern_addr != NULL) {
+        dma_pool_free(pmetrics_device_element->pmetrics_meta->meta_dmapool_ptr,
+                pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
+    }
+    if (pmeta_data != NULL) {
+        kfree(pmeta_data);
+    }
+meta_err:
+    return ret_val;
+}
+
+/*
+ * Delete the meta buffer node for given meta id from the linked list.
+ * First Free the dma pool allocated memory then delete the entry from the
+ * linked list and finally free the node memory from the kernel.
+ */
+int metabuff_del(struct metrics_device_list *pmetrics_device_element,
+        u16 meta_id)
+{
+    struct metrics_meta *pmeta_data = NULL;
+
+    if ((pmetrics_device_element->pmetrics_meta == NULL) ||
+            (pmetrics_device_element->pmetrics_meta->
+                    meta_dmapool_ptr == NULL)) {
+        LOG_ERR("Meta data pool is not created...");
+        LOG_ERR("Call to Create the meta data pool first...");
+        return -EINVAL;
+    }
+
+    pmeta_data = find_meta_node(pmetrics_device_element, meta_id);
+
+    if (pmeta_data == NULL) {
+        LOG_ERR("Meta ID does not exists!!");
+        return -EINVAL;
+    }
+
+    if (pmeta_data->vir_kern_addr != NULL) {
+        dma_pool_free(pmetrics_device_element->pmetrics_meta->meta_dmapool_ptr,
+                pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
+    }
+
+    list_del(&pmeta_data->meta_list_hd);
+    kfree(pmeta_data);
+
+    return SUCCESS;
 }
 
 /*

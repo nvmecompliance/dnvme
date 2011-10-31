@@ -21,3 +21,4 @@ void ioctl_enable_ctrl(int file_desc);
 void set_admn(int file_desc);
 void ioctl_create_acq(int file_desc);
 void ioctl_create_asq(int file_desc);
+void test_meta(int file_desc);

@@ -228,4 +228,35 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma);
 int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
         struct nvme_reap *reap_data);
 
+/**
+ * Create a dma pool for the requested size. Initialize the DMA pool pointer
+ * with DWORD alignment and associate it with the active device.
+ * @param pmetrics_device_elem
+ * @param alloc_size
+ * @return SUCCESS or FAIL based on dma pool creation.
+ */
+int metabuff_create(struct metrics_device_list *pmetrics_device_element,
+        u16 alloc_size);
+
+/**
+ * Create a meta buffer node when user request and allocate a consistent
+ * dma memory from the meta dma pool. Add this node into the meta data
+ * linked list.
+ * @param pmetrics_device_element
+ * @param meta_id
+ * @return Success of Failure based on dma alloc Success or failure.
+ */
+int metabuff_alloc(struct metrics_device_list *pmetrics_device_element,
+        u16 meta_id);
+
+/**
+ * Delete a meta buffer node when user requests and deallocate a consistent
+ * dma memory. Delete this node from the meta data linked list.
+ * @param pmetrics_device_element
+ * @param meta_id
+ * @return Success of Failure based on metabuff delete
+ */
+int metabuff_del(struct metrics_device_list *pmetrics_device_element,
+        u16 meta_id);
+
 #endif

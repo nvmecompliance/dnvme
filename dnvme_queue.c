@@ -555,28 +555,28 @@ int nvme_ring_sqx_dbl(u16 *ring_sqx, struct  metrics_device_list
             metrics_sq_list, sq_list_hd) {
         /* Check if the Q Id matches */
         if (*ring_sqx == pmetrics_sq_list->public_sq.sq_id) {
-            LOG_ERR("SQ_ID= %d found in the linked list.",
+            LOG_DBG("SQ_ID= %d found in the linked list.",
                     pmetrics_sq_list->public_sq.sq_id);
-             LOG_DBG("\tVirt Tail Ptr = 0x%x",
+            LOG_DBG("\tVirt Tail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr_virt);
-             LOG_DBG("\tTail Ptr = 0x%x",
+            LOG_DBG("\tTail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr);
             /* Copy tail_prt_virt to tail_prt */
             pmetrics_sq_list->public_sq.tail_ptr = pmetrics_sq_list->
                     public_sq.tail_ptr_virt;
             /* Ring the doorbell with tail_prt */
-             writel(pmetrics_sq_list->public_sq.tail_ptr, pmetrics_sq_list->
+            writel(pmetrics_sq_list->public_sq.tail_ptr, pmetrics_sq_list->
                      private_sq.dbs);
-             LOG_DBG("After Writing Doorbell...");
-             LOG_DBG("\tVirt Tail Ptr = 0x%x",
+            LOG_DBG("After Writing Doorbell...");
+            LOG_DBG("\tVirt Tail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr_virt);
-             LOG_DBG("\tTail Ptr = 0x%x",
+            LOG_DBG("\tTail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr);
-             /* Done with this function return success */
-             return SUCCESS;
+            /* Done with this function return success */
+            return SUCCESS;
         }
     }
-    LOG_DBG("SQ ID = %d not found to ring its doorbell", *ring_sqx);
+    LOG_ERR("SQ ID = %d not found to ring its doorbell", *ring_sqx);
     /* If it falls here no SQ ID is found */
     return -EINVAL;
 }
@@ -899,6 +899,33 @@ struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id)
     return NULL;
 }
 
+/*
+ * Finds the meta data node in the linked list and if found returns
+ * the pointer to the node otherwise returns NULL.
+ */
+struct metrics_meta *find_meta_node(struct metrics_device_list
+        *pmetrics_device_element, u16 meta_id)
+{
+    struct  metrics_meta  *pmetrics_meta_node;
+
+    /* Don't assume anything, check for existence */
+    if (pmetrics_device_element->pmetrics_meta == NULL) {
+        LOG_ERR("Meta data list is empty...");
+        return NULL;
+    }
+
+    /* Search and return if the meta id node is found */
+    list_for_each_entry(pmetrics_meta_node, &pmetrics_device_element->
+            pmetrics_meta->meta_trk_list, meta_list_hd) {
+        if (meta_id == pmetrics_meta_node->meta_id) {
+            LOG_DBG("Meta ID = %d exists", meta_id);
+            return pmetrics_meta_node;
+        }
+    }
+
+    /* couldn't find the node returning empty */
+    return NULL;
+}
 /*
  * Free the given cmd id node from the command track list.
  */

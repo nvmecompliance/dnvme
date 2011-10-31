@@ -374,7 +374,8 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     struct  metrics_device_list *pmetrics_device_element; /* Metrics device */
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list               */
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list               */
-    unsigned long pfn;
+    struct  metrics_meta *pmeta_data;       /* pointer to meta node         */
+    unsigned long pfn = 0;
     struct inode *inode = filp->f_dentry->d_inode;
     u32 qtype;
     u16 qid;
@@ -391,14 +392,14 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     }
 
     /* Calculate the q id and q type from offset */
-    qtype = (vma->vm_pgoff >> 0x10) & 0x1;
+    qtype = (vma->vm_pgoff >> 0x10) & 0x3;
     qid = vma->vm_pgoff & 0xFFFF;
 
-    LOG_DBG("Q Type = %d", qtype);
-    LOG_DBG("Q ID = 0x%x", qid);
+    LOG_DBG("Type = %d", qtype);
+    LOG_DBG("ID = 0x%x", qid);
 
     /* If Q type is 1 implies SQ */
-    if (qtype != 0) {
+    if (qtype == 0x1) {
         pmetrics_sq_list = find_sq(pmetrics_device_element, qid);
         if (pmetrics_sq_list == NULL) {
             ret_val = -EBADSLT;
@@ -406,7 +407,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         }
         pfn = virt_to_phys(pmetrics_sq_list->private_sq.vir_kern_addr) >>
                 PAGE_SHIFT;
-    } else {
+    } else if (qtype == 0x0) {
         pmetrics_cq_list = find_cq(pmetrics_device_element, qid);
         if (pmetrics_cq_list == NULL) {
             ret_val = -EBADSLT;
@@ -414,6 +415,14 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         }
         pfn = virt_to_phys(pmetrics_cq_list->private_cq.vir_kern_addr) >>
                 PAGE_SHIFT;
+    } else if (qtype == 0x2) {
+        /* Meta data Id */
+        pmeta_data = find_meta_node(pmetrics_device_element, qid);
+        if (pmeta_data == NULL) {
+            ret_val = -EBADSLT;
+            goto mmap_exit;
+        }
+        pfn = virt_to_phys(pmeta_data->vir_kern_addr) >> PAGE_SHIFT;
     }
     LOG_DBG("PFN = 0x%lx", pfn);
     ret_val = remap_pfn_range(vma, vma->vm_start, pfn,
@@ -451,7 +460,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct nvme_file    *n_file;         /* dump metrics parameters          */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry parameters          */
     struct nvme_reap *reap_data;         /* Actual Reap parameters           */
-    u16 test_number;
+    u16    test_number;
     unsigned char __user *datap = (unsigned char __user *)ioctl_param;
     struct inode *inode = filp->f_dentry->d_inode;
 
@@ -599,6 +608,30 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         LOG_DBG("Return Driver Metrics ioctl..");
         ret_val = copy_to_user(datap, &g_metrics_drv, sizeof(struct
                 metrics_driver));
+        break;
+
+    case NVME_IOCTL_METABUF_CREATE:
+        LOG_DBG("Meta Buffer Create IOCTL...");
+        /* Assign user passed parameters to alloc_size */
+        if (ioctl_param > MAX_METABUFF_SIZE) {
+            LOG_ERR("Size Exceeds Max(16KB) = 0x%x", (u16)ioctl_param);
+            ret_val = -EINVAL;
+            break;
+        }
+        /* Call meta buff create routine */
+        ret_val = metabuff_create(pmetrics_device_element, (u16)ioctl_param);
+        break;
+
+    case NVME_IOCTL_METABUF_ALLOC:
+        LOG_DBG("Meta Buffer Alloc IOCTL...");
+        /* Call meta buff allocation routine */
+        ret_val = metabuff_alloc(pmetrics_device_element, (u16)ioctl_param);
+        break;
+
+    case NVME_IOCTL_METABUF_DELETE:
+        LOG_DBG("Meta Buffer Delete IOCTL...");
+        /* Call meta buff delete routine */
+        ret_val = metabuff_del(pmetrics_device_element, (u16)ioctl_param);
         break;
 
     case IOCTL_UNIT_TESTS:

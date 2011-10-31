@@ -729,7 +729,9 @@ int main(void)
 
     //test_regression(file_desc);
     //test_reap(file_desc);
-    test_reap_regression(file_desc);
+    //test_reap_regression(file_desc);
+
+    test_meta(file_desc);
 
     printf("Call to close the file_desc.");
     close(file_desc);

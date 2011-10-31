@@ -1,8 +1,8 @@
 #ifndef _DNVME_IOCTLS_H_
 #define _DNVME_IOCTLS_H_
 
-/* 0.1.15 */
-#define    API_VERSION          0x00000115
+/* 0.1.16 */
+#define    API_VERSION          0x00000116
 
 /**
 * Enumeration types which provide common interface between
@@ -25,6 +25,9 @@ enum {
     NVME_REAP_INQUIRY,     /** <enum Invoke Reap inquiry                */
     NVME_REAP,             /** <enum Invoke actual reap algo            */
     NVME_GET_DRIVER_METRICS, /** <enum return driver version            */
+    NVME_METABUF_ALLOC,    /** <enym Alloc meta buffers                 */
+    NVME_METABUF_CREAT,    /** <enum meta buffer create                 */
+    NVME_METABUF_DEL,      /** <enum meta buffer delete                 */
     UNIT_TESTS,            /* Generic IOCTL to set up UT scenarios      */
 };
 
@@ -197,6 +200,31 @@ enum {
 #define NVME_IOCTL_GET_DRIVER_METRICS _IOWR('A', NVME_GET_DRIVER_METRICS,\
         struct metrics_driver)
 
+/**
+* @def NVME_IOCTL_METABUF_ALLOC
+* define a unique value to meta buffer allocation. The third parameter give the
+* size of data and type of data passed to this ioctl from user to kernel.
+*/
+#define NVME_IOCTL_METABUF_ALLOC _IOWR('A', NVME_METABUF_ALLOC, uint16_t)
+
+/**
+* @def NVME_IOCTL_METABUF_CREATE
+* define a unique value to meta buffer creation. The 'A' value is the group to
+* which this IOCTL type belongs to,generally from (0-255)the second parameter
+* is type within the group defined in the enum. The third parameter give the
+* size of data and type of data passed to this ioctl from user to kernel.
+*/
+#define NVME_IOCTL_METABUF_CREATE _IOWR('A', NVME_METABUF_CREAT, uint16_t)
+
+/**
+* @def NVME_IOCTL_METABUF_DELETE
+* define a unique value meta buffer deletion. The 'A' value is the group to
+* which this IOCTL type belongs to,generally from (0-255)the second parameter
+* is type within the group defined in the enum. The third parameter give the
+* size of data and type of data that is passed to this ioctl from user level
+* to kernel.
+*/
+#define NVME_IOCTL_METABUF_DELETE _IOWR('A', NVME_METABUF_DEL, uint16_t)
 
 /**
  * @def IOCTL_UNIT_TESTS
