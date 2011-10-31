@@ -753,7 +753,7 @@ int main()
     do {
         printf("Enter a valid test case number:");
         scanf ("%d", &test_case);
-    	switch(test_case) {
+        switch(test_case) {
         case 1:
             printf("Test1: Initializing the state of the device to Run tests\n");
             printf("Calling Contoller State to set to Disable state\n");
@@ -853,7 +853,7 @@ int main()
             printf("Test to send IO Read command Done\n");
             break;
         case 9: /* Reading contents of the read buffer */
-        	printf("\nReadin Data:\n");
+            printf("\nReadin Data:\n");
             for (i = 0; i < READ_BUFFER_SIZE; i++) {
                printf("%x ",*(uint8_t *)(read_buffer +i) );
             }
