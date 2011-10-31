@@ -46,7 +46,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
 
         if (ret_code < 0) {
             LOG_ERR("Data buffer to PRP generation failed");
-            goto err;
+            return ret_code;
         }
         /* Update the PRP's in the command based on type */
         if ((prps->type == (PRP1 | PRP2)) ||
@@ -64,13 +64,11 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
         if (ret_code < 0) {
             LOG_ERR("Failure to add command track node for\
                 Create Contig Queue Command");
-            goto err;
+            return ret_code;
         }
     }
     return 0;
 
-err:
-    return ret_code;
 }
 
 /*
