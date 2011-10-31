@@ -268,6 +268,20 @@ int ioctl_ut_reap_inq(int file_desc)
     return 0;
 }
 
+
+int ioctl_ut_reap(int file_desc)
+{
+    uint16_t tmp;
+
+    tmp = 2; // Reap Inquiry Unit Test setup.
+    if (ioctl(file_desc, IOCTL_UNIT_TESTS, &tmp) < 0) {
+        printf("\n\nTest = %d Setup failed...", tmp);
+        return -1;
+    }
+    return 0;
+}
+
+
 int ioctl_ut_mmap(int file_desc)
 {
     uint16_t tmp;
@@ -385,158 +399,329 @@ void display_contents(uint64_t *kadr, int elem)
 
 int test_regression(int file_desc)
 {
-       uint32_t sq_id = 0;
-       char *tmpfile1 = "/tmp/regression_file1.txt";
-       char *tmpfile2 = "/tmp/regression_file2.txt";
-       char *tmpfile3 = "/tmp/regression_file3.txt";
-       uint64_t *kadr;
-       int fd2;
-       int fd3;
+    uint32_t sq_id = 0;
+    char *tmpfile1 = "/tmp/regression_file1.txt";
+    char *tmpfile2 = "/tmp/regression_file2.txt";
+    char *tmpfile3 = "/tmp/regression_file3.txt";
+    uint64_t *kadr;
+    int fd3;
 
-       /*printf("Ensure you have permissions to device..\n\
-       else \n do \"chmod 777 /dev/qnvme0\" \n");*/
+    printf("\n******\t Sprint 2 Demo \t******\n");
 
-       printf("Try opening an already opened device...\n");
-       fd3 = open(DEVICE_FILE_NAME, 0);
-       if (fd3 > 0) {
-           printf("Should not open an already opened device...");
-           exit(-1);
-       }
-       printf("Device not opened as expected...\n");
-       printf("\nPress any key to continue..");
-       getchar();
+    /*printf("Ensure you have permissions to device..\n\
+    else \n do \"chmod 777 /dev/qnvme0\" \n");*/
+    printf("Starting Test Application...\n");
 
-
-       printf("Calling Controller State to set to Disable state\n");
-       ioctl_disable_ctrl(file_desc, ST_DISABLE);
-       printf("\nPress any key to continue..");
-       getchar();
+    printf("Try opening an already opened device...\n");
+    fd3 = open(DEVICE_FILE_NAME, 0);
+    if (fd3 > 0) {
+        printf("Should not open an already opened device...");
+        exit(-1);
+    }
+    printf("Device not opened as expected...\n");
+    printf("\nPress any key to continue..");
+    getchar();
 
 
-       test_admin(file_desc);
-       printf("\n...Test PASS if creation is success.");
-       printf("\nPress any key to continue..");
-       getchar();
-
-       printf("\nTEST 2.1: Calling Controller State to set to Enable state\n");
-       ioctl_enable_ctrl(file_desc);
-       printf("\nPress any key to continue..");
-       getchar();
-
-       printf("\nSet IO Q Size before proceeding....\n");
-       ioctl_write_data(file_desc);
-       printf("\nPress any key to continue..");
-       getchar();
-
-       test_prep_sq(file_desc);
-       printf("\n...Test PASS if all Preparation success...");
-       printf("\nPress any key to continue..");
-       getchar();
-
-       test_prep_cq(file_desc);
-       printf("\n...Test PASS if all Preparation success...");
-       printf("\nPress any key to continue..");
-       getchar();
+    printf("Calling Controller State to set to Disable state\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE);
+    printf("\nPress any key to continue..");
+    getchar();
 
 
-       test_prep_sq(file_desc);
-       printf("\n...Test PASS if all Preparation fails...");
-       printf("\nPress any key to continue..");
-       getchar();
+    test_admin(file_desc);
+    printf("\n...Test PASS if creation is success.");
+    printf("\nPress any key to continue..");
+    getchar();
 
-       test_prep_cq(file_desc);
-       printf("\n...Test PASS if all Preparation fails...");
-       printf("\nPress any key to continue..");
-       getchar();
+    printf("\nTEST 2.1: Calling Controller State to set to Enable state\n");
+    ioctl_enable_ctrl(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
 
-       printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
-       ioctl_ut_reap_inq(file_desc);
-       printf("\nPress any key to continue..");
-       getchar();
+    printf("\nSet IO Q Size before proceeding....\n");
+    ioctl_write_data(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
 
-       printf("\nTest 2.4: Testing Reap Inquiry...\n");
-       test_reap_inquiry(file_desc);
-       printf("\nPress any key to continue..");
-       getchar();
+    test_prep_sq(file_desc);
+    printf("\n...Test PASS if all Preparation success...");
+    printf("\nPress any key to continue..");
+    getchar();
 
-       printf("\n Test 2.5: Call Ring Doorbell\n");
-       tst_ring_dbl(file_desc);
-       printf("\nPress any key to continue..");
-       getchar();
+    test_prep_cq(file_desc);
+    printf("\n...Test PASS if all Preparation success...");
+    printf("\nPress any key to continue..");
+    getchar();
 
-       ioctl_ut_mmap(file_desc);
-       printf("\nPress any key to continue..");
-       getchar();
+    test_prep_sq(file_desc);
+    printf("\n...Test PASS if all Preparation fails...");
+    printf("\nPress any key to continue..");
+    getchar();
 
-       sq_id = 0x10000;
-       printf("\nTEST 3.1: Call to Mmap SQ 0\n");
-       kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * sq_id);
-       if (!kadr) {
-           printf("mapping failed\n");
-           return -1;
-       }
-       display_contents(kadr, 15);
-       printf("\nPress any key to continue..");
-       getchar();
+    test_prep_cq(file_desc);
+    printf("\n...Test PASS if all Preparation fails...");
+    printf("\nPress any key to continue..");
+    getchar();
 
-       munmap(kadr, 4096);
+    printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
+    ioctl_ut_reap_inq(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
 
-       sq_id = 0x0;
-       printf("\nTEST 3.2: Calling to mmap CQ 0\n");
-       kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * sq_id);
-       if (!kadr) {
-           printf("mapping failed\n");
-           return -1;
-       }
-       display_contents(kadr, 15);
-       printf("\nPress any key to continue..");
-       getchar();
-       munmap(kadr, 4096);
+    printf("\nTest 2.4: Testing Reap Inquiry...\n");
+    test_reap_inquiry(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
 
-       test_admin(file_desc);
-       printf("\n...Test PASS if creation is not successful.");
-       printf("\nPress any key to continue..");
-       getchar();
+    printf("\n Test 2.5: Call Ring Doorbell\n");
+    tst_ring_dbl(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
 
-       printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile1\n");
-       ioctl_dump(file_desc, tmpfile1);
-       printf("\nPress any key to continue..");
-       getchar();
+    ioctl_ut_mmap(file_desc);
+    printf("\nPress any key to continue..");
+    getchar();
 
-       printf("\nTest 2.7: Calling Controller State to set to Disable state\n");
-       ioctl_disable_ctrl(file_desc, ST_DISABLE);
-       printf("\nPress any key to continue..");
-       getchar();
+    sq_id = 0x10000;
+    printf("\nTEST 3.1: Call to Mmap SQ 0\n");
+    kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * sq_id);
+    if (!kadr) {
+        printf("mapping failed\n");
+        return -1;
+    }
+    display_contents(kadr, 15);
+    printf("\nPress any key to continue..");
+    getchar();
 
-       printf("\nTest 2.6.2 : Calling Dump Metrics to tmpfile2 after DISABLE...\n");
-       ioctl_dump(file_desc, tmpfile2);
-       printf("\nPress any key to continue..");
-       getchar();
+    munmap(kadr, 4096);
 
-       printf("\nTest 2.8: Calling Controller State to set to ST_DISABLE_COMPLETELY state\n");
-       ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
-       printf("\nPress any key to continue..");
-       getchar();
+    sq_id = 0x0;
+    printf("\nTEST 3.2: Calling to mmap CQ 0\n");
+    kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * sq_id);
+    if (!kadr) {
+        printf("mapping failed\n");
+        return -1;
+    }
+    display_contents(kadr, 15);
+    printf("\nPress any key to continue..");
+    getchar();
+    munmap(kadr, 4096);
 
-       printf("\nTest 2.6.3 :Calling Dump Metrics to tmpfile3 After DISABLE_COMPLETELY...\n");
-       ioctl_dump(file_desc, tmpfile3);
-       printf("\nPress any key to continue..");
-       getchar();
+    test_admin(file_desc);
+    printf("\n...Test PASS if creation is not successful.");
+    printf("\nPress any key to continue..");
+    getchar();
 
-       fd2 = open(DEVICE_FILE_NAME, 0);
-       if (fd2 < 0) {
-           printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
-           printf("Test Suceeded");
-       } else {
-           printf("Call to close the fd.");
-           close(fd2);
-       }
+    printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile1\n");
+    ioctl_dump(file_desc, tmpfile1);
+    printf("\nPress any key to continue..");
+    getchar();
 
+    printf("\nTest 2.7: Calling Controller State to set to Disable state\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE);
+    printf("\nPress any key to continue..");
+    getchar();
 
-       printf("\nEnd of Regression Testing...");
-       printf("\nPress any key to continue..");
-       getchar();
-       return 0;
+    printf("\nTest 2.6.2 : Calling Dump Metrics to tmpfile2 after DISABLE...\n");
+    ioctl_dump(file_desc, tmpfile2);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    printf("\nTest 2.8: Calling Controller State to set to ST_DISABLE_COMPLETELY state\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    printf("\nTest 2.6.3 :Calling Dump Metrics to tmpfile3 After DISABLE_COMPLETELY...\n");
+    ioctl_dump(file_desc, tmpfile3);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    printf("\nEnd of Regression Testing...");
+    printf("\nPress any key to continue..");
+    getchar();
+    return 0;
+}
+
+void set_reap_cq(int file_desc, int cq_id, int elements, int size, int disp)
+{
+    ioctl_reap_cq(file_desc, cq_id, elements, size, disp);
+}
+
+void test_reap(int file_desc)
+{
+    int size, elements;
+    int cq_id;
+    char *tmpfile1 = "/tmp/file_name5.txt";
+    char *tmpfile2 = "/tmp/file_name6.txt";
+
+    set_admn(file_desc);
+
+    printf("\nSet IO Q Size before proceeding....\n");
+    ioctl_write_data(file_desc);
+
+    test_prep_sq(file_desc);
+    printf("\n...Test PASS if all Preparation fails...");
+    printf("\nPress any key to continue..");
+    getchar();
+
+    ioctl_prep_cq(file_desc, 4, 100, 1);
+    ioctl_prep_cq(file_desc, 5, 100, 1);
+
+    //test_prp(file_desc);
+
+    printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile1\n");
+    ioctl_dump(file_desc, tmpfile1);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
+    ioctl_ut_reap_inq(file_desc);
+    ioctl_ut_reap(file_desc);
+
+    // Admin Reaping.
+    // Num Could Reap = 4.
+    cq_id = 0;
+    elements = 2;
+    size = elements * 16; // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+
+    cq_id = 5;
+    elements = 2;
+    size = elements * 16; // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+
+    cq_id = 5;
+    elements = 5;
+    size = elements * 16; // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size, 0);
+    set_reap_cq(file_desc, cq_id, elements, size, 0);
+
+    cq_id = 4;
+    elements = 1;
+    size = elements * 16; // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size, 0); // Reap 1
+    set_reap_cq(file_desc, cq_id, elements, size, 0); // Reap next
+
+    printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile2\n");
+    ioctl_dump(file_desc, tmpfile2);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    printf("\nCheck Reap Outputs...");
+    printf("\nPress any key to continue..");
+    getchar();
+}
+
+void reset_for_reap(int file_desc)
+{
+    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+    set_admn(file_desc);
+    ioctl_write_data(file_desc);
+    ioctl_prep_cq(file_desc, 4, 100, 1);
+    ioctl_prep_cq(file_desc, 5, 100, 1);
+
+    printf("\nSet Up IO Q's to actually have some data to be reaped...\n");
+    ioctl_ut_reap_inq(file_desc);
+    ioctl_ut_reap(file_desc);
+}
+
+void reap_params_mod16(int file_desc, int elements)
+{
+    int size;
+    int cq_id;
+
+    reset_for_reap(file_desc);
+
+    // Num Could Reap = 51. Size is equal
+     cq_id = 5;
+     size = (elements * 16); // 16 CE entry
+     set_reap_cq(file_desc, cq_id, elements, size, 1);
+     printf("\nPress any key to continue..");
+     getchar();
+
+     reset_for_reap(file_desc);
+
+     // Num Could Reap = 51. Size is less %16
+     cq_id = 5;
+     size = (elements * 16) - 16 * 10; // 16 CE entry
+     set_reap_cq(file_desc, cq_id, elements, size, 1);
+     printf("\nPress any key to continue..");
+     getchar();
+
+     reset_for_reap(file_desc);
+
+     // Num Could Reap = 51. Size is more %16
+     cq_id = 5;
+     size = (elements * 16) + 16 * 2; // 16 CE entry
+     set_reap_cq(file_desc, cq_id, elements, size, 1);
+     printf("\nPress any key to continue..");
+     getchar();
+}
+
+void reap_params_mod17(int file_desc, int elements)
+{
+    int size;
+    int cq_id;
+
+    reset_for_reap(file_desc);
+
+    // Num Could Reap = 51. Size is equal
+    cq_id = 5;
+    size = (elements * 16); // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reset_for_reap(file_desc);
+    // Num Could Reap = 51. Size is less %17
+    cq_id = 5;
+    size = (elements * 16) - 17 * 10; // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reset_for_reap(file_desc);
+
+    // Num Could Reap = 51. Size is more %17
+    cq_id = 5;
+    size = (elements * 16) + 17 * 2; // 16 CE entry
+    set_reap_cq(file_desc, cq_id, elements, size, 1);
+    printf("\nPress any key to continue..");
+    getchar();
+}
+
+void test_reap_regression(int file_desc)
+{
+    // Num Could Reap = 51
+    reap_params_mod16(file_desc, 53);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reap_params_mod16(file_desc, 50);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reap_params_mod16(file_desc, 51);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    // Num Could Reap = 51
+    reap_params_mod17(file_desc, 53);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reap_params_mod17(file_desc, 50);
+    printf("\nPress any key to continue..");
+    getchar();
+
+    reap_params_mod17(file_desc, 51);
+    printf("\nPress any key to continue..");
+    getchar();
+
 }
 
 int main()
@@ -675,10 +860,14 @@ int main()
         case 10: /* Regression testing */
             test_regression(file_desc);
             break;
+        case 11: /* Reap Regression */
+            test_drv_metrics(file_desc);
+            test_reap_regression(file_desc);
+            break;
         default:
             printf("Undefined case!");
         }
-    } while (test_case < 11);
+    } while (test_case < 12);
     free(read_buffer);
     printf("\n\n****** END OF DEMO ******\n\n");
     close(file_desc);

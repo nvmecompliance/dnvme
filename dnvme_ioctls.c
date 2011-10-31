@@ -246,6 +246,7 @@ int driver_generic_read(struct rw_generic *nvme_data,
         nvme_data->nBytes)) {
         LOG_ERR("Invalid copy to user space");
         ret_code = -EFAULT;
+        goto err;
     }
 
 err:
@@ -266,6 +267,7 @@ int driver_generic_write(struct rw_generic *nvme_data,
     struct nvme_device *nvme_dev;
     void* datap;
 
+    /* TODO Clean up kmalloc mem */
     LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
     /* get the device from the list */
@@ -389,6 +391,7 @@ int driver_generic_write(struct rw_generic *nvme_data,
                 nvme_data->acc_type);
         if (ret_code < 0) {
             LOG_ERR("Write NVME Space failed");
+            goto err;
         }
         /* done with nvme space writing break from this case .*/
         break;
@@ -901,11 +904,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
     } else {
         /* For rest of the commands */
-        if (nvme_64b_send->data_buf_ptr == NULL) {
-            ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
-                pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
-                    PERSIST_QID_0, DATA_BUF, PRP_ABSENT);
-        } else {
+        if (nvme_64b_send->data_buf_ptr != NULL) {
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
                     PERSIST_QID_0, DATA_BUF, PRP_PRESENT);
@@ -952,15 +951,6 @@ ret:
     return ret_code;
 }
 
-/*
-* driver_default_ioctl - Default if none of the switch
-* in ioctl gets called.
-*/
-int driver_default_ioctl(struct file *file, unsigned long buffer,
-    size_t length)
-{
-    return 0;
-}
 /*
  * nvme_get_q_metrics will return the q metrics from the global data
  * structures if the q_id send down matches any q_id for this device.

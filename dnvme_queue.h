@@ -20,11 +20,6 @@
 #define NVME_TO_MASK    0xFF000000
 
 /*
-* Each unit in TO is 500 ms, converting ms to jiffies
-*/
-#define NVME_MSEC_2_JIFFIES (500 * HZ / 1000)
-
-/*
  * Maximum AQ entries allowed.
  */
 #define MAX_AQ_ENTRIES   4096
@@ -99,14 +94,6 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
         struct  metrics_sq  *pmetrics_sq_list);
 
 /**
-* This is the timer handler which will be invoked by the kernel when the timer
-* expires in the timer.expires field. This function will set a flag which is
-* used by the create admn sq routine to exit.
-* @param arg
-*/
-void jit_timer_fn(unsigned long arg);
-
-/**
 * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
 * flag and this function which call the timer handler and check for the timer
 * expiration. It returns success if the ctrl in rdy before timeout.
@@ -162,8 +149,8 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 * @param pmetrics_device_element
 * @return SUCCESS or FAIL
 */
-int nvme_ring_sqx_dbl(struct nvme_ring_sqxtdbl *ring_sqx,
-        struct  metrics_device_list *pmetrics_device_element);
+int nvme_ring_sqx_dbl(u16 *ring_sqx, struct  metrics_device_list
+        *pmetrics_device_element);
 
 /**
  * finds the sq node in the given sq list for the given sq id
@@ -182,5 +169,13 @@ struct metrics_sq *find_sq(struct  metrics_device_list
  */
 struct metrics_cq *find_cq(struct  metrics_device_list
         *pmetrics_device_element, u16 cq_id);
+
+/*
+ * Find the command node for the given sq node and cmd id.
+ * @param pmetrics_sq_node
+ * @param cmd_id
+ * @return pointer to cmd node for given cmd id.
+ */
+struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id);
 
 #endif

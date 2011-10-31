@@ -71,3 +71,16 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
     }
 
 }
+
+void test_drv_metrics(int file_desc)
+{
+    struct metrics_driver get_drv_metrics;
+    int ret_val = -1;
+
+    ret_val = ioctl(file_desc, NVME_IOCTL_GET_DRIVER_METRICS, &get_drv_metrics);
+    if (ret_val < 0) {
+        printf("\tDrv metrics failed!\n");
+    }
+    printf("\nDrv Version = 0x%X\n", get_drv_metrics.driver_version);
+    printf("Api Version = 0x%X\n", get_drv_metrics.api_version);
+}

@@ -6,7 +6,9 @@
 #include <linux/mutex.h>
 #include "dnvme_interface.h"
 
-#define    NVME_DS_VERSION    1.15
+/* 0.0.01 */
+#define    DRIVER_VERSION           0x00000001
+#define    DRIVER_VERSION_STR(VER)  #VER
 
 /*
  * Strucutre used to define all the essential parameters

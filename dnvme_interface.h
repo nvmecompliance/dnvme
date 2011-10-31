@@ -25,13 +25,12 @@ enum nvme_acc_type {
 };
 
 /**
- * These enums define the type of interrupt scheme that the overall
- * system uses.
- */
+* These enums define the type of interrupt scheme that the overall
+* system uses.
+*/
 enum nvme_irq_type {
     INT_PIN,
-    INT_MSI,
-    INT_SINGLE,
+    INT_MSI_SINGLE,
     INT_MSI_MULTI,
     INT_MSIX,
     INT_NONE,
@@ -100,8 +99,8 @@ struct nvme_64b_send {
  * check if these versions match.
  */
 struct metrics_driver {
-    uint16_t    driver_version;         /* dnvme driver version              */
-    uint16_t    api_version;            /* tnvme test application version    */
+    uint32_t    driver_version;         /* dnvme driver version              */
+    uint32_t    api_version;            /* tnvme test application version    */
 };
 
 /**
@@ -183,14 +182,6 @@ struct nvme_prep_cq {
 };
 
 /**
- * Interface structure for Ring Submission Q doorbell. The id passed is for SQ
- * to ring its doorbell.
- */
-struct nvme_ring_sqxtdbl {
-    uint16_t    sq_id;  /* The SQ ID of the SQ to ring doorbell */
-};
-
-/**
  * Interface structure for getting the metrics structure into a user file.
  * The filename and location are specified thought file_name parameter.
  */
@@ -215,6 +206,7 @@ struct nvme_reap {
     uint16_t q_id;          /* CQ ID to reap commands for             */
     uint16_t elements;      /* Get the no. of elements to be reaped   */
     uint16_t num_remaining; /* return no. of cmds waiting for this cq */
+    uint16_t num_reaped;    /* retrun no. of elements reaped          */
     uint16_t size;          /* Size of buffer to fill data to         */
     uint8_t  *buffer;       /* Buffer to copy reaped data             */
 };

@@ -26,9 +26,8 @@
 #include "dnvme_cmds.h"
 #include "ut_reap_inq.h"
 
-#define    DRV_NAME            "dnvme"
-#define    NVME_DEVICE_NAME    "qnvme"
-#define    DRV_VERSION         "1.0"
+#define    DRV_NAME             "dnvme"
+#define    NVME_DEVICE_NAME     "qnvme"
 
 /*
 * Define the PCI storage express as
@@ -65,6 +64,9 @@ static struct  metrics_device_list *lock_device(struct inode *inode);
 static void unlock_device(struct  metrics_device_list *pmetrics_device_element);
 static struct  metrics_device_list *find_device(struct inode *inode);
 
+/* metrics driver */
+struct metrics_driver g_metrics_drv;
+
 /* char device specific parameters */
 static int NVME_MAJOR;
 static struct class *class_nvme;
@@ -88,6 +90,10 @@ static int dnvme_init(void)
 
     LOG_NRM("version: %d.%d", VER_MAJOR, VER_MINOR);
     LOG_DBG("Init module - dnvme init");
+
+    /* As the params are u16, we use 1.0 as 100 */
+    g_metrics_drv.driver_version = DRIVER_VERSION;
+    g_metrics_drv.api_version = API_VERSION;
 
     /* This is classic way to register a char device */
     NVME_MAJOR = register_chrdev(NVME_MAJOR, NVME_DEVICE_NAME, &dnvme_fops_f);
@@ -433,14 +439,15 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 {
     struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
     int ret_val = -EINVAL;        /* set ret val to invalid, chk for success */
-    struct rw_generic *nvme_data; /* Local struct var for nvme rw dat        */
+    struct rw_generic *nvme_data; /* Local struct var for nvme rw data       */
     int *nvme_dev_err_sts;        /* nvme device error status                */
     enum nvme_state *ctrl_new_state;          /* controller new state        */
     struct nvme_get_q_metrics *get_q_metrics; /* metrics q params            */
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
     struct nvme_prep_cq *prep_cq;   /* CQ params for preparing IO CQ         */
-    struct nvme_ring_sqxtdbl *ring_sqx;  /* Ring SQx door-bell params        */
+
+    u16   *ring_sqx;                /* SQ ID to ring the door-bell           */
     struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params               */
     struct nvme_file    *n_file;         /* dump metrics params              */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
@@ -530,7 +537,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     case NVME_IOCTL_PREPARE_SQ_CREATION:
         LOG_DBG("Driver Preparation for IO SQ");
-        /* Assign user passed parameters to q metrics structure. */
+        /* Assign user passed parameters to prep_sq structure. */
         prep_sq = (struct nvme_prep_sq *)ioctl_param;
         /* Call alloc_sq function to add a node in liked list */
         ret_val = driver_nvme_prep_sq(prep_sq, pmetrics_device_element);
@@ -538,7 +545,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     case NVME_IOCTL_PREPARE_CQ_CREATION:
         LOG_DBG("Driver Preparation for IO CQ");
-        /* Assign user passed parameters to q metrics structure. */
+        /* Assign user passed parameters to prep_cq structure. */
         prep_cq = (struct nvme_prep_cq *)ioctl_param;
         /* Call alloc_sq function to add a node in liked list */
         ret_val = driver_nvme_prep_cq(prep_cq, pmetrics_device_element);
@@ -546,15 +553,15 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     case NVME_IOCTL_RING_SQ_DOORBELL:
         LOG_DBG("Driver Call to Ring SQx Doorbell");
-        /* Assign user passed parameters to q metrics structure. */
-        ring_sqx = (struct nvme_ring_sqxtdbl *)ioctl_param;
+        /* Assign user passed parameters to sqx to be rung */
+        ring_sqx = (u16 *)ioctl_param;
         /* Call the ring doorbell driver function */
         ret_val = nvme_ring_sqx_dbl(ring_sqx, pmetrics_device_element);
         break;
 
     case NVME_IOCTL_SEND_64B_CMD:
         LOG_DBG("IOCTL NVME_IOCTL_SEND_64B_CMD Command");
-        /* Assign user passed parameters to local struct pointrs */
+        /* Assign user passed parameters to local struct pointers */
         nvme_64b_send = (struct nvme_64b_send *)ioctl_param;
         ret_val =  driver_send_64b(pmetrics_device_element, nvme_64b_send);
         /* Display success or fail */
@@ -587,7 +594,12 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         reap_data = (struct nvme_reap *)ioctl_param;
         /* call reap inquiry driver routine */
         ret_val = driver_reap_cq(pmetrics_device_element, reap_data);
+        break;
 
+    case NVME_IOCTL_GET_DRIVER_METRICS:
+        LOG_DBG("Return Driver Metrics ioctl..");
+        ret_val = copy_to_user(datap, &g_metrics_drv, sizeof(struct
+                metrics_driver));
         break;
 
     case IOCTL_UNIT_TESTS:
@@ -603,6 +615,11 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         case 1:
             LOG_DBG("UT Mmap ioctl:");
             unit_test_mmap(pmetrics_device_element);
+            ret_val = SUCCESS;
+            break;
+        case 2:
+            LOG_DBG("UT Reap Admin");
+            unit_test_reap(pmetrics_device_element);
             ret_val = SUCCESS;
             break;
         default:
@@ -665,7 +682,7 @@ static void __exit dnvme_exit(void)
 MODULE_DESCRIPTION("Kernel Device Driver for NVME PCI Express card");
 MODULE_AUTHOR("T Sravan Kumar <sravan.kumar.thokala@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
+MODULE_VERSION(DRIVER_VERSION_STR(DRIVER_VERSION));
 MODULE_ALIAS("platform:"DRV_NAME);
 
 module_init(dnvme_init);
