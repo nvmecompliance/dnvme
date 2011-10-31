@@ -593,7 +593,7 @@ static int deallocate_metrics_cq(struct device *dev,
     /* Delete memory for all metrics_cq for current id here */
     if (pmetrics_cq_list->private_cq.contig == 0) {
         /* Deletes the PRP persist entry */
-        del_prp_persist(pmetrics_device->metrics_device,
+        del_prps(pmetrics_device->metrics_device,
             &pmetrics_cq_list->private_cq.prp_persist);
 
     } else {
@@ -626,7 +626,7 @@ static int deallocate_metrics_sq(struct device *dev,
 
     if (pmetrics_sq_list->private_sq.contig == 0) {
         /* Deletes the PRP persist entry */
-        del_prp_persist(pmetrics_device->metrics_device,
+        del_prps(pmetrics_device->metrics_device,
             &pmetrics_sq_list->private_sq.prp_persist);
     } else {
         LOG_DBG("DMA Free for contig sq id = %d", pmetrics_sq_list->
@@ -811,7 +811,6 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
 {
     struct metrics_cq  *pmetrics_cq_node;   /* ptr to cq node       */
     u16 num_remain;
-    int ret_val = SUCCESS;
 
 
     /* Find given CQ in list */
@@ -831,7 +830,7 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         LOG_ERR("Error copying to user buffer returning");
         return -EFAULT;
     }
-
+    return SUCCESS;
 }
 
 /*
@@ -1008,11 +1007,8 @@ static int process_algo_gen(struct metrics_sq *pmetrics_sq_node,
         LOG_ERR("Command id = %d does not exist", cmd_id);
         return -EBADSLT; /* Invalid slot */
     }
-    /* TODO: Call the Wrapper */
-    unmap_user_pg_to_dma(pmetrics_device->metrics_device, &pcmd_node->
-            prp_nonpersist);
-    free_prp_pool(pmetrics_device->metrics_device, &pcmd_node->prp_nonpersist,
-            pcmd_node->prp_nonpersist.npages);
+
+    del_prps(pmetrics_device->metrics_device, &pcmd_node->prp_nonpersist);
 
     ret_val = remove_cmd_node(pmetrics_sq_node, cmd_id);
 

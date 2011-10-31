@@ -212,7 +212,7 @@ void ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid)
 
     /* Fill the user command */
     user_cmd.q_id = 0;
-    user_cmd.bit_mask = MASK_NO_PRP;
+    user_cmd.bit_mask = 0;
     user_cmd.cmd_buf_ptr = (u_int8_t *) &del_q_cmd;
     user_cmd.data_buf_size = 0;
     user_cmd.data_buf_ptr = NULL;

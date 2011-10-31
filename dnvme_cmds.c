@@ -19,7 +19,7 @@ static int map_user_pg_to_dma(struct nvme_device *, __u8,
 static int pages_to_sg(struct page **,
     __u32, __u32, __u32, struct scatterlist **);
 static int setup_prps(struct nvme_device *, struct scatterlist *,
-    __s32, struct nvme_prps *, __u8, __u16);
+    __s32, struct nvme_prps *, __u8, enum send_64b_bitmask);
 static void unmap_user_pg_to_dma(struct nvme_device *, struct nvme_prps *);
 static void free_prp_pool(struct nvme_device *,
     struct nvme_prps *, __u32);
@@ -129,12 +129,7 @@ void empty_cmd_track_list(struct  nvme_device *nvme_device,
         &pmetrics_sq->private_sq.cmd_track_list) {
         pcmd_track_element =
             list_entry(pos, struct cmd_track, cmd_list_hd);
-        /* Unampping PRP's and User pages */
-        unmap_user_pg_to_dma(nvme_device,
-            &pcmd_track_element->prp_nonpersist);
-        free_prp_pool(nvme_device,
-            &pcmd_track_element->prp_nonpersist,
-                pcmd_track_element->prp_nonpersist.npages);
+        del_prps(nvme_device, &pcmd_track_element->prp_nonpersist);
         list_del(pos);
         kfree(pcmd_track_element);
     } /* End of cmd_track_list */
@@ -142,10 +137,10 @@ void empty_cmd_track_list(struct  nvme_device *nvme_device,
 }
 
 /*
- * del_prp_persist:
- * Deletes the persist entry of PRP structures of SQ/CQ
+ * del_prps:
+ * Deletes the PRP structures of SQ/CQ or command track node
  */
-void del_prp_persist(struct nvme_device *nvme_device, struct nvme_prps *prps)
+void del_prps(struct nvme_device *nvme_device, struct nvme_prps *prps)
 {
     /* First unmap the dma */
     unmap_user_pg_to_dma(nvme_device, prps);
@@ -406,7 +401,8 @@ static int pages_to_sg(struct page **pages,
  * TODO: Handle Create IO CQ/SQ case
  */
 static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
-    __s32 buf_len, struct nvme_prps *prps, __u8 cr_io_q, __u16 prp_mask)
+    __s32 buf_len, struct nvme_prps *prps, __u8 cr_io_q,
+        enum send_64b_bitmask prp_mask)
 {
     dma_addr_t prp_dma, dma_addr;
     __s32 dma_len; /* Length of DMA'ed SG */
@@ -425,7 +421,7 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     if (cr_io_q) {
         /* Checking for PRP1 mask */
         if (!(prp_mask & MASK_PRP1_LIST)) {
-            LOG_ERR("bit_mask does not support PRP1");
+            LOG_ERR("bit_mask does not support PRP1 list");
             err = -EINVAL;
             goto error;
         }
@@ -440,7 +436,7 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
 
     /* Checking for PRP1 mask */
     if (!(prp_mask & MASK_PRP1_PAGE)) {
-        LOG_ERR("bit_mask does not support PRP1");
+        LOG_ERR("bit_mask does not support PRP1 page");
         err = -EINVAL;
         goto error;
     }
@@ -469,7 +465,7 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     if (buf_len <= PAGE_SIZE) {
         /* Checking for PRP2 mask */
         if (!(prp_mask & MASK_PRP2_PAGE)) {
-            LOG_ERR("bit_mask does not support PRP2");
+            LOG_ERR("bit_mask does not support PRP2 page");
             err = -EINVAL;
             goto error;
         }
@@ -486,7 +482,7 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     prps->type = (PRP2 | PRP_List);
     /* Checking for PRP2 mask */
     if (!(prp_mask & MASK_PRP2_LIST)) {
-        LOG_ERR("bit_mask does not support PRP2");
+        LOG_ERR("bit_mask does not support PRP2 list");
         err = -EINVAL;
         goto error;
     }

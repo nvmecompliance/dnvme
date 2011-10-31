@@ -34,13 +34,3 @@ struct nvme_user_io {
     uint16_t lbatm;
 };
 
-/* Enum specifying bitmask passed on to IOCTL_SEND_64B */
-enum bit_mask_enum {
-    MASK_PRP1_PAGE = 1,
-    MASK_PRP1_LIST = 2,
-    MASK_PRP2_PAGE = 4,
-    MASK_PRP2_LIST = 8,
-    MASK_NO_PRP = 16,
-    MASK_MPTR = 32,
-};
-

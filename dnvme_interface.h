@@ -77,19 +77,29 @@ enum nvme_cmds {
     CMD_FENCE,   /* last element for loop over-run  */
 };
 
+/* Enum specifying bitmask passed on to IOCTL_SEND_64B */
+enum send_64b_bitmask {
+    MASK_PRP1_PAGE = 1, /* PRP1 can point to a physical page */
+    MASK_PRP1_LIST = 2, /* PRP1 can point to a PRP list */
+    MASK_PRP2_PAGE = 4, /* PRP2 can point to a physical page */
+    MASK_PRP2_LIST = 8, /* PRP2 can point to a PRP list */
+    MASK_MPTR = 16, /* MPTR may be modified */
+};
+
 /**
 * This struct is the basic structure which has important parameter for
 * sending 64 Bytes command to both admin  and IO SQ's and CQ's
 */
 struct nvme_64b_send {
-    u_int16_t q_id; /* Queue ID where the cmd_buf command should go */
-    u_int16_t bit_mask; /* BIT MASK for PRP1,PRP2 and Metadata pointer */
-    u_int32_t data_buf_size; /* Size of Data Buffer */
+    uint16_t q_id; /* Queue ID where the cmd_buf command should go */
+    /* BIT MASK for PRP1,PRP2 and Metadata pointer */
+    enum send_64b_bitmask bit_mask;
+    uint32_t data_buf_size; /* Size of Data Buffer */
     /* Data Buffer or Discontiguous CQ/SQ's user space address */
-    u_int8_t *data_buf_ptr;
-    u_int8_t *cmd_buf_ptr; /* Virtual Address pointer to 64B command */
+    uint8_t *data_buf_ptr;
+    uint8_t *cmd_buf_ptr; /* Virtual Address pointer to 64B command */
     enum nvme_cmds cmd_set; /* Command set for the cmd_buf command */
-    u_int8_t data_dir; /* Direction of DMA mapped memory 1/0 to/from device */
+    uint8_t data_dir; /* Direction of DMA mapped memory 1/0 to/from device */
 };
 
 /**

@@ -261,7 +261,7 @@ int ioctl_ut_reap_inq(int file_desc)
     uint16_t tmp;
 
     tmp = 0; // Reap Inquiry Unit Test setup.
-    if (ioctl(file_desc, IOCTL_UNIT_TESTS, &tmp) < 0) {
+    if (ioctl(file_desc, IOCTL_UNIT_TESTS, tmp) < 0) {
         printf("\n\nTest = %d Setup failed...", tmp);
         return -1;
     }
@@ -274,7 +274,7 @@ int ioctl_ut_reap(int file_desc)
     uint16_t tmp;
 
     tmp = 2; // Reap Inquiry Unit Test setup.
-    if (ioctl(file_desc, IOCTL_UNIT_TESTS, &tmp) < 0) {
+    if (ioctl(file_desc, IOCTL_UNIT_TESTS, tmp) < 0) {
         printf("\n\nTest = %d Setup failed...", tmp);
         return -1;
     }
@@ -287,7 +287,7 @@ int ioctl_ut_mmap(int file_desc)
     uint16_t tmp;
 
     tmp = 1; // Mmap Unit Test setup.
-    if (ioctl(file_desc, IOCTL_UNIT_TESTS, &tmp) < 0) {
+    if (ioctl(file_desc, IOCTL_UNIT_TESTS, tmp) < 0) {
         printf("\n\nTest = %d Setup failed...", tmp);
         return -1;
     }
@@ -749,6 +749,7 @@ int main()
         return 0;
     }
 
+    test_drv_metrics(file_desc);
     do {
         printf("Enter a valid test case number:");
         scanf ("%d", &test_case);
@@ -861,7 +862,6 @@ int main()
             test_regression(file_desc);
             break;
         case 11: /* Reap Regression */
-            test_drv_metrics(file_desc);
             test_reap_regression(file_desc);
             break;
         default:

@@ -453,7 +453,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
     struct nvme_reap *reap_data;         /* Actual Reap params               */
     u16 test_number;
-
+    struct metrics_driver *dnvme_metrics;/* Dnvme Metrics params             */
     struct inode *inode = filp->f_dentry->d_inode;
 
     LOG_DBG("Minor No = %d", iminor(inode));
@@ -598,7 +598,8 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     case NVME_IOCTL_GET_DRIVER_METRICS:
         LOG_DBG("Return Driver Metrics ioctl..");
-        ret_val = copy_to_user(datap, &g_metrics_drv, sizeof(struct
+        dnvme_metrics = (struct metrics_driver *)ioctl_param;
+        ret_val = copy_to_user(dnvme_metrics, &g_metrics_drv, sizeof(struct
                 metrics_driver));
         break;
 

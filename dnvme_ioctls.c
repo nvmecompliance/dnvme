@@ -265,7 +265,7 @@ int driver_generic_write(struct rw_generic *nvme_data,
     int ret_code = -EINVAL; /* return code to verify if written success. */
     struct pci_dev *pdev;
     struct nvme_device *nvme_dev;
-    void* datap;
+    void *datap;
 
     /* TODO Clean up kmalloc mem */
     LOG_DBG("Inside Generic write Funtion of the IOCTLs");
@@ -583,11 +583,6 @@ int driver_ioctl_init(struct pci_dev *pdev,
             &pmetrics_device_list->metrics_device->pdev->dev;
 
     /* Used to create Coherent DMA mapping for PRP List */
-    pmetrics_device_list->metrics_device->prp_page_pool = dma_pool_create
-            ("prp page", &pmetrics_device_list->metrics_device->pdev->dev,
-                    PAGE_SIZE, PAGE_SIZE, 0);
-
-    /* Used to create Coherent DMA mapping for PRP List */
     pmetrics_device_list->metrics_device->prp_page_pool =
         dma_pool_create("prp page",
             &pmetrics_device_list->metrics_device->pdev->dev,
@@ -652,11 +647,6 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             (nvme_64b_send->data_buf_size == 0 &&
                 NULL != nvme_64b_send->data_buf_ptr)) {
         LOG_ERR("Data buffer size and data buffer inconsistent");
-        goto ret;
-    } else if (!(nvme_64b_send->bit_mask & (MASK_PRP1_PAGE | MASK_PRP1_LIST |
-        MASK_PRP2_PAGE | MASK_PRP2_LIST | MASK_NO_PRP))) {
-        /* TODO Add support for MASK_MPTR */
-        LOG_ERR("Invalid value of bit_mask");
         goto ret;
     }
 
@@ -965,7 +955,7 @@ int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
     u16 q_id;               /* tmp variable for q id          */
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
-    void *datap,*temp_ptr = NULL;
+    void *datap, *temp_ptr = NULL;
 
     /* Allocating memory for the data in kernel space */
     datap = kmalloc(get_q_metrics->nBytes, GFP_KERNEL | __GFP_ZERO);
