@@ -128,6 +128,9 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L4"type = %d", pmetrics_cq_list->
                         private_cq.prp_persist.type);
                 vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"vir_kern_addr = 0X%llX", (u64)
+                    pmetrics_cq_list->private_cq.prp_persist.vir_kern_addr);
+                vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"vir_prp_list = 0X%llX",
                         (u64)pmetrics_cq_list->private_cq.prp_persist.
                         vir_prp_list);
@@ -210,6 +213,9 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L4"npages = %d", pmetrics_sq_list->
                         private_sq.prp_persist.npages);
                 vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"vir_kern_addr = 0X%llX", (u64)
+                    pmetrics_sq_list->private_sq.prp_persist.vir_kern_addr);
+                vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"type = %d", pmetrics_sq_list->
                         private_sq.prp_persist.type);
                 vfs_write(file, data1, strlen(data1), &pos);
@@ -269,6 +275,9 @@ int driver_log(struct nvme_file *n_file)
                     sprintf(data1, IDNT_L5"prp_nonpersist:");
                     vfs_write(file, data1, strlen(data1), &pos);
                     /* Printing prp_nonpersist memeber variables */
+                    sprintf(data1, IDNT_L6"vir_kern_addr = 0X%llX", (u64)
+                        pcmd_track_list->prp_nonpersist.vir_kern_addr);
+                    vfs_write(file, data1, strlen(data1), &pos);
                     sprintf(data1, IDNT_L6"npages = %d",
                         pcmd_track_list->prp_nonpersist.npages);
                     vfs_write(file, data1, strlen(data1), &pos);
