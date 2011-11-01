@@ -280,7 +280,6 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
 #endif
     offset = offset_in_page(buf_addr);
 
-    /* TODO: Use CC.MPS instead of PAGE_SIZE */
     count = DIV_ROUND_UP(offset + buf_len, PAGE_SIZE);
 
     /* Allocating conitguous memory for pointer to pages */
@@ -377,7 +376,6 @@ static int pages_to_sg(struct page **pages,
     sg_init_table(sglist, nr_pages);
 
     /* Building the SG List */
-    /* TODO: Use CC.MPS instead of PAGE_SIZE */
     for (index = 0; index < nr_pages; index++) {
         if (NULL == pages[index]) {
             kfree(sglist);
@@ -396,7 +394,6 @@ static int pages_to_sg(struct page **pages,
  * setup_prps:
  * Sets up PRP'sfrom DMA'ed memory
  * Returns Error codes
- * TODO: Handle Create IO CQ/SQ case
  */
 static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     __s32 buf_len, struct nvme_prps *prps, __u8 cr_io_q,
@@ -509,11 +506,9 @@ prp_list:
     prps->vir_prp_list[prp_page++] = prp_list;
     prps->first_dma = prp_dma;
     if (prps->type == (PRP2 | PRP_List)) {
-        /* TODO: Verify Non-Zero offset */
         prps->prp2 = cpu_to_le64(prp_dma);
         LOG_DBG("PRP2 Entry: %llx", (unsigned long long) prps->prp2);
     } else if (prps->type == (PRP1 | PRP_List)) {
-        /* TODO: Verify Zero offset */
         prps->prp1 = cpu_to_le64(prp_dma);
         prps->prp2 = 0;
         LOG_DBG("PRP1 Entry: %llx", (unsigned long long) prps->prp1);
