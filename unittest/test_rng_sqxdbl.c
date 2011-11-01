@@ -22,7 +22,7 @@ void ioctl_tst_ring_dbl(int file_desc, int sq_id)
 
     printf("\n\tRequested to Ring Doorbell of SQ ID = %d\n", sq_id);
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_RING_SQ_DOORBELL, &sq_id);
+    ret_val = ioctl(file_desc, NVME_IOCTL_RING_SQ_DOORBELL, sq_id);
     if(ret_val < 0)
         printf("\n\t\tRing Doorbell Failed!\n");
     else

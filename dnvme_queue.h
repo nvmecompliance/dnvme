@@ -149,7 +149,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 * @param pmetrics_device_element
 * @return SUCCESS or FAIL
 */
-int nvme_ring_sqx_dbl(u16 *ring_sqx, struct  metrics_device_list
+int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
         *pmetrics_device_element);
 
 /**

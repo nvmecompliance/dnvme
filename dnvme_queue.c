@@ -541,7 +541,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 * tail_ptr with virtual pointer, and write the tail pointer value to SqxTDBL
 * already in dbs.
 */
-int nvme_ring_sqx_dbl(u16 *ring_sqx, struct  metrics_device_list
+int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
         *pmetrics_device_element)
 {
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
@@ -554,7 +554,7 @@ int nvme_ring_sqx_dbl(u16 *ring_sqx, struct  metrics_device_list
     list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
             metrics_sq_list, sq_list_hd) {
         /* Check if the Q Id matches */
-        if (*ring_sqx == pmetrics_sq_list->public_sq.sq_id) {
+        if (ring_sqx == pmetrics_sq_list->public_sq.sq_id) {
             LOG_DBG("SQ_ID= %d found in the linked list.",
                     pmetrics_sq_list->public_sq.sq_id);
             LOG_DBG("\tVirt Tail Ptr = 0x%x",
@@ -576,7 +576,7 @@ int nvme_ring_sqx_dbl(u16 *ring_sqx, struct  metrics_device_list
             return SUCCESS;
         }
     }
-    LOG_ERR("SQ ID = %d not found to ring its doorbell", *ring_sqx);
+    LOG_ERR("SQ ID = %d not found to ring its doorbell", ring_sqx);
     /* If it falls here no SQ ID is found */
     return -EINVAL;
 }
@@ -904,25 +904,17 @@ struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id)
  * the pointer to the node otherwise returns NULL.
  */
 struct metrics_meta *find_meta_node(struct metrics_device_list
-        *pmetrics_device_element, u16 meta_id)
+        *pmetrics_device_elem, u16 meta_id)
 {
-    struct  metrics_meta  *pmetrics_meta_node;
+    struct  metrics_meta  *pmetrics_meta = NULL;
 
-    /* Don't assume anything, check for existence */
-    if (pmetrics_device_element->pmetrics_meta == NULL) {
-        LOG_ERR("Meta data list is empty...");
-        return NULL;
-    }
-
-    /* Search and return if the meta id node is found */
-    list_for_each_entry(pmetrics_meta_node, &pmetrics_device_element->
-            pmetrics_meta->meta_trk_list, meta_list_hd) {
-        if (meta_id == pmetrics_meta_node->meta_id) {
+    list_for_each_entry(pmetrics_meta, &pmetrics_device_elem->pmetrics_meta->
+            meta_trk_list, meta_list_hd) {
+        if (meta_id == pmetrics_meta->meta_id) {
             LOG_DBG("Meta ID = %d exists", meta_id);
-            return pmetrics_meta_node;
+            return pmetrics_meta;
         }
     }
-
     /* couldn't find the node returning empty */
     return NULL;
 }

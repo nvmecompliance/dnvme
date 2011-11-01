@@ -324,6 +324,7 @@ int dnvme_device_open(struct inode *inode, struct file *filp)
     if (pmetrics_device_element->metrics_device->open_flag == 0) {
         pmetrics_device_element->metrics_device->open_flag = 1;
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
+        deallocate_mb(pmetrics_device_element);
     } else {
         LOG_ERR("Attempt to open device multiple times not allowed!!");
         ret_val =  -EPERM; /* Operation not permitted */
@@ -359,6 +360,9 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
         ret_val = -EINVAL;
     }
 
+    /* Meta data allocation clean up */
+    deallocate_mb(pmetrics_device_element);
+
 rel_exit:
     LOG_DBG("\n.....Close Successful!!!....Releasing Mutex...\n");
     unlock_device(pmetrics_device_element);
@@ -377,8 +381,8 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     struct  metrics_meta *pmeta_data;       /* pointer to meta node         */
     unsigned long pfn = 0;
     struct inode *inode = filp->f_dentry->d_inode;
-    u32 qtype;
-    u16 qid;
+    u32 type;
+    u16 id;
     int ret_val = SUCCESS;
 
     vma->vm_flags |= VM_IO;
@@ -391,33 +395,35 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         goto mmap_exit;
     }
 
-    /* Calculate the q id and q type from offset */
-    qtype = (vma->vm_pgoff >> 0x10) & 0x3;
-    qid = vma->vm_pgoff & 0xFFFF;
+    /* Calculate the id and type from offset */
+    type = (vma->vm_pgoff >> 0x10) & 0x3;
+    id = vma->vm_pgoff & 0xFFFF;
 
-    LOG_DBG("Type = %d", qtype);
-    LOG_DBG("ID = 0x%x", qid);
+    LOG_DBG("Type = %d", type);
+    LOG_DBG("ID = 0x%x", id);
 
-    /* If Q type is 1 implies SQ */
-    if (qtype == 0x1) {
-        pmetrics_sq_list = find_sq(pmetrics_device_element, qid);
+    /* If type is 1 implies SQ, 0 implies CQ and 2 implies meta data */
+    if (type == 0x1) {
+        /* Process for SQ */
+        pmetrics_sq_list = find_sq(pmetrics_device_element, id);
         if (pmetrics_sq_list == NULL) {
             ret_val = -EBADSLT;
             goto mmap_exit;
         }
         pfn = virt_to_phys(pmetrics_sq_list->private_sq.vir_kern_addr) >>
                 PAGE_SHIFT;
-    } else if (qtype == 0x0) {
-        pmetrics_cq_list = find_cq(pmetrics_device_element, qid);
+    } else if (type == 0x0) {
+        /* Process for CQ */
+        pmetrics_cq_list = find_cq(pmetrics_device_element, id);
         if (pmetrics_cq_list == NULL) {
             ret_val = -EBADSLT;
             goto mmap_exit;
         }
         pfn = virt_to_phys(pmetrics_cq_list->private_cq.vir_kern_addr) >>
                 PAGE_SHIFT;
-    } else if (qtype == 0x2) {
-        /* Meta data Id */
-        pmeta_data = find_meta_node(pmetrics_device_element, qid);
+    } else if (type == 0x2) {
+        /* Process for Meta data */
+        pmeta_data = find_meta_node(pmetrics_device_element, id);
         if (pmeta_data == NULL) {
             ret_val = -EBADSLT;
             goto mmap_exit;
@@ -455,7 +461,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
     struct nvme_prep_cq *prep_cq;   /* CQ params for preparing IO CQ         */
-    u16   *ring_sqx;                /* SQ ID to ring the door-bell           */
+    u16   ring_sqx;                /* SQ ID to ring the door-bell           */
     struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd parameters           */
     struct nvme_file    *n_file;         /* dump metrics parameters          */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry parameters          */
@@ -529,6 +535,8 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
                 /* Clean Up the Data Structures. */
                 deallocate_all_queues(pmetrics_device_element,
                         *ctrl_new_state);
+                /* Clean up meta buff in both disable cases */
+                deallocate_mb(pmetrics_device_element);
             }
          } else {
             LOG_ERR("Device State not correctly specified.");
@@ -562,7 +570,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     case NVME_IOCTL_RING_SQ_DOORBELL:
         LOG_DBG("Driver Call to Ring SQx Doorbell");
         /* Assign user passed parameters to sqx to be rung */
-        ring_sqx = (u16 *)ioctl_param;
+        ring_sqx = (u16)ioctl_param;
         /* Call the ring doorbell driver function */
         ret_val = nvme_ring_sqx_dbl(ring_sqx, pmetrics_device_element);
         break;
@@ -695,6 +703,8 @@ static void __exit dnvme_exit(void)
         destroy_dma_pool(pmetrics_device_element->metrics_device);
         /* Clean Up the Data Structures. */
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
+        deallocate_mb(pmetrics_device_element);
+        kfree(pmetrics_device_element->pmetrics_meta);
         mutex_destroy(pmetrics_device_element->metrics_mtx);
         pdev = pmetrics_device_element->metrics_device->pdev;
         pci_release_regions(pdev);

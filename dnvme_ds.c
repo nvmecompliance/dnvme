@@ -21,6 +21,9 @@
 #define IDNT_L5         "\n\t\t\t\t\t"
 #define IDNT_L6         "\n\t\t\t\t\t\t"
 
+/* local static functions */
+static loff_t meta_nodes_log(struct file *file, loff_t pos,
+        struct  metrics_device_list *pmetrics_device);
 /*
 *   driver_log - Generic Log functionality for logging metrics data
 *   into file name specified from user.
@@ -290,10 +293,45 @@ int driver_log(struct nvme_file *n_file)
                      vfs_write(file, data1, strlen(data1), &pos);
                 } /* End of cmd track list */
             } /* End of SQ metrics list */
+            pos = meta_nodes_log(file, pos, pmetrics_device);
         } /* End of file writing */
         fput(file);
     }
     set_fs(oldfs);
     filp_close(file, NULL); /* Close the file */
     return SUCCESS;
+}
+
+static loff_t meta_nodes_log(struct file *file, loff_t pos,
+        struct  metrics_device_list *pmetrics_device)
+{
+    struct metrics_meta *pmetrics_meta;
+    u8 data1[100];
+    int i = 0;
+
+    if ((pmetrics_device->pmetrics_meta == NULL) ||
+            (pmetrics_device->pmetrics_meta->meta_dmapool_ptr == NULL)) {
+        return pos;
+    }
+    sprintf(data1,
+            IDNT_L1"pmetrics_device->pmetrics_meta->meta_dmapool_ptr = 0x%llx",
+            (u64)pmetrics_device->pmetrics_meta->meta_dmapool_ptr);
+    vfs_write(file, data1, strlen(data1), &pos);
+
+    list_for_each_entry(pmetrics_meta, &pmetrics_device->pmetrics_meta->
+            meta_trk_list, meta_list_hd) {
+        /* Get each Meta buffer node and write to file */
+        sprintf(data1, IDNT_L2"pmetrics_device->pmetrics_meta[%d]", i++);
+        vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L3"pmetrics_meta->meta_id = %d",
+                        pmetrics_meta->meta_id);
+                vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L3"pmetrics_meta->meta_dma_addr = 0x%llx",
+                (u64)pmetrics_meta->meta_dma_addr);
+        vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L3"pmetrics_meta->vir_kern_addr = 0x%llx",
+                (u64)pmetrics_meta->vir_kern_addr);
+        vfs_write(file, data1, strlen(data1), &pos);
+    }
+    return pos;
 }

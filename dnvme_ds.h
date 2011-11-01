@@ -123,7 +123,6 @@ struct nvme_device {
     int minor_no;                    /* Minor no. of the device being used  */
     u8 open_flag;                    /* Allows device opening only once     */
     u16 meta_unique_cnt;             /* Unique Meta ID counts per device    */
-    u8 mpool_flag;                   /* Allows dma pool creation only once  */
 };
 
 /*

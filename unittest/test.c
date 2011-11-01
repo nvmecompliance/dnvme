@@ -501,6 +501,8 @@ int test_regression(int file_desc)
     printf("\nPress any key to continue..");
     getchar();
 
+    test_meta(file_desc, 0);
+
     printf("\nTest 2.6.1: Calling Dump Metrics to tmpfile1\n");
     ioctl_dump(file_desc, tmpfile1);
     printf("\nPress any key to continue..");
@@ -726,16 +728,15 @@ int main(void)
     printf("Device File Successfully Opened = %d\n", file_desc);
 
     test_drv_metrics(file_desc);
+    test_meta(file_desc, 1);
 
-    //test_regression(file_desc);
-    //test_reap(file_desc);
-    //test_reap_regression(file_desc);
+    test_regression(file_desc);
+    test_reap(file_desc);
+    test_reap_regression(file_desc);
 
-    test_meta(file_desc);
 
     printf("Call to close the file_desc.");
     close(file_desc);
-
     printf("\n\n****** END OF DEMO ****** \n\n");
     return 0;
 }

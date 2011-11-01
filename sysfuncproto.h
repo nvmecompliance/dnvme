@@ -231,7 +231,7 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
 /**
  * Create a dma pool for the requested size. Initialize the DMA pool pointer
  * with DWORD alignment and associate it with the active device.
- * @param pmetrics_device_elem
+ * @param pmetrics_device_element
  * @param alloc_size
  * @return SUCCESS or FAIL based on dma pool creation.
  */
@@ -258,5 +258,13 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_element,
  */
 int metabuff_del(struct metrics_device_list *pmetrics_device_element,
         u16 meta_id);
+
+/*
+ * deallocate_mb will free up the memory and nodes for the meta buffers
+ * that were allocated during the alloc and create meta. Finally
+ * destroys the dma pool and free up the metrics meta node.
+ * @param pmetrics_device
+ */
+void deallocate_mb(struct  metrics_device_list *pmetrics_device);
 
 #endif
