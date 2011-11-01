@@ -667,7 +667,6 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
     struct metrics_meta *pmeta_data = NULL;
     int ret_val = SUCCESS;
 
-    LOG_ERR("1..");
     /* Check if parameters passed to this function are valid */
     if ((pmetrics_device_elem->pmetrics_meta == NULL) ||
             (pmetrics_device_elem->pmetrics_meta->
@@ -677,7 +676,6 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
         ret_val = -EINVAL;
         goto meta_err;
     }
-    LOG_ERR("2..");
     /* Check if this id is already created. */
     pmeta_data = find_meta_node(pmetrics_device_elem, meta_id);
     if (pmeta_data != NULL) {
@@ -685,7 +683,6 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
         ret_val = -EINVAL;
         goto meta_err;
     }
-    LOG_ERR("3..");
     /* Allocate memory to metrics_meta for each node */
     pmeta_data = kmalloc(sizeof(struct metrics_meta), GFP_KERNEL | __GFP_ZERO);
     if (pmeta_data == NULL) {
@@ -693,7 +690,6 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
         ret_val = -ENOMEM;
         goto meta_err;
     }
-    LOG_ERR("4..");
     /* Assign the user passed id for tracking this meta id */
     pmeta_data->meta_id = meta_id;
     /* Allocated the dma memory and assign to vir_kern_addr */
@@ -705,17 +701,14 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
         ret_val = -ENOMEM;
         goto meta_alloc_out;
     }
-    LOG_ERR("5..");
     /* Increment the meta unique count in the device */
     pmetrics_device_elem->metrics_device->meta_unique_cnt++;
     /* Add the meta data node into the linked list */
     list_add_tail(&pmeta_data->meta_list_hd, &pmetrics_device_elem->
             pmetrics_meta->meta_trk_list);
-    LOG_ERR("6..");
     return ret_val;
 
 meta_alloc_out:
-    LOG_ERR("7..");
     if ((pmeta_data->vir_kern_addr != NULL) &&
             (pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr
                     != NULL)) {
@@ -723,13 +716,10 @@ meta_alloc_out:
                 pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
         pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr = NULL;
     }
-    LOG_ERR("8..");
     if (pmeta_data != NULL) {
         kfree(pmeta_data);
     }
-    LOG_ERR("9..");
 meta_err:
-    LOG_ERR("10..");
     return ret_val;
 }
 
