@@ -696,8 +696,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
     nvme_gen_cmd = (struct nvme_gen_cmd *) nvme_cmd_ker;
     memset(&prps, 0, sizeof(prps));
-    /* Initialize PRP Type to NO_PRP */
-    prps.type = NO_PRP;
+
     /* Copy and Increment the CMD ID */
     nvme_gen_cmd->command_id = pmetrics_sq->private_sq.unique_cmd_id++;
 
@@ -711,7 +710,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
     /* Handling special condition for opcodes 0x00,0x01,0x04
      * and 0x05 of NVME Admin command set */
-    if (nvme_gen_cmd->opcode == 0x01 && nvme_64b_send->cmd_set == CMD_ADMIN) {
+    if (nvme_64b_send->cmd_set == CMD_ADMIN && nvme_gen_cmd->opcode == 0x01) {
         /* Create IOSQ command */
         nvme_create_sq = (struct nvme_create_sq *) nvme_cmd_ker;
 
@@ -732,9 +731,9 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             goto data_err;
         }
         /* Sanity Checks */
-        if (((nvme_create_sq->sq_flags & 0x01) &&
+        if (((nvme_create_sq->sq_flags & CDW11_PC) &&
             (p_cmd_sq->private_sq.contig == 0)) ||
-                (!(nvme_create_sq->sq_flags & 0x01) &&
+                (!(nvme_create_sq->sq_flags & CDW11_PC) &&
                     (p_cmd_sq->private_sq.contig != 0))) {
             /* Contig flag out of sync with what cmd says */
             goto data_err;
@@ -744,14 +743,12 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                     p_cmd_sq->private_sq.vir_kern_addr == NULL)) {
             /* Contig flag out of sync with what cmd says */
             goto data_err;
-        } else if ((p_cmd_sq->private_sq.bit_mask & 0x01) == 0) {
+        } else if ((p_cmd_sq->private_sq.bit_mask & UNIQUE_QID_FLAG) == 0) {
             /* Avoid duplicate Queue creation */
             LOG_ERR("Required Queue already created!");
             ret_code = -EINVAL;
             goto err;
         }
-        /* Resetting the unique QID bitmask flag */
-        p_cmd_sq->private_sq.bit_mask = (p_cmd_sq->private_sq.bit_mask & ~(1));
 
         if (p_cmd_sq->private_sq.contig == 0) {
             /* Creation of Discontiguous IO SQ */
@@ -781,8 +778,11 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         /* Fill the persistent entry structure */
         memcpy(&p_cmd_sq->private_sq.prp_persist, &prps, sizeof(prps));
 
-    } else if (nvme_gen_cmd->opcode == 0x05 &&
-        nvme_64b_send->cmd_set == CMD_ADMIN) {
+        /* Resetting the unique QID bitmask flag */
+        p_cmd_sq->private_sq.bit_mask = (p_cmd_sq->private_sq.bit_mask &
+            ~(UNIQUE_QID_FLAG));
+    } else if (nvme_64b_send->cmd_set == CMD_ADMIN &&
+        nvme_gen_cmd->opcode == 0x05) {
         /* Create IOCQ command */
         nvme_create_cq = (struct nvme_create_cq *) nvme_cmd_ker;
 
@@ -804,9 +804,9 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         }
 
         /* Sanity Checks */
-        if (((nvme_create_cq->cq_flags & 0x01) &&
+        if (((nvme_create_cq->cq_flags & CDW11_PC) &&
             (p_cmd_cq->private_cq.contig == 0))
-                || (!(nvme_create_cq->cq_flags & 0x01) &&
+                || (!(nvme_create_cq->cq_flags & CDW11_PC) &&
                     (p_cmd_cq->private_cq.contig != 0))) {
             /* Contig flag out of sync with what cmd says */
             goto data_err;
@@ -816,14 +816,12 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                     p_cmd_cq->private_cq.vir_kern_addr == NULL)) {
             /* Contig flag out of sync with what cmd says */
             goto data_err;
-        } else if ((p_cmd_cq->private_cq.bit_mask & 0x01) == 0) {
+        } else if ((p_cmd_cq->private_cq.bit_mask & UNIQUE_QID_FLAG) == 0) {
             /* Avoid duplicate Queue creation */
             LOG_ERR("Required Queue already created!");
             ret_code = -EINVAL;
             goto err;
         }
-        /* Resetting the unique QID bitmask flag */
-        p_cmd_cq->private_cq.bit_mask = (p_cmd_cq->private_cq.bit_mask & ~(1));
 
         if (p_cmd_cq->private_cq.contig == 0) {
             /* Discontig IOCQ creation */
@@ -854,8 +852,11 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         /* Fill the persistent entry structure */
         memcpy(&p_cmd_cq->private_cq.prp_persist, &prps, sizeof(prps));
 
-    } else if (nvme_gen_cmd->opcode == 0x00 &&
-        nvme_64b_send->cmd_set == CMD_ADMIN) {
+        /* Resetting the unique QID bitmask flag */
+        p_cmd_cq->private_cq.bit_mask = (p_cmd_cq->private_cq.bit_mask &
+            ~(UNIQUE_QID_FLAG));
+    } else if (nvme_64b_send->cmd_set == CMD_ADMIN &&
+        nvme_gen_cmd->opcode == 0x00) {
         /* Delete IOSQ case */
         nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
 
@@ -873,8 +874,8 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             goto err;
         }
 
-    } else if (nvme_gen_cmd->opcode == 0x04 &&
-        nvme_64b_send->cmd_set == CMD_ADMIN) {
+    } else if (nvme_64b_send->cmd_set == CMD_ADMIN &&
+        nvme_gen_cmd->opcode == 0x04) {
         /* Delete IOCQ case */
         nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
 
@@ -1143,7 +1144,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
 
     /* Setting the bit-mask for unique ID creation */
     pmetrics_sq_node->private_sq.bit_mask =
-        (pmetrics_sq_node->private_sq.bit_mask | 0x01);
+        (pmetrics_sq_node->private_sq.bit_mask | UNIQUE_QID_FLAG);
 
     /* Add this element to the end of the list */
     list_add_tail(&pmetrics_sq_node->sq_list_hd,
@@ -1206,7 +1207,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
 
     /* Setting the bit-mask for unique ID creation */
     pmetrics_cq_node->private_cq.bit_mask =
-        (pmetrics_cq_node->private_cq.bit_mask | 0x01);
+        (pmetrics_cq_node->private_cq.bit_mask | UNIQUE_QID_FLAG);
 
     /* Add this element to the end of the list */
     list_add_tail(&pmetrics_cq_node->cq_list_hd,

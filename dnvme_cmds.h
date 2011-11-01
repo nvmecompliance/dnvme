@@ -1,6 +1,8 @@
 #ifndef _DNVME_CMDS_H_
 #define _DNVME_CMDS_H_
 
+/* define's for unique QID creation */
+#define UNIQUE_QID_FLAG 0x01
 
 /* Enum specifying Writes/Reads to mapped pages and other general enums */
 enum {
@@ -10,6 +12,7 @@ enum {
     PRP_ABSENT = 0, /* Specifies not to generate PRP's per command */
     PRP_Size = 8, /* Size of PRP entry in bytes */
     PERSIST_QID_0 = 0, /* Default value of Persist queue ID */
+    CDW11_PC = 1, /* Mask for checking CDW11.PC of create IO Q cmds */
 };
 
 /* Enum specifying PRP1,PRP2 or List */
