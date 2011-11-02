@@ -267,7 +267,6 @@ int driver_generic_write(struct rw_generic *nvme_data,
     struct nvme_device *nvme_dev;
     void *datap;
 
-    /* TODO Clean up kmalloc mem */
     LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
     /* get the device from the list */
@@ -999,7 +998,6 @@ int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
                     goto err;
                 }
                 /* Copy to user space linked pointer buffer */
-                /* TODO:can omit datap completley in this case */
                 memcpy((u8 *)datap, (u8 *)&pmetrics_sq_list->public_sq,
                     get_q_metrics->nBytes);
                 temp_ptr = datap;
@@ -1029,7 +1027,6 @@ int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
                     ret_code = -EINVAL;
                     goto err;
                 }
-                /* TODO:can omit datap completley in this case */
                 /* Copy to user space linked pointer buffer */
                 memcpy((u8 *)datap, (u8 *)&pmetrics_cq_list->public_cq,
                     get_q_metrics->nBytes);
