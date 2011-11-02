@@ -860,9 +860,8 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     nvme_gen_cmd = (struct nvme_gen_cmd *) nvme_cmd_ker;
     memset(&prps, 0, sizeof(prps));
 
-    pmetrics_sq->private_sq.unique_cmd_id++;
     /* Copy and Increment the CMD ID */
-    nvme_gen_cmd->command_id = pmetrics_sq->private_sq.unique_cmd_id;
+    nvme_gen_cmd->command_id = pmetrics_sq->private_sq.unique_cmd_id++;
 
     /* Send a copy of the unique ID back to userspace */
     if (copy_to_user((void __user *) (nvme_64b_send->cmd_buf_ptr + 0x02),

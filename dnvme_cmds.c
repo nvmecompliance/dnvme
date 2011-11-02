@@ -234,8 +234,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
                     (__le64) prp_vlist);
             }
 
-
-            //LOG_DBG("PRP List: %llx", (unsigned long long) prp_vlist[i]);
+          LOG_DBG("PRP List: %llx", (unsigned long long) prp_vlist[i]);
         }
 
     } else if (prps->type == PRP1) {
@@ -535,10 +534,10 @@ prp_list:
             index = 0;
         }
 
-        //LOG_DBG("PRP List: Buf_len %d", buf_len);
-        //LOG_DBG("PRP List: dma_len %u", dma_len);
-        //LOG_DBG("PRP List: PRP entry %llx",
-        //    (unsigned long long) (dma_addr));
+        LOG_DBG("PRP List: Buf_len %d", buf_len);
+        LOG_DBG("PRP List: dma_len %u", dma_len);
+        LOG_DBG("PRP List: PRP entry %llx",
+            (unsigned long long) (dma_addr));
 
         prp_list[index++] = cpu_to_le64(dma_addr);
         dma_len -= (PAGE_SIZE - offset);
