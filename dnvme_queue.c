@@ -1090,7 +1090,6 @@ static int process_reap_algos(struct cq_completion *cq_entry,
     struct metrics_sq *pmetrics_sq_node = NULL;
     struct cmd_track *pcmd_node = NULL;
 
-    LOG_DBG("SQ ID = %d", cq_entry->sq_identifier);
     /* find sq node for given sq id in CE */
     pmetrics_sq_node = find_sq(pmetrics_device, cq_entry->sq_identifier);
     if (pmetrics_sq_node == NULL) {
@@ -1099,7 +1098,6 @@ static int process_reap_algos(struct cq_completion *cq_entry,
         return -EBADSLT; /* Invalid slot */
     }
 
-    LOG_DBG("SQ ID Found....CMD ID = %d", cq_entry->cmd_identifier);
     /* Find command in sq node */
     pcmd_node = find_cmd(pmetrics_sq_node, cq_entry->cmd_identifier);
     if (pcmd_node != NULL) {
@@ -1114,7 +1112,7 @@ static int process_reap_algos(struct cq_completion *cq_entry,
             ret_val = process_algo_gen(pmetrics_sq_node, pcmd_node->unique_id,
                     pmetrics_device);
         }
-
+    }
     return ret_val;
 }
 
