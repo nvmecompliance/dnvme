@@ -462,12 +462,12 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
     struct nvme_prep_cq *prep_cq;   /* CQ params for preparing IO CQ         */
     u16   ring_sqx;                /* SQ ID to ring the door-bell           */
-    struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd parameters           */
-    struct nvme_file    *n_file;         /* dump metrics parameters          */
-    struct nvme_reap_inquiry *reap_inq;  /* reap inquiry parameters          */
-    struct nvme_reap *reap_data;         /* Actual Reap parameters           */
-    u16    test_number;
-    unsigned char __user *datap = (unsigned char __user *)ioctl_param;
+    struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params               */
+    struct nvme_file    *n_file;         /* dump metrics params              */
+    struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
+    struct nvme_reap *reap_data;         /* Actual Reap params               */
+    u16 test_number;
+    struct metrics_driver *dnvme_metrics;/* Dnvme Metrics params             */
     struct inode *inode = filp->f_dentry->d_inode;
 
     LOG_DBG("Minor No = %d", iminor(inode));
@@ -582,9 +582,9 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         ret_val =  driver_send_64b(pmetrics_device_element, nvme_64b_send);
         /* Display success or fail */
         if (ret_val >= 0) {
-            LOG_NRM("PRP Creation Success");
+            LOG_NRM("Command sent succesfully");
         } else {
-            LOG_NRM("PRP Creation Failed");
+            LOG_NRM("Sending of Command Failed");
         }
         break;
 
@@ -614,7 +614,8 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     case NVME_IOCTL_GET_DRIVER_METRICS:
         LOG_DBG("Return Driver Metrics ioctl..");
-        ret_val = copy_to_user(datap, &g_metrics_drv, sizeof(struct
+        dnvme_metrics = (struct metrics_driver *)ioctl_param;
+        ret_val = copy_to_user(dnvme_metrics, &g_metrics_drv, sizeof(struct
                 metrics_driver));
         break;
 
@@ -643,9 +644,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case IOCTL_UNIT_TESTS:
-        /* Get the test_number that user passed */
-        copy_from_user(&test_number, datap, sizeof(u16));
-
+        test_number = (u16) ioctl_param;
         LOG_DBG("Test Number = %d", test_number);
         /* Call the Test setup based on user request */
         switch (test_number) {

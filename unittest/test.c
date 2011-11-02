@@ -69,8 +69,13 @@ void ioctl_write_data(int file_desc)
     test_data.offset = 0x14;
     test_data.nBytes = 4;
     test_data.acc_type = DWORD_LEN;
+    test_data.buffer = NULL;
 
-    test_data.buffer = malloc(sizeof(char) * test_data.nBytes);
+    test_data.buffer = malloc(test_data.nBytes);
+    if (test_data.buffer == NULL) {
+        printf("malloc failed!");
+        goto err;
+    }
     test_data.buffer[0] = 0x01;
     test_data.buffer[1] = 0x00;
     test_data.buffer[2] = 0x46;
@@ -83,6 +88,11 @@ void ioctl_write_data(int file_desc)
             printf("ioctl_set_msg failed:%d\n", ret_val);
             exit(-1);
    }
+
+   free(test_data.buffer);
+
+err:
+    return;
 }
 
 void ioctl_create_acq(int file_desc)
@@ -174,7 +184,8 @@ void test_prep_sq(int file_desc)
 {
     printf("\nTEST 2.2.1: Allocating 3 IO Contiguous SQs with different sizes...\n");
     printf("\n\tSD_ID : CQ ID = 1 : 1\n");
-    ioctl_prep_sq(file_desc, 1, 1, 20, 1);
+    ioctl_prep_sq(file_desc, 1, 1, 256, 0);
+
     printf("\nPress any key to continue..");
     getchar();
     printf("\n\tSD_ID : CQ ID = 2 : 3\n");
@@ -198,6 +209,7 @@ void test_prep_sq(int file_desc)
     ioctl_prep_sq(file_desc, 6, 3, 32, 0);
     printf("\nPress any key to continue..");
     getchar();
+
 }
 
 void test_prep_cq(int file_desc)
@@ -249,7 +261,7 @@ int ioctl_ut_reap_inq(int file_desc)
     uint16_t tmp;
 
     tmp = 0; // Reap Inquiry Unit Test setup.
-    if (ioctl(file_desc, IOCTL_UNIT_TESTS, &tmp) < 0) {
+    if (ioctl(file_desc, IOCTL_UNIT_TESTS, tmp) < 0) {
         printf("\n\nTest = %d Setup failed...", tmp);
         return -1;
     }
@@ -262,7 +274,7 @@ int ioctl_ut_reap(int file_desc)
     uint16_t tmp;
 
     tmp = 2; // Reap Inquiry Unit Test setup.
-    if (ioctl(file_desc, IOCTL_UNIT_TESTS, &tmp) < 0) {
+    if (ioctl(file_desc, IOCTL_UNIT_TESTS, tmp) < 0) {
         printf("\n\nTest = %d Setup failed...", tmp);
         return -1;
     }
@@ -275,7 +287,7 @@ int ioctl_ut_mmap(int file_desc)
     uint16_t tmp;
 
     tmp = 1; // Mmap Unit Test setup.
-    if (ioctl(file_desc, IOCTL_UNIT_TESTS, &tmp) < 0) {
+    if (ioctl(file_desc, IOCTL_UNIT_TESTS, tmp) < 0) {
         printf("\n\nTest = %d Setup failed...", tmp);
         return -1;
     }
@@ -286,17 +298,17 @@ void test_metrics(int file_desc)
 {
     printf("\nTEST 4: Get metrics\n");
     /* ACQ Metrics */
-    printf("Get ACQ Metrics: \n\n");
+    printf("Get ACQ Metrics:\n\n");
     ioctl_get_q_metrics(file_desc, 0, 0, sizeof(struct nvme_gen_cq));
     printf("\nPress any key to continue..");
     getchar();
 
     /* ASQ Metrics */
-    //printf("Get ASQ Metrics: \n\n");
-    //ioctl_get_q_metrics(file_desc, 0, 1, sizeof(struct nvme_gen_sq));
-    //printf("\nPress any key to continue..");
-    //getchar();
-
+/*    printf("Get ASQ Metrics:\n\n");
+    ioctl_get_q_metrics(file_desc, 0, 1, sizeof(struct nvme_gen_sq));
+    printf("\nPress any key to continue..");
+    getchar();
+*/
     printf("Get IO_SQ = 2 (exists) Metrics: \n\n");
     ioctl_get_q_metrics(file_desc, 2, 1, sizeof(struct nvme_gen_sq) + 10);
     printf("\nPress any key to continue..");
@@ -378,9 +390,9 @@ void test_reap_inquiry(int file_desc)
 void display_contents(uint64_t *kadr, int elem)
 {
     int i;
-
     for (i = 0; i < elem; i++) {
-        printf("Addr:Val::0x%lx:0x%lx\n", (uint64_t)kadr, *kadr);
+        //printf("Addr:Val::0x%lx:0x%lx\n", (uint64_t)kadr, *kadr);
+        display_cq_data((unsigned char *)kadr, 1);
         kadr++;
     }
 }
@@ -388,9 +400,9 @@ void display_contents(uint64_t *kadr, int elem)
 int test_regression(int file_desc)
 {
     uint32_t sq_id = 0;
-    char *tmpfile1 = "/tmp/file_name1.txt";
-    char *tmpfile2 = "/tmp/file_name2.txt";
-    char *tmpfile3 = "/tmp/file_name3.txt";
+    char *tmpfile1 = "/tmp/regression_file1.txt";
+    char *tmpfile2 = "/tmp/regression_file2.txt";
+    char *tmpfile3 = "/tmp/regression_file3.txt";
     uint64_t *kadr;
     int fd3;
 
@@ -712,12 +724,26 @@ void test_reap_regression(int file_desc)
     printf("\nPress any key to continue..");
     getchar();
 
-
 }
 
-int main(void)
+int main()
 {
-    int file_desc;
+    int file_desc, test_case, i;
+    char *tmpfile1 = "/tmp/temp_file1.txt";
+    char *tmpfile2 = "/tmp/temp_file2.txt";
+    char *tmpfile3 = "/tmp/temp_file3.txt";
+    char *tmpfile4 = "/tmp/temp_file4.txt";
+    char *tmpfile5 = "/tmp/temp_file5.txt";
+    char *tmpfile14 = "/tmp/temp_file14.txt";
+    char *tmpfile15 = "/tmp/temp_file15.txt";
+
+    /* Maximum possible entries */
+    void *read_buffer;
+    int test_lcl = 1;
+    uint64_t *kadr;
+
+    printf("\n*****\t Demo \t*****\n");
+
     printf("Starting Test Application...\n");
 
     file_desc = open(DEVICE_FILE_NAME, 0);
@@ -727,16 +753,174 @@ int main(void)
     }
     printf("Device File Successfully Opened = %d\n", file_desc);
 
+    if (test_lcl) {
+        test_drv_metrics(file_desc);
+        test_meta(file_desc, 1);
+
+        test_regression(file_desc);
+        test_reap(file_desc);
+        test_reap_regression(file_desc);
+
+
+        printf("Call to close the file_desc.");
+        close(file_desc);
+        printf("\n\n****** END OF DEMO ****** \n\n");
+        return 0;
+    }
+
+    if (posix_memalign(&read_buffer, 4096, READ_BUFFER_SIZE)) {
+        printf("Memalign Failed");
+        return 0;
+    }
+
     test_drv_metrics(file_desc);
-    test_meta(file_desc, 1);
+    do {
+        printf("\nEnter a valid test case number:");
+        scanf ("%d", &test_case);
+        switch(test_case) {
+        case 1:
+            printf("Test1: Initializing the state of the device to Run tests\n");
+            printf("Calling Contoller State to set to Disable state\n");
+            ioctl_disable_ctrl(file_desc, ST_DISABLE);
+            test_admin(file_desc);
+            printf("\n.Test PASS if creation is success.");
+            printf("Calling Contoller State to set to Enable state\n");
+            ioctl_enable_ctrl(file_desc);
+            printf("Writing the Registers of NVME space\n");
+            ioctl_write_data(file_desc);
+            printf("Test to initialize the state of controller done\n");
+            break;
+        case 2:
+            printf("Test2: Disabling the controller completley\n");
+            ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+            /* NOTE:- Disable Controller not called in unit tests since Disable
+            * is an asyn request to the HW and as of now we dont have any means
+            * to wait till CQ entries are posted
+            * TODO : will be called when IOCTL_REAP is implemented
+            */
+            break;
+        case 3:
+            printf("Test3: Sending Create Discontig IOSQ with ID 1"
+            " and contig IOCQ with ID 1\n");
+            printf("\n Preparing contig CQ with ID 1\n");
+            printf("\n\tCQ ID = 1\n");
+            ioctl_prep_cq(file_desc, 1, 20, 1);
 
-    test_regression(file_desc);
-    test_reap(file_desc);
-    test_reap_regression(file_desc);
+            printf("\n Preparing Discontig SQ with ID 1\n");
+            printf("\n\tSD_ID : CQ ID = 1 : 1\n");
+            ioctl_prep_sq(file_desc, 1, 1, 65472, 0);
 
+            printf("Executing SEND 64 byte command both for SQ and CQ\n");
+            ioctl_create_contig_iocq(file_desc);
+            ioctl_create_discontig_iosq(file_desc);
 
-    printf("Call to close the file_desc.");
+            printf("\nCalling Dump Metrics to tmpfile1\n");
+            ioctl_dump(file_desc, tmpfile1);
+
+            printf("Ringing Doorbell for SQID 0\n");
+            ioctl_tst_ring_dbl(file_desc, 0);
+
+            printf("Test to Create Discontig/Contig IO Queues Done\n");
+            break;
+        case 4:
+            printf("Test4: Sending Create contig IOSQ with ID 2 and linking "
+            "to already created CQ ID1\n");
+
+            printf("\n Preparing contig SQ with ID 2\n");
+            printf("\n\tSD_ID : CQ ID = 2 : 1\n");
+            ioctl_prep_sq(file_desc, 2, 1, 256, 1);
+
+            printf("Executing SEND 64 byte command\n");
+            ioctl_create_contig_iosq(file_desc);
+
+            printf("\nCalling Dump Metrics to tmpfile2\n");
+            ioctl_dump(file_desc, tmpfile2);
+            printf("Ringing Doorbell for SQID 0\n");
+            ioctl_tst_ring_dbl(file_desc, 0);
+            printf("Test to Create contig IOSQ Done\n");
+        break;
+        case 5: /* Delete the Queues */
+            printf("Test5: Sending Delete IOSQ for ID 1 and 2 "
+            "also deleteing IOCQ ID1\n");
+
+            printf("Executing SEND 64 byte commands 3 at a time!\n");
+            printf("Deleting IOSQ 1\n");
+            ioctl_delete_ioq(file_desc, 0x00, 1);
+            printf("Deleting IOSQ 2\n");
+            ioctl_delete_ioq(file_desc, 0x00, 2);
+            printf("Deleting IOCQ 1\n");
+            ioctl_delete_ioq(file_desc, 0x04, 1);
+
+            printf("Ringing Doorbell for SQID 0\n");
+            ioctl_tst_ring_dbl(file_desc, 0);
+            printf("Test to Create contig IOSQ Done\n");
+            printf("\nCalling Dump Metrics to tmpfile3\n");
+            ioctl_dump(file_desc, tmpfile3);
+            break;
+        case 6: /* Send the identify command */
+            printf("Test6: Sending Identify Command\n");
+            ioctl_send_identify_cmd(file_desc);
+            printf("Ringing Doorbell for SQID 0\n");
+            ioctl_tst_ring_dbl(file_desc, 0);
+            printf("Test to send identify command Done\n");
+            printf("\nCalling Dump Metrics to tmpfile4\n");
+            ioctl_dump(file_desc, tmpfile4);
+            break;
+        case 7: /* Send an IO write command */
+            printf("Test7: Sending IO Write Command\n");
+            ioctl_send_nvme_write(file_desc);
+            printf("Ringing Doorbell for SQID 2\n");
+            ioctl_tst_ring_dbl(file_desc, 2);
+            printf("Test to send IO Write command Done\n");
+            break;
+        case 8: /* Send an IO read command */
+            printf("Test8: Sending IO Read Command\n");
+            ioctl_send_nvme_read(file_desc, read_buffer);
+            printf("Ringing Doorbell for SQID 2\n");
+            ioctl_tst_ring_dbl(file_desc, 2);
+            printf("Test to send IO Read command Done\n");
+            break;
+        case 9: /* Reading contents of the read buffer */
+            printf("\nReadin Data:\n");
+            for (i = 0; i < READ_BUFFER_SIZE; i++) {
+               printf("%x ",*(uint8_t *)(read_buffer +i) );
+            }
+            break;
+        case 10: /* reap on Admin CQ for 2 elems */
+            printf("\nCalling Dump Metrics to tmpfile4\n");
+            ioctl_dump(file_desc, tmpfile14);
+            set_reap_cq(file_desc, 0, 2, 32, 1);
+            printf("\nCalling Dump Metrics to tmpfile4\n");
+            ioctl_dump(file_desc, tmpfile15);
+            break;
+        case 11: /* reap on IO CQ for 2 elems */
+            set_reap_cq(file_desc, 1, 2, 32, 1);
+            break;
+        case 12: /* Display ACQ Contents */
+            kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 0);
+            if (!kadr) {
+                printf("mapping failed\n");
+                return -1;
+            }
+            display_contents(kadr, 20);
+            munmap(kadr, 4096);
+            break;
+        case 13: /* Regression testing */
+            test_regression(file_desc);
+            break;
+        case 14: /* Reap Regression */
+            test_reap_regression(file_desc);
+            break;
+
+        default:
+            printf("Undefined case!\n");
+        }
+    } while (test_case < 15);
+    free(read_buffer);
+    printf("\n\n****** END OF DEMO ******\n\n");
     close(file_desc);
-    printf("\n\n****** END OF DEMO ****** \n\n");
     return 0;
 }
+
+
+

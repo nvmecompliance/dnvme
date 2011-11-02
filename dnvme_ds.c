@@ -41,12 +41,29 @@ int driver_log(struct nvme_file *n_file)
     struct  metrics_cq  *pmetrics_cq_list;        /* CQ linked list         */
     struct  metrics_device_list *pmetrics_device; /* Metrics device list    */
     struct  cmd_track  *pcmd_track_list;          /* cmd track linked list  */
-    unsigned char __user *filename =
-            (unsigned char __user *)n_file->file_name; /* user file name    */
+    u8 *filename;
+    int ret_code = 0;
 
-    /* copy the file name sent from user */
-    copy_from_user((u8 *)filename, (u8 *)n_file->file_name,
-            n_file->flen * sizeof(u8));
+    /* Allocating memory for the data in kernel space */
+    filename = kmalloc(n_file->flen, GFP_KERNEL | __GFP_ZERO);
+
+    /*
+     * Check if allocation of memory is not null else return
+     * no memory.
+     */
+    if (!filename) {
+        LOG_ERR("Unable to allocate kernel memory");
+        return -ENOMEM;
+    }
+
+    /* Copying userspace buffer to kernel memory */
+    if (copy_from_user(filename, (void __user *) n_file->file_name,
+        n_file->flen)) {
+        LOG_ERR("Invalid copy from user space");
+        ret_code = -EFAULT;
+        goto err;
+    }
+
     LOG_DBG("File Name in Driver = %s", filename);
     oldfs = get_fs();
     set_fs(KERNEL_DS);
@@ -113,6 +130,9 @@ int driver_log(struct nvme_file *n_file)
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"type = %d", pmetrics_cq_list->
                         private_cq.prp_persist.type);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"vir_kern_addr = 0X%llX", (u64)
+                    pmetrics_cq_list->private_cq.prp_persist.vir_kern_addr);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"vir_prp_list = 0X%llX",
                         (u64)pmetrics_cq_list->private_cq.prp_persist.
@@ -196,6 +216,9 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L4"npages = %d", pmetrics_sq_list->
                         private_sq.prp_persist.npages);
                 vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L4"vir_kern_addr = 0X%llX", (u64)
+                    pmetrics_sq_list->private_sq.prp_persist.vir_kern_addr);
+                vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"type = %d", pmetrics_sq_list->
                         private_sq.prp_persist.type);
                 vfs_write(file, data1, strlen(data1), &pos);
@@ -255,6 +278,9 @@ int driver_log(struct nvme_file *n_file)
                     sprintf(data1, IDNT_L5"prp_nonpersist:");
                     vfs_write(file, data1, strlen(data1), &pos);
                     /* Printing prp_nonpersist memeber variables */
+                    sprintf(data1, IDNT_L6"vir_kern_addr = 0X%llX", (u64)
+                        pcmd_track_list->prp_nonpersist.vir_kern_addr);
+                    vfs_write(file, data1, strlen(data1), &pos);
                     sprintf(data1, IDNT_L6"npages = %d",
                         pcmd_track_list->prp_nonpersist.npages);
                     vfs_write(file, data1, strlen(data1), &pos);
@@ -299,7 +325,9 @@ int driver_log(struct nvme_file *n_file)
     }
     set_fs(oldfs);
     filp_close(file, NULL); /* Close the file */
-    return SUCCESS;
+err:
+    kfree(filename);
+    return ret_code;
 }
 
 static loff_t meta_nodes_log(struct file *file, loff_t pos,

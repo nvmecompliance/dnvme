@@ -1,13 +1,18 @@
 #ifndef _DNVME_CMDS_H_
 #define _DNVME_CMDS_H_
 
+/* define's for unique QID creation */
+#define UNIQUE_QID_FLAG 0x01
 
-/* Enum specifying Writes/Reads to device and pages */
+/* Enum specifying Writes/Reads to mapped pages and other general enums */
 enum {
-    READ_DEV = 0,
     READ_PG = 0,
-    WRITE_DEV = 1,
     WRITE_PG = 1,
+    PRP_PRESENT = 1, /* Specifies to geberate PRP's for a particular command */
+    PRP_ABSENT = 0, /* Specifies not to generate PRP's per command */
+    PRP_Size = 8, /* Size of PRP entry in bytes */
+    PERSIST_QID_0 = 0, /* Default value of Persist queue ID */
+    CDW11_PC = 1, /* Mask for checking CDW11.PC of create IO Q cmds */
 };
 
 /* Enum specifying PRP1,PRP2 or List */
@@ -16,31 +21,58 @@ enum prp_type {
     PRP1 = 1,
     PRP2 = 2,
     PRP_List = 4,
-    PRP_Size = 8,
 };
 
 /* Enum specifying type of data buffer */
 enum data_buf_type {
-    DISCONTG_IO_Q = 0 ,
-    DATA_BUF = 1,
+    DATA_BUF = 0,
+    CONTG_IO_Q = 0,
+    DISCONTG_IO_Q = 1,
 };
 
 /**
-* submit_command :
-* Entry point for Submitting 64Bytes Command which handles
-* mapping user pages to memory, creating SG Lists and
-* creating PRP Lists
-* @param pmetrics_device
-* @param q_id
-* @param buf_addr
-* @param buf_len
-* @return Error codes
-* TODO:
-* Add the implementation logic of complete ioctl and update the
-* function arguments accordingly
-*/
-int submit_command(struct  metrics_device_list *pmetrics_device, __u16 q_id,
-    __u8 *buf_addr, __u32 buf_len);
+ * prep_send64b_cmd:
+ * Prepares the 64 byte command to be sent
+ * with PRP generation and addition of nodes
+ * inside cmd track list
+ * @param nvme_dev
+ * @param pmetrics_sq
+ * @param nvme_64b_send
+ * @param prps
+ * @param nvme_gen_cmd
+ * @param persist_q_id
+ * @param data_buf_type
+ * @param gen_prp
+ * @return Error Codes
+ */
+int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
+    *pmetrics_sq, struct nvme_64b_send *nvme_64b_send, struct nvme_prps *prps,
+        struct nvme_gen_cmd *nvme_gen_cmd, __u16 persist_q_id,
+            enum data_buf_type data_buf_type, __u8 gen_prp);
+
+/**
+ * add_cmd_track_node:
+ * Add node inside the cmd track list
+ * @param pmetrics_sq
+ * @param persist_q_id
+ * @param prps
+ * @param cmd_type
+ * @param opcode
+ * @return Error codes
+ */
+int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
+    __u16 persist_q_id, struct nvme_prps *prps, enum nvme_cmds cmd_type,
+        __u8 opcode);
+
+/**
+ * empty_cmd_track_list:
+ * Delete command track list completley per SQ
+ * @param nvme_device
+ * @param pmetrics_sq
+ * @return void
+ */
+void empty_cmd_track_list(struct  nvme_device *nvme_device,
+    struct  metrics_sq *pmetrics_sq);
 
 /**
  * destroy_dma_pool:
@@ -51,34 +83,12 @@ int submit_command(struct  metrics_device_list *pmetrics_device, __u16 q_id,
 void destroy_dma_pool(struct nvme_device *nvme_dev);
 
 /**
- * empty_cmd_track_list:
- * Delete command track list completley per SQ
- * @param pnvme_device
- * @param pmetrics_sq
- * @return void
- */
-void empty_cmd_track_list(struct  nvme_device *pnvme_device,
-    struct  metrics_sq  *pmetrics_sq);
-
-/**
- * free_prp_pool:
- * Frees the PRP pool for a SQ or CQ node for this device.
- * @param dev
- * @param prps
- * @param npages
- * @return void
- */
-void free_prp_pool(struct nvme_device *dev,
-    struct nvme_prps *prps, __u32 npages);
-
-/**
- * unmap_user_pg_to_dma:
- * Unmaps the dma memory for this device with given prps.
- * @param dev
+ * del_prps:
+ * Deletes the PRP structures of SQ/CQ or command track node
+ * @param nvme_dev
  * @param prps
  * @return void
  */
-void unmap_user_pg_to_dma(struct nvme_device *dev,
-    struct nvme_prps *prps);
+void del_prps(struct nvme_device *nvme_device, struct nvme_prps *prps);
 
 #endif

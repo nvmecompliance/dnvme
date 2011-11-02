@@ -19,20 +19,19 @@ struct nvme_prps {
     u32 type; /* refers to types of PRP Possible */
     /* List of virtual pointers to PRP List pages */
     __le64 **vir_prp_list;
+    __u8 *vir_kern_addr; /* K.V.A for pinned down pages */
     __le64 prp1; /* Physical address in PRP1 of command */
     __le64 prp2; /* Physical address in PRP2 of command */
-    /* TODO: Will be removed once complete IOCTL is working */
     dma_addr_t first_dma; /* First entry in PRP List */
-    u8 data_dir; /* Flow of Data to/from device 1/0 */
-    /* Address of data buffer for the specific command */
-    unsigned long data_buf_addr;
     /* Size of data buffer for the specific command */
     u32 data_buf_size;
     /* Pointer to SG list generated */
     struct scatterlist *sg;
     /* Number of pages mapped to DMA area */
     __u32 dma_mapped_pgs;
-
+    /* Address of data buffer for the specific command */
+    unsigned long data_buf_addr;
+    u8 data_dir; /* Flow of Data to/from device 1/0 */
 };
 
 /*
@@ -45,6 +44,7 @@ struct nvme_trk_cq {
     u32 __iomem *dbs;           /* Door Bell stride                         */
     struct nvme_prps  prp_persist; /* PRP element in CQ                     */
     u8          contig;         /* Indicates if prp list is contig or not   */
+    u8          bit_mask;       /* bitmask added for unique ID creation */
 };
 
 /*
@@ -66,11 +66,12 @@ struct nvme_trk_sq {
     void        *vir_kern_addr; /* virtual kernal address using kmalloc    */
     dma_addr_t  sq_dma_addr;    /* dma mapped address using dma_alloc      */
     u32         size;           /* len in bytes of allocated Q in kernel   */
-    u16         unique_cmd_id;  /* unique counter for each comand in SQ    */
     u32 __iomem *dbs;           /* Door Bell stride                        */
     struct nvme_prps  prp_persist; /* PRP element in CQ */
-    u8          contig;         /* Indicates if prp list is contig or not  */
     struct list_head cmd_track_list; /* link-list head for cmd_track list  */
+    u16         unique_cmd_id;  /* unique counter for each comand in SQ    */
+    u8          contig;         /* Indicates if prp list is contig or not  */
+    u8          bit_mask;       /* bitmask added for unique ID creation */
 };
 
 /*

@@ -77,20 +77,28 @@ enum nvme_cmds {
     CMD_FENCE,   /* last element for loop over-run  */
 };
 
+/* Enum specifying bitmask passed on to IOCTL_SEND_64B */
+enum send_64b_bitmask {
+    MASK_PRP1_PAGE = 1, /* PRP1 can point to a physical page */
+    MASK_PRP1_LIST = 2, /* PRP1 can point to a PRP list */
+    MASK_PRP2_PAGE = 4, /* PRP2 can point to a physical page */
+    MASK_PRP2_LIST = 8, /* PRP2 can point to a PRP list */
+    MASK_MPTR = 16, /* MPTR may be modified */
+};
+
 /**
 * This struct is the basic structure which has important parameter for
 * sending 64 Bytes command to both admin  and IO SQ's and CQ's
 */
 struct nvme_64b_send {
-    uint16_t queue_id; /* Queue ID where the cmd_buf command should go */
-    uint16_t bit_mask; /* BIT MASK for PRP1,PRP2 and Metadata pointer */
+    uint16_t q_id; /* Queue ID where the cmd_buf command should go */
+    /* BIT MASK for PRP1,PRP2 and Metadata pointer */
+    enum send_64b_bitmask bit_mask;
     uint32_t data_buf_size; /* Size of Data Buffer */
     /* Data Buffer or Discontiguous CQ/SQ's user space address */
     uint8_t *data_buf_ptr;
-    uint8_t *meta_buf_ptr; /* User space addr of Metabuffer else NULL */
     uint8_t *cmd_buf_ptr; /* Virtual Address pointer to 64B command */
     enum nvme_cmds cmd_set; /* Command set for the cmd_buf command */
-    uint16_t meta_buf_size; /* Size of Meta Buffer */
     uint8_t data_dir; /* Direction of DMA mapped memory 1/0 to/from device */
 };
 
@@ -213,9 +221,9 @@ struct nvme_reap {
 };
 
 /**
- * Format of general purpose nvme command
+ * Format of general purpose nvme command DW0-DW9
  */
-struct nvme_general_command {
+struct nvme_gen_cmd {
     uint8_t   opcode;
     uint8_t   flags;
     uint16_t  command_id;
@@ -224,7 +232,6 @@ struct nvme_general_command {
     uint64_t  metadata;
     uint64_t  prp1;
     uint64_t  prp2;
-    uint32_t  rsvd10[6];
 };
 
 /**
@@ -245,13 +252,32 @@ struct nvme_create_cq {
 };
 
 /**
- * Format of nvme command
+ * Specific structure for Create SQ command
  */
-struct nvme_command {
-    union {
-        struct nvme_general_command gen_cmd;
-        struct nvme_create_cq create_cq_cmd;
-    };
+struct nvme_create_sq {
+    uint8_t  opcode;
+    uint8_t  flags;
+    uint16_t command_id;
+    uint32_t rsvd1[5];
+    uint64_t prp1;
+    uint64_t rsvd8;
+    uint16_t sqid;
+    uint16_t qsize;
+    uint16_t sq_flags;
+    uint16_t cqid;
+    uint32_t rsvd12[4];
 };
 
+/**
+ * Specific structure for Delete Q command
+ */
+struct nvme_del_q {
+    uint8_t  opcode;
+    uint8_t  flags;
+    uint16_t command_id;
+    uint32_t rsvd1[9];
+    uint16_t qid;
+    uint16_t rsvd10;
+    uint32_t rsvd11[5];
+};
 #endif

@@ -274,12 +274,12 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
     /* returns success */
     return ret_code;
 
- asq_out:
+asq_out:
     if (pmetrics_sq_list->private_sq.vir_kern_addr != NULL) {
         /* Admin SQ dma mem allocated, so free the DMA memory */
         dma_free_coherent(&pnvme_dev->pdev->dev, asq_depth,
-                (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
-                pmetrics_sq_list->private_sq.sq_dma_addr);
+            (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
+        pmetrics_sq_list->private_sq.sq_dma_addr);
     }
     /* returns failure*/
     return ret_code;
@@ -592,13 +592,10 @@ static int deallocate_metrics_cq(struct device *dev,
 {
     /* Delete memory for all metrics_cq for current id here */
     if (pmetrics_cq_list->private_cq.contig == 0) {
-        /* First unmap the dma */
-        unmap_user_pg_to_dma(pmetrics_device->metrics_device,
-                &pmetrics_cq_list->private_cq.prp_persist);
-        /* free prp list pointed by this non contig cq */
-        free_prp_pool(pmetrics_device->metrics_device,
-                &pmetrics_cq_list->private_cq.prp_persist,
-                pmetrics_cq_list->private_cq.prp_persist.npages);
+        /* Deletes the PRP persist entry */
+        del_prps(pmetrics_device->metrics_device,
+            &pmetrics_cq_list->private_cq.prp_persist);
+
     } else {
         /* Contiguous CQ, so free the DMA memory */
         dma_free_coherent(dev, pmetrics_cq_list->private_cq.size,
@@ -627,26 +624,19 @@ static int deallocate_metrics_sq(struct device *dev,
     /* Clean the Cmd track list */
     empty_cmd_track_list(pmetrics_device->metrics_device, pmetrics_sq_list);
 
-    /* Clean up memory for all metrics_sq for current id here */
     if (pmetrics_sq_list->private_sq.contig == 0) {
-        /* free the prp pool pointed by this non contig sq. */
-        LOG_DBG("DMA Free for non-contig sq id = %d", pmetrics_sq_list->
-                public_sq.sq_id);
-        /* First unmap the dma */
-        unmap_user_pg_to_dma(pmetrics_device->metrics_device,
-                &pmetrics_sq_list->private_sq.prp_persist);
-        /* free prp list pointed by this non contig cq */
-        free_prp_pool(pmetrics_device->metrics_device,
-                &pmetrics_sq_list->private_sq.prp_persist,
-                pmetrics_sq_list->private_sq.prp_persist.npages);
+        /* Deletes the PRP persist entry */
+        del_prps(pmetrics_device->metrics_device,
+            &pmetrics_sq_list->private_sq.prp_persist);
     } else {
         LOG_DBG("DMA Free for contig sq id = %d", pmetrics_sq_list->
-                public_sq.sq_id);
+            public_sq.sq_id);
         /* Contiguous SQ, so free the DMA memory */
         dma_free_coherent(dev, pmetrics_sq_list->private_sq.size,
-                (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
+            (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
                 pmetrics_sq_list->private_sq.sq_dma_addr);
     }
+
     /* Delete the current sq entry from the list */
     list_del_init(&pmetrics_sq_list->sq_list_hd);
     kfree(pmetrics_sq_list);
@@ -674,6 +664,7 @@ static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
 {
     /* Free command track list for admin */
     empty_cmd_track_list(pmetrics_device->metrics_device, pmetrics_sq_list);
+
 
     /* reinit required params in admin node */
     pmetrics_sq_list->public_sq.head_ptr = 0;
@@ -785,6 +776,9 @@ static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
     LOG_NRM("CQ Hd Ptr = %d", pmetrics_cq_node->public_cq.head_ptr);
     LOG_NRM("Rp Inq. Tail Ptr before = %d", pmetrics_cq_node->public_cq.
             tail_ptr);
+    /* Start from head ptr and update till the remaining cnt */
+    pmetrics_cq_node->public_cq.tail_ptr = pmetrics_cq_node->public_cq.
+            head_ptr;
     /* loop through the entries in the cq */
     while (1) {
         cq_entry = (struct cq_completion *)q_head_ptr;
@@ -804,6 +798,7 @@ static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
             break;
         }
     } /* end of while loop */
+
     LOG_NRM("Rp Inq. Tail Ptr After = %d", pmetrics_cq_node->public_cq.
             tail_ptr);
     LOG_NRM("cq.elements = %d", pmetrics_cq_node->public_cq.elements);
@@ -819,7 +814,8 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         struct nvme_reap_inquiry *reap_inq)
 {
     struct metrics_cq  *pmetrics_cq_node;   /* ptr to cq node       */
-    u16 num_remaining = 0;
+    u16 num_remain;
+
 
     /* Find given CQ in list */
     pmetrics_cq_node = find_cq(pmetrics_device, reap_inq->q_id);
@@ -828,15 +824,16 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         LOG_ERR("CQ ID = %d is not in list", reap_inq->q_id);
         return -ENODEV;
     }
-    num_remaining = reap_inquiry(pmetrics_cq_node,
-            &pmetrics_device->metrics_device->pdev->dev);
-    /* Copy to user the remaining elements in this q */
-    if (copy_to_user(&reap_inq->num_remaining, &num_remaining,
-            sizeof(u16)) < 0) {
-        LOG_ERR("Error copying to user buffer returning");
-        return -EAGAIN;
-    }
 
+    num_remain = reap_inquiry(pmetrics_cq_node,
+            &pmetrics_device->metrics_device->pdev->dev);
+
+    /* Copy to user the remaining elements in this q */
+    if (copy_to_user(&reap_inq->num_remaining, &num_remain,
+        sizeof(u16))) {
+        LOG_ERR("Error copying to user buffer returning");
+        return -EFAULT;
+    }
     return SUCCESS;
 }
 
@@ -1033,11 +1030,8 @@ static int process_algo_gen(struct metrics_sq *pmetrics_sq_node,
         LOG_ERR("Command id = %d does not exist", cmd_id);
         return -EBADSLT; /* Invalid slot */
     }
-    /* TODO: Call the Wrapper */
-    unmap_user_pg_to_dma(pmetrics_device->metrics_device, &pcmd_node->
-            prp_nonpersist);
-    free_prp_pool(pmetrics_device->metrics_device, &pcmd_node->prp_nonpersist,
-            pcmd_node->prp_nonpersist.npages);
+
+    del_prps(pmetrics_device->metrics_device, &pcmd_node->prp_nonpersist);
 
     ret_val = remove_cmd_node(pmetrics_sq_node, cmd_id);
 
@@ -1094,6 +1088,7 @@ static int process_reap_algos(struct cq_completion *cq_entry,
     struct metrics_sq *pmetrics_sq_node = NULL;
     struct cmd_track *pcmd_node = NULL;
 
+    LOG_DBG("SQ ID = %d", cq_entry->sq_identifier);
     /* find sq node for given sq id in CE */
     pmetrics_sq_node = find_sq(pmetrics_device, cq_entry->sq_identifier);
     if (pmetrics_sq_node == NULL) {
@@ -1102,6 +1097,7 @@ static int process_reap_algos(struct cq_completion *cq_entry,
         return -EBADSLT; /* Invalid slot */
     }
 
+    LOG_DBG("SQ ID Found....CMD ID = %d", cq_entry->cmd_identifier);
     /* Find command in sq node */
     pcmd_node = find_cmd(pmetrics_sq_node, cq_entry->cmd_identifier);
     if (pcmd_node != NULL) {
@@ -1116,6 +1112,8 @@ static int process_reap_algos(struct cq_completion *cq_entry,
             ret_val = process_algo_gen(pmetrics_sq_node, pcmd_node->unique_id,
                     pmetrics_device);
         }
+    } else {
+        LOG_DBG("Cmd node does not exist...");
     }
 
     return ret_val;
@@ -1130,6 +1128,7 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
 {
     /* while there is an element to be reaped */
     while (num_reaped) {
+        LOG_DBG("Num Reaping loop = %d", num_reaped);
         /* Call the process reap algos based on CE entry */
         if (process_reap_algos((struct cq_completion *)cq_head_ptr,
                 pmetrics_device)) {
