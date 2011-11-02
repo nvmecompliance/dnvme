@@ -96,7 +96,7 @@ struct nvme_64b_send {
     enum send_64b_bitmask bit_mask;
     uint32_t data_buf_size; /* Size of Data Buffer */
     /* Data Buffer or Discontiguous CQ/SQ's user space address */
-    uint8_t *data_buf_ptr;
+    uint8_t const *data_buf_ptr;
     uint8_t *cmd_buf_ptr; /* Virtual Address pointer to 64B command */
     enum nvme_cmds cmd_set; /* Command set for the cmd_buf command */
     uint8_t data_dir; /* Direction of DMA mapped memory 1/0 to/from device */

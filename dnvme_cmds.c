@@ -12,7 +12,7 @@
 /* Declaration of static functions belonging to Submitting 64Bytes Command */
 static int data_buf_to_prp(struct nvme_device *, struct metrics_sq *,
     struct nvme_64b_send *, struct nvme_prps *, __u8, __u16,
-        enum data_buf_type);
+        enum data_buf_type, __u16);
 static int map_user_pg_to_dma(struct nvme_device *, __u8,
     unsigned long, __u32, struct scatterlist **, struct nvme_prps *,
         enum data_buf_type);
@@ -42,7 +42,8 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
         /* Create PRP and add the node inside the command track list */
         ret_code = data_buf_to_prp(nvme_dev,
             pmetrics_sq, nvme_64b_send, prps,
-                nvme_gen_cmd->opcode, persist_q_id, data_buf_type);
+                nvme_gen_cmd->opcode, persist_q_id, data_buf_type,
+                    nvme_gen_cmd->command_id);
 
         if (ret_code < 0) {
             LOG_ERR("Data buffer to PRP generation failed");
@@ -60,7 +61,8 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
 
         /* Adding node inside cmd_track list for pmetrics_sq */
         ret_code = add_cmd_track_node(pmetrics_sq, persist_q_id, prps,
-            nvme_64b_send->cmd_set, nvme_gen_cmd->opcode);
+            nvme_64b_send->cmd_set, nvme_gen_cmd->opcode,
+                nvme_gen_cmd->command_id);
         if (ret_code < 0) {
             LOG_ERR("Failure to add command track node for\
                 Create Contig Queue Command");
@@ -78,7 +80,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
  */
 int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     __u16 persist_q_id, struct nvme_prps *prps, enum nvme_cmds cmd_type,
-        __u8 opcode)
+        __u8 opcode, __u16 cmd_id)
 {
     /* pointer to cmd track linked list node */
     struct cmd_track  *pcmd_track_list;
@@ -92,7 +94,7 @@ int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     }
 
     /* Fill the node */
-    pcmd_track_list->unique_id = pmetrics_sq->private_sq.unique_cmd_id;
+    pcmd_track_list->unique_id = cmd_id;
     pcmd_track_list->persist_q_id = persist_q_id;
     pcmd_track_list->opcode = opcode;
     pcmd_track_list->cmd_set = cmd_type;
@@ -165,7 +167,7 @@ void destroy_dma_pool(struct nvme_device *nvme_dev)
 static int data_buf_to_prp(struct nvme_device *nvme_dev,
     struct metrics_sq *pmetrics_sq, struct nvme_64b_send *nvme_64b_send,
         struct nvme_prps *prps, __u8 opcode, __u16 persist_q_id,
-            enum data_buf_type data_buf_type)
+            enum data_buf_type data_buf_type, __u16 cmd_id)
 {
     int err; /* Error code return values */
     struct scatterlist *sg; /* Pointer to SG List */
@@ -246,7 +248,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
 
     /* Adding node inside cmd_track list for pmetrics_sq */
     err = add_cmd_track_node(pmetrics_sq, persist_q_id, prps,
-        nvme_64b_send->cmd_set, opcode);
+        nvme_64b_send->cmd_set, opcode, cmd_id);
     if (err < 0) {
         LOG_ERR("Failure to add command track node");
         goto err;

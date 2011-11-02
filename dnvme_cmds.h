@@ -58,11 +58,12 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
  * @param prps
  * @param cmd_type
  * @param opcode
+ * @param cmd_id
  * @return Error codes
  */
 int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     __u16 persist_q_id, struct nvme_prps *prps, enum nvme_cmds cmd_type,
-        __u8 opcode);
+        __u8 opcode, __u16 cmd_id);
 
 /**
  * empty_cmd_track_list:
