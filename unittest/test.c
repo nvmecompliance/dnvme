@@ -387,13 +387,13 @@ void test_reap_inquiry(int file_desc)
     ioctl_reap_inquiry(file_desc, 6);
 }
 
-void display_contents(uint64_t *kadr, int elem)
+void display_contents(uint8_t *kadr, int elem)
 {
     int i;
-
     for (i = 0; i < elem; i++) {
-        printf("Addr:Val::0x%lx:0x%lx\n", (uint64_t)kadr, *kadr);
-        kadr++;
+        //printf("Addr:Val::0x%lx:0x%lx\n", (uint64_t)kadr, *kadr);
+        display_cq_data((unsigned char *)kadr, 1);
+        kadr += 16;
     }
 }
 
@@ -403,7 +403,7 @@ int test_regression(int file_desc)
     char *tmpfile1 = "/tmp/regression_file1.txt";
     char *tmpfile2 = "/tmp/regression_file2.txt";
     char *tmpfile3 = "/tmp/regression_file3.txt";
-    uint64_t *kadr;
+    uint8_t *kadr;
     int fd3;
 
     printf("\n******\t Sprint 2 Demo \t******\n");
@@ -726,9 +726,18 @@ void test_reap_regression(int file_desc)
 
 int main()
 {
-    int file_desc,test_case,i;
+    int file_desc, test_case, i;
     char *tmpfile1 = "/tmp/temp_file1.txt";
     char *tmpfile2 = "/tmp/temp_file2.txt";
+    char *tmpfile3 = "/tmp/temp_file3.txt";
+    char *tmpfile4 = "/tmp/temp_file4.txt";
+    char *tmpfile14 = "/tmp/temp_file14.txt";
+    char *tmpfile15 = "/tmp/temp_file15.txt";
+
+    /* Maximum possible entries */
+    void *read_buffer;
+    void *identify_buffer;
+    uint8_t *kadr;
 
     printf("\n*****\t Demo \t*****\n");
 
@@ -740,10 +749,6 @@ int main()
         exit(-1);
     }
     printf("Device File Successfully Opened = %d\n", file_desc);
-
-    /* Maximum possible entries */
-    void *read_buffer;
-    void *identify_buffer;
 
     if (posix_memalign(&read_buffer, 4096, READ_BUFFER_SIZE)) {
         printf("Memalign Failed");
@@ -758,7 +763,7 @@ int main()
 
     test_drv_metrics(file_desc);
     do {
-        printf("Enter a valid test case number:");
+        printf("\nEnter a valid test case number:");
         scanf ("%d", &test_case);
         switch(test_case) {
         case 1:
@@ -837,6 +842,8 @@ int main()
             printf("Ringing Doorbell for SQID 0\n");
             ioctl_tst_ring_dbl(file_desc, 0);
             printf("Test to Create contig IOSQ Done\n");
+            printf("\nCalling Dump Metrics to tmpfile3\n");
+            ioctl_dump(file_desc, tmpfile3);
             break;
         case 6: /* Send the identify command */
             printf("Test6: Sending Identify Command\n");
@@ -844,6 +851,8 @@ int main()
             printf("Ringing Doorbell for SQID 0\n");
             ioctl_tst_ring_dbl(file_desc, 0);
             printf("Test to send identify command Done\n");
+            printf("\nCalling Dump Metrics to tmpfile4\n");
+            ioctl_dump(file_desc, tmpfile4);
             break;
         case 7: /* Send an IO write command */
             printf("Test7: Sending IO Write Command\n");
@@ -865,28 +874,48 @@ int main()
                printf("%x ",*(uint8_t *)(read_buffer +i) );
             }
             break;
-        case 10: /* Reading contents of the Identify buffer */
+        case 10: /* reap on Admin CQ for 2 elems */
+            printf("\nCalling Dump Metrics to tmpfile4\n");
+            ioctl_dump(file_desc, tmpfile14);
+            set_reap_cq(file_desc, 0, 2, 32, 1);
+            printf("\nCalling Dump Metrics to tmpfile4\n");
+            ioctl_dump(file_desc, tmpfile15);
+            break;
+        case 11: /* reap on IO CQ for 2 elems */
+            set_reap_cq(file_desc, 1, 2, 32, 1);
+            break;
+        case 12: /* Display ACQ Contents */
+            kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 0);
+            if (!kadr) {
+                printf("mapping failed\n");
+                return -1;
+            }
+            display_contents(kadr, 20);
+            munmap(kadr, 4096);
+            break;
+        case 13: /* Reading contents of the Identify buffer */
             printf("\nIdentify Data:\n");
             for (i = 0; i < READ_BUFFER_SIZE/2; i++) {
-               printf("%x ",*(uint8_t *)(identify_buffer +i));
+                 printf("%x ",*(uint8_t *)(identify_buffer +i));
             }
             break;
-        case 11: /* Regression testing */
+        case 14: /* Test Reap */
+            test_reap(file_desc);
+            break;
+        case 16: /* Regression testing */
             test_regression(file_desc);
             break;
-        case 12: /* Reap Regression */
+        case 17: /* Reap Regression Testing */
             test_reap_regression(file_desc);
             break;
         default:
-            printf("Undefined case!");
+            printf("Undefined case!\n");
         }
-    } while (test_case < 12);
+    } while (test_case < 18);
     free(read_buffer);
     free(identify_buffer);
     printf("\n\n****** END OF DEMO ******\n\n");
     close(file_desc);
     return 0;
 }
-
-
 

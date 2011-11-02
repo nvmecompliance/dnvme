@@ -33,3 +33,4 @@ void ioctl_enable_ctrl(int file_desc);
 void set_admn(int file_desc);
 void ioctl_create_acq(int file_desc);
 void ioctl_create_asq(int file_desc);
+void display_cq_data(unsigned char *cq_buffer, int reap_ele);
