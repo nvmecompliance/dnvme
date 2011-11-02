@@ -1114,9 +1114,6 @@ static int process_reap_algos(struct cq_completion *cq_entry,
             ret_val = process_algo_gen(pmetrics_sq_node, pcmd_node->unique_id,
                     pmetrics_device);
         }
-    } else {
-        LOG_DBG("Cmd node does not exist...");
-    }
 
     return ret_val;
 }
