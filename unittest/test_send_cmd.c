@@ -298,17 +298,11 @@ void ioctl_create_contig_iocq(int file_desc)
 }
 
 /* CMD to send Identify command*/
-void ioctl_send_identify_cmd(int file_desc)
+void ioctl_send_identify_cmd(int file_desc, void* addr)
 {
     int ret_val = -1;
     struct nvme_64b_send user_cmd;
     struct nvme_identify nvme_identify;
-    void *addr;
-
-    if (posix_memalign(&addr, 4096, 4096)) {
-        printf("Memalign Failed");
-        return;
-    }
 
     /* Writing 0's to first page */
     memset(addr, 0, READ_BUFFER_SIZE/2);
@@ -336,7 +330,6 @@ void ioctl_send_identify_cmd(int file_desc)
     } else {
         printf("Command sent succesfully\n");
     }
-    free(addr);
 }
 
 /* CMD to send NVME IO write command */

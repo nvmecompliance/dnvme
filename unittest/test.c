@@ -743,9 +743,16 @@ int main()
 
     /* Maximum possible entries */
     void *read_buffer;
+    void *identify_buffer;
 
     if (posix_memalign(&read_buffer, 4096, READ_BUFFER_SIZE)) {
         printf("Memalign Failed");
+        return 0;
+    }
+
+    identify_buffer = malloc(4096);
+    if (identify_buffer == NULL) {
+        printf("Malloc Failed");
         return 0;
     }
 
@@ -833,7 +840,7 @@ int main()
             break;
         case 6: /* Send the identify command */
             printf("Test6: Sending Identify Command\n");
-            ioctl_send_identify_cmd(file_desc);
+            ioctl_send_identify_cmd(file_desc, read_buffer);
             printf("Ringing Doorbell for SQID 0\n");
             ioctl_tst_ring_dbl(file_desc, 0);
             printf("Test to send identify command Done\n");
@@ -858,10 +865,16 @@ int main()
                printf("%x ",*(uint8_t *)(read_buffer +i) );
             }
             break;
-        case 10: /* Regression testing */
+        case 10: /* Reading contents of the Identify buffer */
+            printf("\nIdentify Data:\n");
+            for (i = 0; i < READ_BUFFER_SIZE/2; i++) {
+               printf("%x ",*(uint8_t *)(identify_buffer +i));
+            }
+            break;
+        case 11: /* Regression testing */
             test_regression(file_desc);
             break;
-        case 11: /* Reap Regression */
+        case 12: /* Reap Regression */
             test_reap_regression(file_desc);
             break;
         default:
@@ -869,6 +882,7 @@ int main()
         }
     } while (test_case < 12);
     free(read_buffer);
+    free(identify_buffer);
     printf("\n\n****** END OF DEMO ******\n\n");
     close(file_desc);
     return 0;

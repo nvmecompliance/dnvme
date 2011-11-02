@@ -22,9 +22,9 @@ void ioctl_create_discontig_iosq(int file_desc);
 void ioctl_create_contig_iocq(int file_desc);
 void ioctl_create_contig_iosq(int file_desc);
 void ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid);
-void ioctl_send_identify_cmd(int file_desc);
+void ioctl_send_identify_cmd(int file_desc, void *addr);
 void ioctl_send_nvme_write(int file_desc);
-void ioctl_send_nvme_read(int file_desc, void* addr);
+void ioctl_send_nvme_read(int file_desc, void *addr);
 
 void ioctl_reap_inquiry(int file_desc, int cq_id);
 void ioctl_reap_cq(int file_desc, int cq_id, int elements, int size, int display);
