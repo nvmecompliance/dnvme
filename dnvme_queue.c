@@ -768,7 +768,9 @@ static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
         dma_sync_sg_for_cpu(dev, pmetrics_cq_node->private_cq.prp_persist.sg,
                 pmetrics_cq_node->private_cq.prp_persist.dma_mapped_pgs,
                 pmetrics_cq_node->private_cq.prp_persist.data_dir);
-        /* TODO: Point to discontig Q memory here */
+        /* Point to discontig Q memory here */
+         q_head_ptr = pmetrics_cq_node->private_cq.prp_persist.vir_kern_addr +
+               (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr);
     }
 
     LOG_NRM("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",

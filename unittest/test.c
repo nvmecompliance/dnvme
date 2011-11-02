@@ -387,13 +387,13 @@ void test_reap_inquiry(int file_desc)
     ioctl_reap_inquiry(file_desc, 6);
 }
 
-void display_contents(uint64_t *kadr, int elem)
+void display_contents(uint8_t *kadr, int elem)
 {
     int i;
     for (i = 0; i < elem; i++) {
         //printf("Addr:Val::0x%lx:0x%lx\n", (uint64_t)kadr, *kadr);
         display_cq_data((unsigned char *)kadr, 1);
-        kadr++;
+        kadr += 16;
     }
 }
 
@@ -403,7 +403,7 @@ int test_regression(int file_desc)
     char *tmpfile1 = "/tmp/regression_file1.txt";
     char *tmpfile2 = "/tmp/regression_file2.txt";
     char *tmpfile3 = "/tmp/regression_file3.txt";
-    uint64_t *kadr;
+    uint8_t *kadr;
     int fd3;
 
     printf("\n******\t Sprint 2 Demo \t******\n");
@@ -733,15 +733,13 @@ int main()
     char *tmpfile2 = "/tmp/temp_file2.txt";
     char *tmpfile3 = "/tmp/temp_file3.txt";
     char *tmpfile4 = "/tmp/temp_file4.txt";
-    char *tmpfile5 = "/tmp/temp_file5.txt";
     char *tmpfile14 = "/tmp/temp_file14.txt";
     char *tmpfile15 = "/tmp/temp_file15.txt";
 
     /* Maximum possible entries */
     void *read_buffer;
     void *identify_buffer;
-    int test_lcl = 1;
-    uint64_t *kadr;
+    uint8_t *kadr;
 
     printf("\n*****\t Demo \t*****\n");
 
@@ -753,21 +751,6 @@ int main()
         exit(-1);
     }
     printf("Device File Successfully Opened = %d\n", file_desc);
-
-    if (test_lcl) {
-        test_drv_metrics(file_desc);
-        test_meta(file_desc, 1);
-
-        test_regression(file_desc);
-        test_reap(file_desc);
-        test_reap_regression(file_desc);
-
-
-        printf("Call to close the file_desc.");
-        close(file_desc);
-        printf("\n\n****** END OF DEMO ****** \n\n");
-        return 0;
-    }
 
     if (posix_memalign(&read_buffer, 4096, READ_BUFFER_SIZE)) {
         printf("Memalign Failed");
@@ -912,24 +895,28 @@ int main()
             display_contents(kadr, 20);
             munmap(kadr, 4096);
             break;
-         case 13: /* Reading contents of the Identify buffer */
+        case 13: /* Reading contents of the Identify buffer */
             printf("\nIdentify Data:\n");
             for (i = 0; i < READ_BUFFER_SIZE/2; i++) {
                  printf("%x ",*(uint8_t *)(identify_buffer +i));
             }
             break;
-        case 14: /* Regression testing */
+        case 14: /* Test Reap */
+            test_reap(file_desc);
+            break;
+        case 15: /* Test Meta */
+            test_meta(file_desc, 1);
+            break;
+        case 16: /* Regression testing */
             test_regression(file_desc);
             break;
-
-        case 15: /* Reap Regression Testing */
+        case 17: /* Reap Regression Testing */
             test_reap_regression(file_desc);
             break;
-
         default:
             printf("Undefined case!\n");
         }
-    } while (test_case < 16);
+    } while (test_case < 18);
     free(read_buffer);
     free(identify_buffer);
     printf("\n\n****** END OF DEMO ******\n\n");
