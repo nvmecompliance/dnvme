@@ -769,8 +769,8 @@ static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
                 pmetrics_cq_node->private_cq.prp_persist.dma_mapped_pgs,
                 pmetrics_cq_node->private_cq.prp_persist.data_dir);
         /* Point to discontig Q memory here */
-         q_head_ptr = pmetrics_cq_node->private_cq.prp_persist.vir_kern_addr +
-               (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr);
+        q_head_ptr = pmetrics_cq_node->private_cq.prp_persist.vir_kern_addr +
+              (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr);
     }
 
     LOG_NRM("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
@@ -778,9 +778,11 @@ static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
     LOG_NRM("CQ Hd Ptr = %d", pmetrics_cq_node->public_cq.head_ptr);
     LOG_NRM("Rp Inq. Tail Ptr before = %d", pmetrics_cq_node->public_cq.
             tail_ptr);
+
     /* Start from head ptr and update till the remaining cnt */
     pmetrics_cq_node->public_cq.tail_ptr = pmetrics_cq_node->public_cq.
             head_ptr;
+
     /* loop through the entries in the cq */
     while (1) {
         cq_entry = (struct cq_completion *)q_head_ptr;
