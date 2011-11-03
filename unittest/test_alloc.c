@@ -158,6 +158,7 @@ void test_meta(int file_desc, int log)
         printf("Meta Data creation success!!\n");
     }
     getchar();
+    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_CREATE, size);
 
     size = 1024 * 16 + 10;
     ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_CREATE, size);
