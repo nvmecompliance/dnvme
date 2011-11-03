@@ -635,11 +635,14 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
 {
     int ret_val = SUCCESS;
 
-    /* First Check if the meta pool already exists */
     LOG_DBG("pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr = 0x%llx",
             (u64)pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr);
 
+    /* First Check if the meta pool already exists */
     if (pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr != NULL) {
+        if (alloc_size == pmetrics_device_elem->pmetrics_meta->meta_size) {
+            return SUCCESS;
+        }
         LOG_ERR("Meta Pool already exists!!");
         return -EINVAL;
     }
