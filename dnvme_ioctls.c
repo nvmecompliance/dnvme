@@ -653,7 +653,7 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
         ret_val = -ENOMEM;
         goto meta_cr_out;
     }
-
+    pmetrics_device_elem->pmetrics_meta->meta_size = alloc_size;
     return ret_val;
 
 meta_cr_out:

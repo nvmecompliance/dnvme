@@ -13,6 +13,8 @@
 #include <linux/unistd.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
+#include <linux/errno.h>
+#include <linux/mman.h>
 
 #include "dnvme_interface.h"
 #include "definitions.h"
@@ -379,13 +381,15 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list               */
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list               */
     struct  metrics_meta *pmeta_data;       /* pointer to meta node         */
+    u8 *vir_kern_addr;
     unsigned long pfn = 0;
     struct inode *inode = filp->f_dentry->d_inode;
     u32 type;
     u16 id;
+    u32 mmap_range;
+    int npages;
     int ret_val = SUCCESS;
 
-    vma->vm_flags |= VM_IO;
     LOG_DBG("Device Calling mmap function...");
 
     pmetrics_device_element = lock_device(inode);
@@ -394,6 +398,8 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         ret_val = -ENODEV;
         goto mmap_exit;
     }
+
+    vma->vm_flags |= (VM_IO | VM_RESERVED);
 
     /* Calculate the id and type from offset */
     type = (vma->vm_pgoff >> 0x10) & 0x3;
@@ -410,8 +416,17 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
             ret_val = -EBADSLT;
             goto mmap_exit;
         }
-        pfn = virt_to_phys(pmetrics_sq_list->private_sq.vir_kern_addr) >>
-                PAGE_SHIFT;
+        if (pmetrics_sq_list->private_sq.contig == 0) {
+            LOG_ERR("MMAP does not work on non contig SQ's");
+            #ifndef ENOTSUP
+                ret_val = -EOPNOTSUPP; /* aka ENOTSUP in userland for POSIX */
+            #else                      /*  parisc does define it separately.*/
+                ret_val = -ENOTSUP;
+            #endif
+            goto mmap_exit;
+        }
+        vir_kern_addr = pmetrics_sq_list->private_sq.vir_kern_addr;
+        mmap_range = pmetrics_sq_list->private_sq.size;
     } else if (type == 0x0) {
         /* Process for CQ */
         pmetrics_cq_list = find_cq(pmetrics_device_element, id);
@@ -419,8 +434,17 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
             ret_val = -EBADSLT;
             goto mmap_exit;
         }
-        pfn = virt_to_phys(pmetrics_cq_list->private_cq.vir_kern_addr) >>
-                PAGE_SHIFT;
+        if (pmetrics_cq_list->private_cq.contig == 0) {
+            LOG_ERR("MMAP does not work on non contig CQ's");
+            #ifndef ENOTSUP
+                ret_val = -EOPNOTSUPP; /* aka ENOTSUP in userland for POSIX */
+            #else                      /*  parisc does define it separately.*/
+                ret_val = -ENOTSUP;
+            #endif
+            goto mmap_exit;
+        }
+        vir_kern_addr = pmetrics_cq_list->private_cq.vir_kern_addr;
+        mmap_range = pmetrics_cq_list->private_cq.size;
     } else if (type == 0x2) {
         /* Process for Meta data */
         pmeta_data = find_meta_node(pmetrics_device_element, id);
@@ -428,9 +452,33 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
             ret_val = -EBADSLT;
             goto mmap_exit;
         }
-        pfn = virt_to_phys(pmeta_data->vir_kern_addr) >> PAGE_SHIFT;
+        vir_kern_addr = pmeta_data->vir_kern_addr;
+        mmap_range = pmetrics_device_element->pmetrics_meta->meta_size;
+    } else {
+        ret_val = -EINVAL;
+        goto mmap_exit;
+    }
+
+    npages = (mmap_range/4096) + 1;
+    if ((npages * 4096) < (vma->vm_end - vma->vm_start)) {
+        LOG_ERR("Request to Map more than allocated pages...");
+        ret_val = -EINVAL;
+        goto mmap_exit;
+    }
+    LOG_DBG("MR:Len = %d:%d", (u32)mmap_range, (u32)(vma->vm_end - vma->vm_start));
+    LOG_DBG("Virt Address = 0x%llx", (u64)vir_kern_addr);
+    LOG_DBG ("Npages = %d", npages);
+
+    /* Associated struct page ptr for kernel logical address */
+    pfn = virt_to_phys(vir_kern_addr) >> PAGE_SHIFT;
+    if (!pfn) {
+        LOG_ERR("pfn is NULL");
+        ret_val = -EINVAL;
+        goto mmap_exit;
     }
     LOG_DBG("PFN = 0x%lx", pfn);
+
+    /* remap kernel memory to userspace */
     ret_val = remap_pfn_range(vma, vma->vm_start, pfn,
                     vma->vm_end - vma->vm_start, vma->vm_page_prot);
 

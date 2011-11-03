@@ -100,7 +100,7 @@ void ioctl_create_acq(int file_desc)
     int ret_val = -1;
     struct nvme_create_admn_q aq_data;
 
-    aq_data.elements = 30;
+    aq_data.elements = 640; // 2.5 Pages
     aq_data.type = ADMIN_CQ;
 
     //printf("\tUser Call to Create Admin Q:\n");
@@ -390,9 +390,9 @@ void test_reap_inquiry(int file_desc)
 void display_contents(uint8_t *kadr, int elem)
 {
     int i;
-    for (i = 0; i < elem; i++) {
-        //printf("Addr:Val::0x%lx:0x%lx\n", (uint64_t)kadr, *kadr);
-        display_cq_data((unsigned char *)kadr, 1);
+    for (i = 0; i < elem; i+=16) {
+        printf("%x ", *kadr);
+        // display_cq_data((unsigned char *)kadr, 1);
         kadr += 16;
     }
 }
@@ -887,13 +887,19 @@ int main()
             set_reap_cq(file_desc, 1, 2, 32, 1);
             break;
         case 12: /* Display ACQ Contents */
-            kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 0);
-            if (!kadr) {
+            // ioctl_ut_mmap(file_desc);
+            kadr = mmap(0, 4096 * 3, PROT_READ, MAP_SHARED, file_desc, 0);
+            i = (int)kadr;
+            printf("Kadr = 0x%lx, i = %d", (uint64_t)kadr, i);
+            if (i == -1) {
                 printf("mapping failed\n");
-                return -1;
+                break;
+            } else {
+                display_contents(kadr, 3 * 4096);
             }
-            display_contents(kadr, 20);
-            munmap(kadr, 4096);
+            if (i != -1) {
+                munmap(kadr, 4096);
+            }
             break;
         case 13: /* Reading contents of the Identify buffer */
             printf("\nIdentify Data:\n");
