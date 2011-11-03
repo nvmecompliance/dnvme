@@ -236,8 +236,12 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                     LOG_NRM("Entries in Q = %d", num);
                     break;
                 }
-                if (num/16 > 4096 && num/16 < (2 * 4096)) val = 0xbb;
-                if (num/16 > 2 * 4096) val = 0xcc;
+                if (num/16 > 4096 && num/16 < (2 * 4096)) {
+                    val = 0xbb;
+                }
+                if (num/16 > 2 * 4096) {
+                    val = 0xcc;
+                }
             }
         }
 
@@ -290,12 +294,16 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                     q_head_ptr = (u64 *)pmetrics_cq_node->private_cq.
                             vir_kern_addr;
                 }
-                if (num > pmetrics_cq_node->private_cq.size - 1 ) {
+                if (num > pmetrics_cq_node->private_cq.size - 1) {
                     LOG_NRM("Entries in Q = %d", num);
                     break;
                 }
-                if (num > 4096 && num < 2 * 4096) val = 0xbb;
-                if (num > 2 * 4096) val = 0xcc;
+                if (num > 4096 && num < 2 * 4096) {
+                    val = 0xbb;
+                }
+                if (num > 2 * 4096) {
+                    val = 0xcc;
+                }
             }
         }
     }

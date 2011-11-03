@@ -465,9 +465,8 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         ret_val = -EINVAL;
         goto mmap_exit;
     }
-    LOG_DBG("MR:Len = %d:%d", (u32)mmap_range, (u32)(vma->vm_end - vma->vm_start));
     LOG_DBG("Virt Address = 0x%llx", (u64)vir_kern_addr);
-    LOG_DBG ("Npages = %d", npages);
+    LOG_DBG("Npages = %d", npages);
 
     /* Associated struct page ptr for kernel logical address */
     pfn = virt_to_phys(vir_kern_addr) >> PAGE_SHIFT;
