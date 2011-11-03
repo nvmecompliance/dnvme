@@ -459,8 +459,8 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         goto mmap_exit;
     }
 
-    npages = (mmap_range/4096) + 1;
-    if ((npages * 4096) < (vma->vm_end - vma->vm_start)) {
+    npages = (mmap_range/PAGE_SIZE) + 1;
+    if ((npages * PAGE_SIZE) < (vma->vm_end - vma->vm_start)) {
         LOG_ERR("Request to Map more than allocated pages...");
         ret_val = -EINVAL;
         goto mmap_exit;
