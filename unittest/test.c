@@ -390,15 +390,9 @@ void test_reap_inquiry(int file_desc)
 void display_contents(uint8_t *kadr, int elem)
 {
     int i;
-<<<<<<< HEAD
     for (i = 0; i < elem; i+=16) {
         printf("%x ", *kadr);
         // display_cq_data((unsigned char *)kadr, 1);
-=======
-    for (i = 0; i < elem; i++) {
-        //printf("Addr:Val::0x%lx:0x%lx\n", (uint64_t)kadr, *kadr);
-        display_cq_data((unsigned char *)kadr, 1);
->>>>>>> abb6df56697d406014933fd8c97250643d159193
         kadr += 16;
     }
 }

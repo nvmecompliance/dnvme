@@ -33,9 +33,6 @@ void ioctl_enable_ctrl(int file_desc);
 void set_admn(int file_desc);
 void ioctl_create_acq(int file_desc);
 void ioctl_create_asq(int file_desc);
-<<<<<<< HEAD
 void test_meta(int file_desc, int log);
 void ioctl_dump(int file_desc, char *tmpfile);
-=======
->>>>>>> abb6df56697d406014933fd8c97250643d159193
 void display_cq_data(unsigned char *cq_buffer, int reap_ele);
