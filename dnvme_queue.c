@@ -905,7 +905,7 @@ struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id)
  * the pointer to the node otherwise returns NULL.
  */
 struct metrics_meta *find_meta_node(struct metrics_device_list
-        *pmetrics_device_elem, u16 meta_id)
+        *pmetrics_device_elem, u32 meta_id)
 {
     struct  metrics_meta  *pmetrics_meta = NULL;
 

@@ -673,7 +673,7 @@ meta_cr_out:
  * linked list.
  */
 int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
-        u16 meta_id)
+        u32 meta_id)
 {
     struct metrics_meta *pmeta_data = NULL;
     int ret_val = SUCCESS;
@@ -738,7 +738,7 @@ meta_err:
  * linked list and finally free the node memory from the kernel.
  */
 int metabuff_del(struct metrics_device_list *pmetrics_device_element,
-        u16 meta_id)
+        u32 meta_id)
 {
     struct metrics_meta *pmeta_data = NULL;
 
@@ -1410,6 +1410,8 @@ void deallocate_mb(struct  metrics_device_list *pmetrics_device)
                 meta_dmapool_ptr);
         pmetrics_device->pmetrics_meta->meta_dmapool_ptr = NULL;
     }
+
+    pmetrics_device->pmetrics_meta->meta_buf_size = 0;
 
     /* here list del init is required as we will check while cntlr disable */
     list_del_init(&pmetrics_device->pmetrics_meta->meta_trk_list);

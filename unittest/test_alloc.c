@@ -229,7 +229,7 @@ void test_meta(int file_desc, int log)
         printf("Meta Id = %d allocation success!!\n", meta_id);
     }
 
-    meta_id = 0x20004;
+    meta_id = 0x80004;
     printf("\nTEST 3.1: Call to Mmap encoded Meta Id = 0x%x\n", meta_id);
     kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * meta_id);
     if (!kadr) {

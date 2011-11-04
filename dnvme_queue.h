@@ -185,7 +185,7 @@ struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id);
  * @return pointer to metrics_meta node.
  */
 struct metrics_meta *find_meta_node(struct metrics_device_list
-        *pmetrics_device_element, u16 meta_id);
+        *pmetrics_device_element, u32 meta_id);
 
 /**
  * This function gives the device metrics when the user requests. This

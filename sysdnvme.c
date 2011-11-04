@@ -385,7 +385,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     unsigned long pfn = 0;
     struct inode *inode = filp->f_dentry->d_inode;
     u32 type;
-    u16 id;
+    u32 id;
     u32 mmap_range;
     int npages;
     int ret_val = SUCCESS;
@@ -402,15 +402,21 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     vma->vm_flags |= (VM_IO | VM_RESERVED);
 
     /* Calculate the id and type from offset */
-    type = (vma->vm_pgoff >> 0x10) & 0x3;
-    id = vma->vm_pgoff & 0xFFFF;
+    type = (vma->vm_pgoff >> 0x12) & 0x3;
+    id = vma->vm_pgoff & 0x3FFFF;
 
     LOG_DBG("Type = %d", type);
     LOG_DBG("ID = 0x%x", id);
 
     /* If type is 1 implies SQ, 0 implies CQ and 2 implies meta data */
     if (type == 0x1) {
+        LOG_DBG("SQ Id = 0x%x Max = 0x%x", id, USHRT_MAX);
         /* Process for SQ */
+        if (id > USHRT_MAX) { /* 16 bits */
+            LOG_ERR("SQ Id is greater than 16 bits..");
+            ret_val = -EINVAL;
+            goto mmap_exit;
+        }
         pmetrics_sq_list = find_sq(pmetrics_device_element, id);
         if (pmetrics_sq_list == NULL) {
             ret_val = -EBADSLT;
@@ -429,6 +435,12 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         mmap_range = pmetrics_sq_list->private_sq.size;
     } else if (type == 0x0) {
         /* Process for CQ */
+        LOG_DBG("CQ Id = 0x%x Max = 0x%x", id, USHRT_MAX);
+        if (id > USHRT_MAX) { /* 16 bits */
+            LOG_ERR("CQ Id is greater than 16 bits..");
+            ret_val = -EINVAL;
+            goto mmap_exit;
+        }
         pmetrics_cq_list = find_cq(pmetrics_device_element, id);
         if (pmetrics_cq_list == NULL) {
             ret_val = -EBADSLT;
@@ -446,6 +458,11 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         vir_kern_addr = pmetrics_cq_list->private_cq.vir_kern_addr;
         mmap_range = pmetrics_cq_list->private_cq.size;
     } else if (type == 0x2) {
+        if (id > (2^18)) { /* 18 bits */
+            LOG_ERR("Meta Id is greater than 18 bits..");
+            ret_val = -EINVAL;
+            goto mmap_exit;
+        }
         /* Process for Meta data */
         pmeta_data = find_meta_node(pmetrics_device_element, id);
         if (pmeta_data == NULL) {
@@ -681,13 +698,13 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     case NVME_IOCTL_METABUF_ALLOC:
         LOG_DBG("Meta Buffer Alloc IOCTL...");
         /* Call meta buff allocation routine */
-        ret_val = metabuff_alloc(pmetrics_device_element, (u16)ioctl_param);
+        ret_val = metabuff_alloc(pmetrics_device_element, (u32)ioctl_param);
         break;
 
     case NVME_IOCTL_METABUF_DELETE:
         LOG_DBG("Meta Buffer Delete IOCTL...");
         /* Call meta buff delete routine */
-        ret_val = metabuff_del(pmetrics_device_element, (u16)ioctl_param);
+        ret_val = metabuff_del(pmetrics_device_element, (u32)ioctl_param);
         break;
 
     case IOCTL_UNIT_TESTS:

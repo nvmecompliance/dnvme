@@ -483,7 +483,7 @@ int test_regression(int file_desc)
     printf("\nPress any key to continue..");
     getchar();
 
-    sq_id = 0x10000;
+    sq_id = 0x40000;
     printf("\nTEST 3.1: Call to Mmap SQ 0\n");
     kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * sq_id);
     if (!kadr) {
@@ -888,7 +888,7 @@ int main()
             break;
         case 12: /* Display ACQ Contents */
             // ioctl_ut_mmap(file_desc);
-            kadr = mmap(0, 4096 * 3, PROT_READ, MAP_SHARED, file_desc, 0);
+            kadr = mmap(0, 4096 * 3, PROT_READ, MAP_SHARED, file_desc, 0x60000000);
             i = (int)kadr;
             printf("Kadr = 0x%lx, i = %d\n", (uint64_t)kadr, i);
             if (i == -1) {

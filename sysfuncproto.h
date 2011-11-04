@@ -247,7 +247,7 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_element,
  * @return Success of Failure based on dma alloc Success or failure.
  */
 int metabuff_alloc(struct metrics_device_list *pmetrics_device_element,
-        u16 meta_id);
+        u32 meta_id);
 
 /**
  * Delete a meta buffer node when user requests and deallocate a consistent
@@ -257,7 +257,7 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_element,
  * @return Success of Failure based on metabuff delete
  */
 int metabuff_del(struct metrics_device_list *pmetrics_device_element,
-        u16 meta_id);
+        u32 meta_id);
 
 /*
  * deallocate_mb will free up the memory and nodes for the meta buffers

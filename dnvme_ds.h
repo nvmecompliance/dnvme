@@ -108,7 +108,7 @@ struct metrics_meta_data {
  */
 struct metrics_meta {
     struct list_head meta_list_hd;
-    u16         meta_id;
+    u32         meta_id;
     void        *vir_kern_addr;
     dma_addr_t  meta_dma_addr;
 };
