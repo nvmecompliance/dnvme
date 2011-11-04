@@ -890,7 +890,7 @@ int main()
             // ioctl_ut_mmap(file_desc);
             kadr = mmap(0, 4096 * 3, PROT_READ, MAP_SHARED, file_desc, 0);
             i = (int)kadr;
-            printf("Kadr = 0x%lx, i = %d", (uint64_t)kadr, i);
+            printf("Kadr = 0x%lx, i = %d\n", (uint64_t)kadr, i);
             if (i == -1) {
                 printf("mapping failed\n");
                 break;

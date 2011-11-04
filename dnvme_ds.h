@@ -100,7 +100,7 @@ struct metrics_sq {
 struct metrics_meta_data {
     struct list_head meta_trk_list;
     struct dma_pool *meta_dmapool_ptr;
-    u32    meta_size;
+    u32    meta_buf_size;
 };
 
 /*
@@ -124,7 +124,6 @@ struct nvme_device {
     struct device   *dmadev;         /* Pointer to the dma device from pdev */
     int minor_no;                    /* Minor no. of the device being used  */
     u8 open_flag;                    /* Allows device opening only once     */
-    u16 meta_unique_cnt;             /* Unique Meta ID counts per device    */
 };
 
 /*

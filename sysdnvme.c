@@ -453,7 +453,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
             goto mmap_exit;
         }
         vir_kern_addr = pmeta_data->vir_kern_addr;
-        mmap_range = pmetrics_device_element->pmetrics_meta->meta_size;
+        mmap_range = pmetrics_device_element->pmetrics_meta->meta_buf_size;
     } else {
         ret_val = -EINVAL;
         goto mmap_exit;
