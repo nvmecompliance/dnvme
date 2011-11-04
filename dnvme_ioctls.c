@@ -757,9 +757,6 @@ int metabuff_del(struct metrics_device_list *pmetrics_device_element,
         return -EINVAL;
     }
     /* free the dma memory if exists */
-    //if ((pmeta_data->vir_kern_addr != NULL) &&
-    //        (pmetrics_device_element->pmetrics_meta->meta_dmapool_ptr
-    //                != NULL)) {
     if (pmeta_data->vir_kern_addr != NULL) {
         dma_pool_free(pmetrics_device_element->pmetrics_meta->meta_dmapool_ptr,
                 pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
@@ -1401,11 +1398,8 @@ void deallocate_mb(struct  metrics_device_list *pmetrics_device)
     list_for_each_entry_safe(pmeta_data, pmeta_data_next,
             &(pmetrics_device->pmetrics_meta->meta_trk_list), meta_list_hd) {
         /* free the dma pool memory if exists */
-//        if (pmeta_data->vir_kern_addr != NULL &&
-//                pmetrics_device->pmetrics_meta->meta_dmapool_ptr != NULL) {
-            dma_pool_free(pmetrics_device->pmetrics_meta->meta_dmapool_ptr,
-                    pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
-//        }
+        dma_pool_free(pmetrics_device->pmetrics_meta->meta_dmapool_ptr,
+                pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
         /* Delete the current meta data entry from the list */
         list_del(&pmeta_data->meta_list_hd);
         kfree(pmeta_data);
