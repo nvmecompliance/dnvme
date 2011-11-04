@@ -410,13 +410,13 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
 
     /* If type is 1 implies SQ, 0 implies CQ and 2 implies meta data */
     if (type == 0x1) {
-        LOG_DBG("SQ Id = 0x%x Max = 0x%x", id, USHRT_MAX);
         /* Process for SQ */
         if (id > USHRT_MAX) { /* 16 bits */
             LOG_ERR("SQ Id is greater than 16 bits..");
             ret_val = -EINVAL;
             goto mmap_exit;
         }
+        /* Find SQ node in the list with id */
         pmetrics_sq_list = find_sq(pmetrics_device_element, id);
         if (pmetrics_sq_list == NULL) {
             ret_val = -EBADSLT;
@@ -435,12 +435,12 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         mmap_range = pmetrics_sq_list->private_sq.size;
     } else if (type == 0x0) {
         /* Process for CQ */
-        LOG_DBG("CQ Id = 0x%x Max = 0x%x", id, USHRT_MAX);
         if (id > USHRT_MAX) { /* 16 bits */
             LOG_ERR("CQ Id is greater than 16 bits..");
             ret_val = -EINVAL;
             goto mmap_exit;
         }
+        /* Find CQ node in the list with id */
         pmetrics_cq_list = find_cq(pmetrics_device_element, id);
         if (pmetrics_cq_list == NULL) {
             ret_val = -EBADSLT;
@@ -458,12 +458,13 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         vir_kern_addr = pmetrics_cq_list->private_cq.vir_kern_addr;
         mmap_range = pmetrics_cq_list->private_cq.size;
     } else if (type == 0x2) {
+        /* Process for Meta data */
         if (id > (2^18)) { /* 18 bits */
             LOG_ERR("Meta Id is greater than 18 bits..");
             ret_val = -EINVAL;
             goto mmap_exit;
         }
-        /* Process for Meta data */
+        /* find Meta Node data */
         pmeta_data = find_meta_node(pmetrics_device_element, id);
         if (pmeta_data == NULL) {
             ret_val = -EBADSLT;

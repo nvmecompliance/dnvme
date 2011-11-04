@@ -205,7 +205,7 @@ enum {
 * define a unique value to meta buffer allocation. The third parameter give the
 * size of data and type of data passed to this ioctl from user to kernel.
 */
-#define NVME_IOCTL_METABUF_ALLOC _IOWR('A', NVME_METABUF_ALLOC, uint16_t)
+#define NVME_IOCTL_METABUF_ALLOC _IOWR('A', NVME_METABUF_ALLOC, uint32_t)
 
 /**
 * @def NVME_IOCTL_METABUF_CREATE
@@ -224,7 +224,7 @@ enum {
 * size of data and type of data that is passed to this ioctl from user level
 * to kernel.
 */
-#define NVME_IOCTL_METABUF_DELETE _IOWR('A', NVME_METABUF_DEL, uint16_t)
+#define NVME_IOCTL_METABUF_DELETE _IOWR('A', NVME_METABUF_DEL, uint32_t)
 
 /**
  * @def IOCTL_UNIT_TESTS
