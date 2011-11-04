@@ -754,7 +754,7 @@ int metabuff_del(struct metrics_device_list *pmetrics_device_element,
     pmeta_data = find_meta_node(pmetrics_device_element, meta_id);
     if (pmeta_data == NULL) {
         LOG_ERR("Meta ID does not exists!!");
-        return -EINVAL;
+        return SUCCESS;
     }
     /* free the dma memory if exists */
     if (pmeta_data->vir_kern_addr != NULL) {
