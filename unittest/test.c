@@ -860,7 +860,7 @@ int main()
             printf("Test7: Sending IO Write Command\n");
             ioctl_send_nvme_write(file_desc);
             printf("Ringing Doorbell for SQID 2\n");
-            ioctl_tst_ring_dbl(file_desc, 2);
+            ioctl_tst_ring_dbl(file_desc, 1);
             printf("\nCalling Dump Metrics to tmpfile5\n");
             ioctl_dump(file_desc, tmpfile5);
             printf("Test to send IO Write command Done\n");
@@ -869,7 +869,7 @@ int main()
             printf("Test8: Sending IO Read Command\n");
             ioctl_send_nvme_read(file_desc, read_buffer);
             printf("Ringing Doorbell for SQID 2\n");
-            ioctl_tst_ring_dbl(file_desc, 2);
+            ioctl_tst_ring_dbl(file_desc, 1);
             printf("\nCalling Dump Metrics to tmpfile6\n");
             ioctl_dump(file_desc, tmpfile6);
             printf("Test to send IO Read command Done\n");

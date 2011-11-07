@@ -365,7 +365,7 @@ void ioctl_send_nvme_write(int file_desc)
     nvme_write.lbatm = 0;
 
     /* Fill the user command */
-    user_cmd.q_id = 2;
+    user_cmd.q_id = 1;
     user_cmd.bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST |
         MASK_PRP2_PAGE | MASK_PRP2_LIST);
     user_cmd.cmd_buf_ptr = (u_int8_t *) &nvme_write;
@@ -409,7 +409,7 @@ void ioctl_send_nvme_read(int file_desc, void* addr)
     nvme_read.lbatm = 0;
 
     /* Fill the user command */
-    user_cmd.q_id = 2;
+    user_cmd.q_id = 1;
     user_cmd.bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST |
         MASK_PRP2_PAGE | MASK_PRP2_LIST);
     user_cmd.cmd_buf_ptr = (u_int8_t *) &nvme_read;
