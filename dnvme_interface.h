@@ -196,7 +196,7 @@ struct nvme_prep_cq {
  */
 struct nvme_file {
     uint16_t    flen; /* Length of file name, it is not the total bytes */
-    uint8_t     *file_name; /* location and file name to copy metrics   */
+    const char *file_name; /* location and file name to copy metrics   */
 };
 
 /**
