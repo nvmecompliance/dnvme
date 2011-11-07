@@ -731,6 +731,8 @@ int main()
     char *tmpfile2 = "/tmp/temp_file2.txt";
     char *tmpfile3 = "/tmp/temp_file3.txt";
     char *tmpfile4 = "/tmp/temp_file4.txt";
+    char *tmpfile5 = "/tmp/temp_file5.txt";
+    char *tmpfile6 = "/tmp/temp_file6.txt";
     char *tmpfile14 = "/tmp/temp_file14.txt";
     char *tmpfile15 = "/tmp/temp_file15.txt";
 
@@ -847,7 +849,7 @@ int main()
             break;
         case 6: /* Send the identify command */
             printf("Test6: Sending Identify Command\n");
-            ioctl_send_identify_cmd(file_desc, read_buffer);
+            ioctl_send_identify_cmd(file_desc, identify_buffer);
             printf("Ringing Doorbell for SQID 0\n");
             ioctl_tst_ring_dbl(file_desc, 0);
             printf("Test to send identify command Done\n");
@@ -859,6 +861,8 @@ int main()
             ioctl_send_nvme_write(file_desc);
             printf("Ringing Doorbell for SQID 2\n");
             ioctl_tst_ring_dbl(file_desc, 2);
+            printf("\nCalling Dump Metrics to tmpfile5\n");
+            ioctl_dump(file_desc, tmpfile5);
             printf("Test to send IO Write command Done\n");
             break;
         case 8: /* Send an IO read command */
@@ -866,6 +870,8 @@ int main()
             ioctl_send_nvme_read(file_desc, read_buffer);
             printf("Ringing Doorbell for SQID 2\n");
             ioctl_tst_ring_dbl(file_desc, 2);
+            printf("\nCalling Dump Metrics to tmpfile6\n");
+            ioctl_dump(file_desc, tmpfile6);
             printf("Test to send IO Read command Done\n");
             break;
         case 9: /* Reading contents of the read buffer */
@@ -875,10 +881,10 @@ int main()
             }
             break;
         case 10: /* reap on Admin CQ for 2 elems */
-            printf("\nCalling Dump Metrics to tmpfile4\n");
+            printf("\nCalling Dump Metrics to tmpfile14\n");
             ioctl_dump(file_desc, tmpfile14);
             set_reap_cq(file_desc, 0, 2, 32, 1);
-            printf("\nCalling Dump Metrics to tmpfile4\n");
+            printf("\nCalling Dump Metrics to tmpfile15\n");
             ioctl_dump(file_desc, tmpfile15);
             break;
         case 11: /* reap on IO CQ for 2 elems */
