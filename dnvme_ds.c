@@ -111,7 +111,7 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L2"dma_addr_t = 0X%llX",
                         (u64)pmetrics_cq_list->private_cq.cq_dma_addr);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L2"contig (1=Y/(==0)=N) = %d",
+                sprintf(data1, IDNT_L2"contig (1 = Y/(0 = N) = %d",
                         pmetrics_cq_list->private_cq.contig);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"size = %d", pmetrics_cq_list->
@@ -195,7 +195,7 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L2"vir_kern_addr = 0X%llX",
                         (u64)pmetrics_sq_list->private_sq.vir_kern_addr);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L2"contig (1=Y/(==0)=N) = %d",
+                sprintf(data1, IDNT_L2"contig (1 = Y/ 0 = N) = %d",
                         pmetrics_sq_list->private_sq.contig);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"size = %d", pmetrics_sq_list->
