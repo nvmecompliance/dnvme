@@ -159,18 +159,11 @@ void ioctl_create_fill_list_of_prp(int file_desc)
 }
 
 /* CMD to create discontig IOSQueue spanning multiple pages of PRP lists*/
-void ioctl_create_discontig_iosq(int file_desc)
+void ioctl_create_discontig_iosq(int file_desc, void *addr)
 {
     int ret_val = -1;
     struct nvme_64b_send user_cmd;
     struct nvme_create_sq create_sq_cmd;
-
-    /* Maximum possible entries */
-    void *addr = (void *) malloc(1023 * 4096);
-    if (addr == NULL) {
-        printf("Malloc Failed");
-        return;
-    }
 
     /* Fill the command for create discontig IOSQ*/
     create_sq_cmd.opcode = 0x01;
@@ -179,11 +172,12 @@ void ioctl_create_discontig_iosq(int file_desc)
     create_sq_cmd.cqid = 0x01;
     create_sq_cmd.sq_flags = 0x00;
 
+
     /* Fill the user command */
     user_cmd.q_id = 0;
     user_cmd.bit_mask = MASK_PRP1_LIST;
     user_cmd.cmd_buf_ptr = (u_int8_t *) &create_sq_cmd;
-    user_cmd.data_buf_size = 1023 * 4096;
+    user_cmd.data_buf_size = DISCONTIG_IO_SQ_SIZE;
     user_cmd.data_buf_ptr = addr;
 
     user_cmd.cmd_set = CMD_ADMIN;
@@ -197,7 +191,6 @@ void ioctl_create_discontig_iosq(int file_desc)
     } else {
         printf("Command sent succesfully\n");
     }
-    free(addr);
 }
 
 /* CMD to delete IO Queue */
@@ -355,7 +348,10 @@ void ioctl_send_nvme_write(int file_desc)
     nvme_write.flags = 0;
     nvme_write.control = 0;
     nvme_write.nsid = 0;
+    nvme_write.rsvd2[0] = 0;
     nvme_write.metadata = 0;
+    nvme_write.prp1 = 0;
+    nvme_write.prp2 = 0;
     nvme_write.slba = 0;
     nvme_write.nlb = 15;
     nvme_write.cmd_flags = 0;

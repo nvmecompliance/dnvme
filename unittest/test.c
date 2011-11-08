@@ -739,7 +739,9 @@ int main()
     /* Maximum possible entries */
     void *read_buffer;
     void *identify_buffer;
+    void *discontg_sq_buf;
     uint8_t *kadr;
+    uint32_t offset;
 
     printf("\n*****\t Demo \t*****\n");
 
@@ -752,16 +754,23 @@ int main()
     }
     printf("Device File Successfully Opened = %d\n", file_desc);
 
+    /* Allocating buffer for Read */
     if (posix_memalign(&read_buffer, 4096, READ_BUFFER_SIZE)) {
         printf("Memalign Failed");
         return 0;
     }
-
+    /* Allocating buffer for Identify command */
     identify_buffer = malloc(4096);
     if (identify_buffer == NULL) {
         printf("Malloc Failed");
         return 0;
     }
+    /* Allocating buffer for Discontiguous IOSQ and setting to 0 */
+    if (posix_memalign(&discontg_sq_buf, 4096, DISCONTIG_IO_SQ_SIZE)) {
+        printf("Memalign Failed");
+        return 0;
+    }
+    memset(discontg_sq_buf, 0, DISCONTIG_IO_SQ_SIZE);
 
     test_drv_metrics(file_desc);
     do {
@@ -802,7 +811,7 @@ int main()
 
             printf("Executing SEND 64 byte command both for SQ and CQ\n");
             ioctl_create_contig_iocq(file_desc);
-            ioctl_create_discontig_iosq(file_desc);
+            ioctl_create_discontig_iosq(file_desc, discontg_sq_buf);
 
             printf("\nCalling Dump Metrics to tmpfile1\n");
             ioctl_dump(file_desc, tmpfile1);
@@ -914,12 +923,26 @@ int main()
         case 17: /* Reap Regression Testing */
             test_reap_regression(file_desc);
             break;
+        case 18: /* Reading contents of Discontig SQ page wise */
+            printf("\nReading contents of Discontig SQ page wise:\n");
+            printf("\nEnter a Page number:");
+            scanf ("%d", &test_case);
+            offset = 4096 * test_case;
+            if (offset < (DISCONTIG_IO_SQ_SIZE - 4096)) {
+                for (i = 0; i < 4096; i++) {
+                    printf("%x ",*(uint8_t *)(discontg_sq_buf + i + offset));
+                }
+            } else {
+              printf("\nIllelgal Page number!\n");
+            }
+            break;
         default:
             printf("Undefined case!\n");
         }
-    } while (test_case < 18);
+    } while (test_case < 19);
     free(read_buffer);
     free(identify_buffer);
+    free(discontg_sq_buf);
     printf("\n\n****** END OF DEMO ******\n\n");
     close(file_desc);
     return 0;

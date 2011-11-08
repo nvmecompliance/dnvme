@@ -6,6 +6,7 @@
  */
 
 #define READ_BUFFER_SIZE (2 * 4096)
+#define DISCONTIG_IO_SQ_SIZE (1023 * 4096)
 
 void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size);
 void test_drv_metrics(int file_desc);
@@ -18,7 +19,7 @@ void ioctl_create_prp_more_than_two_page(int file_desc);
 void ioctl_create_list_of_prp(int file_desc);
 void ioctl_create_fill_list_of_prp(int file_desc);
 
-void ioctl_create_discontig_iosq(int file_desc);
+void ioctl_create_discontig_iosq(int file_desc, void *addr);
 void ioctl_create_contig_iocq(int file_desc);
 void ioctl_create_contig_iosq(int file_desc);
 void ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid);
