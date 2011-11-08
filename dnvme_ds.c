@@ -21,6 +21,9 @@
 #define IDNT_L5         "\n\t\t\t\t\t"
 #define IDNT_L6         "\n\t\t\t\t\t\t"
 
+/* local static functions */
+static loff_t meta_nodes_log(struct file *file, loff_t pos,
+        struct  metrics_device_list *pmetrics_device);
 /*
 *   driver_log - Generic Log functionality for logging metrics data
 *   into file name specified from user.
@@ -41,32 +44,29 @@ int driver_log(struct nvme_file *n_file)
     u8 *filename;
     int ret_code = 0;
 
-    /* Allocating memory for the data in kernel space */
-    filename = kmalloc(n_file->flen, GFP_KERNEL | __GFP_ZERO);
-
-    /*
-     * Check if allocation of memory is not null else return
-     * no memory.
-     */
-    if (!filename) {
+    /* Allocating memory for the data in kernel space, add 1 for a NULL term */
+    if ((filename = kmalloc(n_file->flen+1, (GFP_KERNEL | __GFP_ZERO))) == 0) {
         LOG_ERR("Unable to allocate kernel memory");
         return -ENOMEM;
     }
 
-    /* Copying userspace buffer to kernel memory */
-    if (copy_from_user(filename, (void __user *) n_file->file_name,
+    /* Copy userspace buffer to kernel memory */
+    if (copy_from_user(filename, (void __user *)n_file->file_name,
         n_file->flen)) {
-        LOG_ERR("Invalid copy from user space");
+        LOG_DBG("Unable to copy from user space");
         ret_code = -EFAULT;
         goto err;
     }
 
-    LOG_DBG("File Name in Driver = %s", filename);
+    /* If the user didn't provide a NULL term, we will to avoid problems */
+    filename[n_file->flen] = '\0';
+
+    LOG_DBG("Dumping dnvme metrics to output file: %s", filename);
     oldfs = get_fs();
     set_fs(KERNEL_DS);
-    file = filp_open(filename, O_WRONLY|O_CREAT, 0644);
 
-    if (file) {
+    if ((file = filp_open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0644))) {
+
         /* Loop through the devices */
         list_for_each_entry(pmetrics_device, &metrics_dev_ll,
                 metrics_device_hd) {
@@ -111,7 +111,7 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L2"dma_addr_t = 0X%llX",
                         (u64)pmetrics_cq_list->private_cq.cq_dma_addr);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L2"contig (0=Y/(!=0)=N) = %d",
+                sprintf(data1, IDNT_L2"contig (1 = Y/(0 = N) = %d",
                         pmetrics_cq_list->private_cq.contig);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"size = %d", pmetrics_cq_list->
@@ -195,7 +195,7 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L2"vir_kern_addr = 0X%llX",
                         (u64)pmetrics_sq_list->private_sq.vir_kern_addr);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L2"contig (0=Y/(!=0)=N) = %d",
+                sprintf(data1, IDNT_L2"contig (1 = Y/ 0 = N) = %d",
                         pmetrics_sq_list->private_sq.contig);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"size = %d", pmetrics_sq_list->
@@ -316,12 +316,49 @@ int driver_log(struct nvme_file *n_file)
                      vfs_write(file, data1, strlen(data1), &pos);
                 } /* End of cmd track list */
             } /* End of SQ metrics list */
+            pos = meta_nodes_log(file, pos, pmetrics_device);
         } /* End of file writing */
+
         fput(file);
+        filp_close(file, NULL);
     }
     set_fs(oldfs);
-    filp_close(file, NULL); /* Close the file */
+
 err:
     kfree(filename);
     return ret_code;
+}
+
+static loff_t meta_nodes_log(struct file *file, loff_t pos,
+        struct  metrics_device_list *pmetrics_device)
+{
+    struct metrics_meta *pmetrics_meta;
+    u8 data1[100];
+    int i = 0;
+
+    if ((pmetrics_device->pmetrics_meta == NULL) ||
+            (pmetrics_device->pmetrics_meta->meta_dmapool_ptr == NULL)) {
+        return pos;
+    }
+    sprintf(data1,
+            IDNT_L1"pmetrics_device->pmetrics_meta->meta_dmapool_ptr = 0x%llx",
+            (u64)pmetrics_device->pmetrics_meta->meta_dmapool_ptr);
+    vfs_write(file, data1, strlen(data1), &pos);
+
+    list_for_each_entry(pmetrics_meta, &pmetrics_device->pmetrics_meta->
+            meta_trk_list, meta_list_hd) {
+        /* Get each Meta buffer node and write to file */
+        sprintf(data1, IDNT_L2"pmetrics_device->pmetrics_meta[%d]", i++);
+        vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L3"pmetrics_meta->meta_id = %d",
+                        pmetrics_meta->meta_id);
+                vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L3"pmetrics_meta->meta_dma_addr = 0x%llx",
+                (u64)pmetrics_meta->meta_dma_addr);
+        vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L3"pmetrics_meta->vir_kern_addr = 0x%llx",
+                (u64)pmetrics_meta->vir_kern_addr);
+        vfs_write(file, data1, strlen(data1), &pos);
+    }
+    return pos;
 }

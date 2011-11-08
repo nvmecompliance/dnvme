@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <malloc.h>
 #include <stdint.h>
+#include <sys/mman.h>
 
 #include "../dnvme_interface.h"
 #include "../dnvme_ioctls.h"
@@ -137,4 +138,106 @@ void set_admn(int file_desc)
     ioctl_create_acq(file_desc);
     ioctl_create_asq(file_desc);
     ioctl_enable_ctrl(file_desc);
+}
+
+void test_meta(int file_desc, int log)
+{
+    int size;
+    int ret_val;
+    int meta_id;
+    uint64_t *kadr;
+    char *tmpfile12 = "/tmp/file_name12.txt";
+    char *tmpfile13 = "/tmp/file_name13.txt";
+
+    size = 4096;
+    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_CREATE, size);
+    if(ret_val < 0) {
+        printf("\nMeta data creation failed!\n");
+    }
+    else {
+        printf("Meta Data creation success!!\n");
+    }
+    getchar();
+    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_CREATE, size);
+    if(ret_val < 0) {
+        printf("\nMeta data creation failed!\n");
+    }
+    else {
+        printf("Meta Data creation success!!\n");
+    }
+    size = 1024 * 16 + 10;
+    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_CREATE, size);
+    if(ret_val < 0) {
+        printf("\nMeta data creation failed!\n");
+    }
+    else {
+        printf("Meta Data creation success!!\n");
+    }
+    getchar();
+
+    for (meta_id = 0; meta_id < 20; meta_id++) {
+        ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_ALLOC, meta_id);
+        if(ret_val < 0) {
+            printf("\nMeta Id = %d allocation failed!\n", meta_id);
+        }
+        else {
+            printf("Meta Id = %d allocation success!!\n", meta_id);
+        }
+    }
+    if (log != 0)
+        ioctl_dump(file_desc, tmpfile12);
+
+    meta_id = 5;
+    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_DELETE, meta_id);
+    if(ret_val < 0) {
+        printf("\nMeta Id = %d deletion failed!\n", meta_id);
+    }
+    else {
+        printf("Meta Id = %d deletion success!!\n", meta_id);
+    }
+    meta_id = 6;
+    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_DELETE, meta_id);
+    if(ret_val < 0) {
+        printf("\nMeta Id = %d deletion failed!\n", meta_id);
+    }
+    else {
+        printf("Meta Id = %d deletion success!!\n", meta_id);
+    }
+    meta_id = 6;
+    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_DELETE, meta_id);
+    if(ret_val < 0) {
+        printf("\nMeta Id = %d deletion failed!\n", meta_id);
+    }
+    else {
+        printf("Meta Id = %d deletion success!!\n", meta_id);
+    }
+    meta_id = 5;
+    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_DELETE, meta_id);
+    if(ret_val < 0) {
+        printf("\nMeta Id = %d deletion failed!\n", meta_id);
+    }
+    else {
+        printf("Meta Id = %d deletion success!!\n", meta_id);
+    }
+
+    meta_id = 6;
+    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_ALLOC, meta_id);
+    if(ret_val < 0) {
+        printf("\nMeta Id = %d allocation failed!\n", meta_id);
+    }
+    else {
+        printf("Meta Id = %d allocation success!!\n", meta_id);
+    }
+
+    meta_id = 0x80004;
+    printf("\nTEST 3.1: Call to Mmap encoded Meta Id = 0x%x\n", meta_id);
+    kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * meta_id);
+    if (!kadr) {
+        printf("mapping failed\n");
+        exit(-1);
+    }
+
+    munmap(kadr, 4096);
+    if (log != 0)
+        ioctl_dump(file_desc, tmpfile13);
 }

@@ -149,7 +149,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 * @param pmetrics_device_element
 * @return SUCCESS or FAIL
 */
-int nvme_ring_sqx_dbl(u16 *ring_sqx, struct  metrics_device_list
+int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
         *pmetrics_device_element);
 
 /**
@@ -170,12 +170,32 @@ struct metrics_sq *find_sq(struct  metrics_device_list
 struct metrics_cq *find_cq(struct  metrics_device_list
         *pmetrics_device_element, u16 cq_id);
 
-/*
+/**
  * Find the command node for the given sq node and cmd id.
  * @param pmetrics_sq_node
  * @param cmd_id
  * @return pointer to cmd node for given cmd id.
  */
 struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id);
+
+/**
+ * Find meta data node for the given meda id and device.
+ * @param pmetrics_device_element
+ * @param meta_id
+ * @return pointer to metrics_meta node.
+ */
+struct metrics_meta *find_meta_node(struct metrics_device_list
+        *pmetrics_device_element, u32 meta_id);
+
+/**
+ * This function gives the device metrics when the user requests. This
+ * routine works with Add Q's including Admin and IO.
+ * Assumes user allocated buffer memory to copy accordingly.
+ * @param get_q_metrics
+ * @param pmetrics_device_element
+ * @return success or failure.
+ */
+int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
+        struct nvme_get_q_metrics *get_q_metrics);
 
 #endif

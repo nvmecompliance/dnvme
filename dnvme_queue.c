@@ -541,7 +541,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 * tail_ptr with virtual pointer, and write the tail pointer value to SqxTDBL
 * already in dbs.
 */
-int nvme_ring_sqx_dbl(u16 *ring_sqx, struct  metrics_device_list
+int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
         *pmetrics_device_element)
 {
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
@@ -554,29 +554,29 @@ int nvme_ring_sqx_dbl(u16 *ring_sqx, struct  metrics_device_list
     list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
             metrics_sq_list, sq_list_hd) {
         /* Check if the Q Id matches */
-        if (*ring_sqx == pmetrics_sq_list->public_sq.sq_id) {
-            LOG_ERR("SQ_ID= %d found in the linked list.",
+        if (ring_sqx == pmetrics_sq_list->public_sq.sq_id) {
+            LOG_DBG("SQ_ID= %d found in the linked list.",
                     pmetrics_sq_list->public_sq.sq_id);
-             LOG_DBG("\tVirt Tail Ptr = 0x%x",
+            LOG_DBG("\tVirt Tail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr_virt);
-             LOG_DBG("\tTail Ptr = 0x%x",
+            LOG_DBG("\tTail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr);
             /* Copy tail_prt_virt to tail_prt */
             pmetrics_sq_list->public_sq.tail_ptr = pmetrics_sq_list->
                     public_sq.tail_ptr_virt;
             /* Ring the doorbell with tail_prt */
-             writel(pmetrics_sq_list->public_sq.tail_ptr, pmetrics_sq_list->
+            writel(pmetrics_sq_list->public_sq.tail_ptr, pmetrics_sq_list->
                      private_sq.dbs);
-             LOG_DBG("After Writing Doorbell...");
-             LOG_DBG("\tVirt Tail Ptr = 0x%x",
+            LOG_DBG("After Writing Doorbell...");
+            LOG_DBG("\tVirt Tail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr_virt);
-             LOG_DBG("\tTail Ptr = 0x%x",
+            LOG_DBG("\tTail Ptr = 0x%x",
                      pmetrics_sq_list->public_sq.tail_ptr);
-             /* Done with this function return success */
-             return SUCCESS;
+            /* Done with this function return success */
+            return SUCCESS;
         }
     }
-    LOG_DBG("SQ ID = %d not found to ring its doorbell", *ring_sqx);
+    LOG_ERR("SQ ID = %d not found to ring its doorbell", ring_sqx);
     /* If it falls here no SQ ID is found */
     return -EINVAL;
 }
@@ -802,6 +802,7 @@ static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
             break;
         }
     } /* end of while loop */
+
     LOG_NRM("Rp Inq. Tail Ptr After = %d", pmetrics_cq_node->public_cq.
             tail_ptr);
     LOG_NRM("cq.elements = %d", pmetrics_cq_node->public_cq.elements);
@@ -899,6 +900,25 @@ struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id)
     return NULL;
 }
 
+/*
+ * Finds the meta data node in the linked list and if found returns
+ * the pointer to the node otherwise returns NULL.
+ */
+struct metrics_meta *find_meta_node(struct metrics_device_list
+        *pmetrics_device_elem, u32 meta_id)
+{
+    struct  metrics_meta  *pmetrics_meta = NULL;
+
+    list_for_each_entry(pmetrics_meta, &pmetrics_device_elem->pmetrics_meta->
+            meta_trk_list, meta_list_hd) {
+        if (meta_id == pmetrics_meta->meta_id) {
+            LOG_DBG("Meta ID = %d exists", meta_id);
+            return pmetrics_meta;
+        }
+    }
+    /* couldn't find the node returning empty */
+    return NULL;
+}
 /*
  * Free the given cmd id node from the command track list.
  */
@@ -1095,7 +1115,6 @@ static int process_reap_algos(struct cq_completion *cq_entry,
                     pmetrics_device);
         }
     }
-
     return ret_val;
 }
 
@@ -1108,6 +1127,7 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
 {
     /* while there is an element to be reaped */
     while (num_reaped) {
+        LOG_DBG("Num Reaping loop = %d", num_reaped);
         /* Call the process reap algos based on CE entry */
         if (process_reap_algos((struct cq_completion *)cq_head_ptr,
                 pmetrics_device)) {

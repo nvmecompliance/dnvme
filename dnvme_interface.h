@@ -153,7 +153,6 @@ enum metrics_type {
   * Interface structure for returning the Q metrics. The buffer is where the
   * data is stored for the user to copy from. This assumes that the user will
   * provide correct buffer space to store the required metrics.
-  * TODO: Add the buffer in the design doc.
   */
 struct nvme_get_q_metrics {
     uint16_t    q_id;       /* Pass the Q id for which metrics is desired   */
@@ -197,7 +196,7 @@ struct nvme_prep_cq {
  */
 struct nvme_file {
     uint16_t    flen; /* Length of file name, it is not the total bytes */
-    uint8_t     *file_name; /* location and file name to copy metrics   */
+    const char *file_name; /* location and file name to copy metrics   */
 };
 
 /**

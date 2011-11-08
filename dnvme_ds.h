@@ -94,6 +94,28 @@ struct metrics_sq {
     struct    nvme_trk_sq  private_sq;  /* parameters in nvme_trk_sq        */
 };
 
+/*
+ * structure for meta data per device parameters.
+ */
+struct metrics_meta_data {
+    struct list_head meta_trk_list;
+    struct dma_pool *meta_dmapool_ptr;
+    u16    meta_buf_size;
+};
+
+/*
+ * Structure for meta data buffer allocations.
+ */
+struct metrics_meta {
+    struct list_head meta_list_hd;
+    u32         meta_id;
+    void        *vir_kern_addr;
+    dma_addr_t  meta_dma_addr;
+};
+
+/*
+ * Structure with device related parameters.
+ */
 struct nvme_device {
     struct pci_dev  *pdev;           /* Pointer to the device in PCI space  */
     struct nvme_ctrl_reg __iomem *nvme_ctrl_space;  /* Pointer to reg space */
@@ -114,23 +136,14 @@ struct metrics_device_list {
     struct  list_head   metrics_sq_list;   /* SQ linked list                */
     struct  nvme_device *metrics_device;   /* Pointer to this nvme device   */
     struct  mutex       metrics_mtx;       /* Mutex for locking per device  */
+    struct  metrics_meta_data *pmetrics_meta; /* Pointer to meta data buff  */
 };
+
 
 /* extern device metrics linked list for exporting to project files */
 extern struct metrics_driver g_metrics_drv;
 
 /* Global linked list for the entire data structure for all devices. */
 extern struct list_head metrics_dev_ll;
-
-/**
- * This function gives the device metrics when the user requests. This
- * routine works with Add Q's including Admin and IO.
- * Assumes user allocated buffer memory to copy accordingly.
- * @param get_q_metrics
- * @param pmetrics_device_element
- * @return metrics data if success else failure.
- */
-int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
-        struct nvme_get_q_metrics *get_q_metrics);
 
 #endif

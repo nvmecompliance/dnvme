@@ -211,6 +211,7 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
     struct metrics_cq  *pmetrics_cq_node;   /* ptr to cq node       */
     u64 *q_head_ptr;                         /* head ptr in cq       */
     u16 num = 0;
+    u16 val = 0xaa;
 
     /* Lookup the CQ for which the reap inquiry is requested */
     list_for_each_entry(pmetrics_sq_node, &pmetrics_device->metrics_sq_list,
@@ -221,10 +222,10 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
             q_head_ptr = pmetrics_sq_node->private_sq.vir_kern_addr +
                     (64 * pmetrics_sq_node->public_sq.head_ptr);
             while (1) {
-                *q_head_ptr = (0xaa55 + num);
+                *q_head_ptr = val;
                 LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr,
                         (u64)*q_head_ptr);
-                q_head_ptr++; /* increment to next location */
+                q_head_ptr += 2; /* increment to next location */
                 num++;
                 if (q_head_ptr == pmetrics_sq_node->private_sq.vir_kern_addr +
                                     pmetrics_sq_node->private_sq.size) {
@@ -234,6 +235,12 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                 if (num == 15) {
                     LOG_NRM("Entries in Q = %d", num);
                     break;
+                }
+                if (num/16 > 4096 && num/16 < (2 * 4096)) {
+                    val = 0xbb;
+                }
+                if (num/16 > 2 * 4096) {
+                    val = 0xcc;
                 }
             }
         }
@@ -276,20 +283,26 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
             q_head_ptr = (u64 *)(pmetrics_cq_node->private_cq.vir_kern_addr +
                     (16 * pmetrics_cq_node->public_cq.head_ptr));
             while (1) {
-                *q_head_ptr = (0x3344 + num);
+                *q_head_ptr = val;
                 LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr,
                         (u64)*q_head_ptr);
-                q_head_ptr++; /* increment to next location */
-                num++;
+                q_head_ptr += 2; /* increment to next location */
+                num += 16;
                 if (q_head_ptr == (u64 *)(pmetrics_cq_node->private_cq.
                         vir_kern_addr + pmetrics_cq_node->private_cq.size)) {
                     /* Roll over */
                     q_head_ptr = (u64 *)pmetrics_cq_node->private_cq.
                             vir_kern_addr;
                 }
-                if (num == 25) {
+                if (num > pmetrics_cq_node->private_cq.size - 1) {
                     LOG_NRM("Entries in Q = %d", num);
                     break;
+                }
+                if (num > 4096 && num < 2 * 4096) {
+                    val = 0xbb;
+                }
+                if (num > 2 * 4096) {
+                    val = 0xcc;
                 }
             }
         }

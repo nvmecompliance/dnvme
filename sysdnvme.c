@@ -13,6 +13,8 @@
 #include <linux/unistd.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
+#include <linux/errno.h>
+#include <linux/mman.h>
 
 #include "dnvme_interface.h"
 #include "definitions.h"
@@ -324,6 +326,7 @@ int dnvme_device_open(struct inode *inode, struct file *filp)
     if (pmetrics_device_element->metrics_device->open_flag == 0) {
         pmetrics_device_element->metrics_device->open_flag = 1;
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
+        deallocate_mb(pmetrics_device_element);
     } else {
         LOG_ERR("Attempt to open device multiple times not allowed!!");
         ret_val =  -EPERM; /* Operation not permitted */
@@ -359,6 +362,9 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
         ret_val = -EINVAL;
     }
 
+    /* Meta data allocation clean up */
+    deallocate_mb(pmetrics_device_element);
+
 rel_exit:
     LOG_DBG("\n.....Close Successful!!!....Releasing Mutex...\n");
     unlock_device(pmetrics_device_element);
@@ -374,13 +380,16 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
     struct  metrics_device_list *pmetrics_device_element; /* Metrics device */
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list               */
     struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list               */
-    unsigned long pfn;
+    struct  metrics_meta *pmeta_data;       /* pointer to meta node         */
+    u8 *vir_kern_addr;
+    unsigned long pfn = 0;
     struct inode *inode = filp->f_dentry->d_inode;
-    u32 qtype;
-    u16 qid;
+    u32 type;
+    u32 id;
+    u32 mmap_range;
+    int npages;
     int ret_val = SUCCESS;
 
-    vma->vm_flags |= VM_IO;
     LOG_DBG("Device Calling mmap function...");
 
     pmetrics_device_element = lock_device(inode);
@@ -390,32 +399,103 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
         goto mmap_exit;
     }
 
-    /* Calculate the q id and q type from offset */
-    qtype = (vma->vm_pgoff >> 0x10) & 0x1;
-    qid = vma->vm_pgoff & 0xFFFF;
+    vma->vm_flags |= (VM_IO | VM_RESERVED);
 
-    LOG_DBG("Q Type = %d", qtype);
-    LOG_DBG("Q ID = 0x%x", qid);
+    /* Calculate the id and type from offset */
+    type = (vma->vm_pgoff >> 0x12) & 0x3;
+    id = vma->vm_pgoff & 0x3FFFF;
 
-    /* If Q type is 1 implies SQ */
-    if (qtype != 0) {
-        pmetrics_sq_list = find_sq(pmetrics_device_element, qid);
+    LOG_DBG("Type = %d", type);
+    LOG_DBG("ID = 0x%x", id);
+
+    /* If type is 1 implies SQ, 0 implies CQ and 2 implies meta data */
+    if (type == 0x1) {
+        /* Process for SQ */
+        if (id > USHRT_MAX) { /* 16 bits */
+            LOG_ERR("SQ Id is greater than 16 bits..");
+            ret_val = -EINVAL;
+            goto mmap_exit;
+        }
+        /* Find SQ node in the list with id */
+        pmetrics_sq_list = find_sq(pmetrics_device_element, id);
         if (pmetrics_sq_list == NULL) {
             ret_val = -EBADSLT;
             goto mmap_exit;
         }
-        pfn = virt_to_phys(pmetrics_sq_list->private_sq.vir_kern_addr) >>
-                PAGE_SHIFT;
-    } else {
-        pmetrics_cq_list = find_cq(pmetrics_device_element, qid);
+        if (pmetrics_sq_list->private_sq.contig == 0) {
+            LOG_ERR("MMAP does not work on non contig SQ's");
+            #ifndef ENOTSUP
+                ret_val = -EOPNOTSUPP; /* aka ENOTSUP in userland for POSIX */
+            #else                      /*  parisc does define it separately.*/
+                ret_val = -ENOTSUP;
+            #endif
+            goto mmap_exit;
+        }
+        vir_kern_addr = pmetrics_sq_list->private_sq.vir_kern_addr;
+        mmap_range = pmetrics_sq_list->private_sq.size;
+    } else if (type == 0x0) {
+        /* Process for CQ */
+        if (id > USHRT_MAX) { /* 16 bits */
+            LOG_ERR("CQ Id is greater than 16 bits..");
+            ret_val = -EINVAL;
+            goto mmap_exit;
+        }
+        /* Find CQ node in the list with id */
+        pmetrics_cq_list = find_cq(pmetrics_device_element, id);
         if (pmetrics_cq_list == NULL) {
             ret_val = -EBADSLT;
             goto mmap_exit;
         }
-        pfn = virt_to_phys(pmetrics_cq_list->private_cq.vir_kern_addr) >>
-                PAGE_SHIFT;
+        if (pmetrics_cq_list->private_cq.contig == 0) {
+            LOG_ERR("MMAP does not work on non contig CQ's");
+            #ifndef ENOTSUP
+                ret_val = -EOPNOTSUPP; /* aka ENOTSUP in userland for POSIX */
+            #else                      /*  parisc does define it separately.*/
+                ret_val = -ENOTSUP;
+            #endif
+            goto mmap_exit;
+        }
+        vir_kern_addr = pmetrics_cq_list->private_cq.vir_kern_addr;
+        mmap_range = pmetrics_cq_list->private_cq.size;
+    } else if (type == 0x2) {
+        /* Process for Meta data */
+        if (id > (2^18)) { /* 18 bits */
+            LOG_ERR("Meta Id is greater than 18 bits..");
+            ret_val = -EINVAL;
+            goto mmap_exit;
+        }
+        /* find Meta Node data */
+        pmeta_data = find_meta_node(pmetrics_device_element, id);
+        if (pmeta_data == NULL) {
+            ret_val = -EBADSLT;
+            goto mmap_exit;
+        }
+        vir_kern_addr = pmeta_data->vir_kern_addr;
+        mmap_range = pmetrics_device_element->pmetrics_meta->meta_buf_size;
+    } else {
+        ret_val = -EINVAL;
+        goto mmap_exit;
+    }
+
+    npages = (mmap_range/PAGE_SIZE) + 1;
+    if ((npages * PAGE_SIZE) < (vma->vm_end - vma->vm_start)) {
+        LOG_ERR("Request to Map more than allocated pages...");
+        ret_val = -EINVAL;
+        goto mmap_exit;
+    }
+    LOG_DBG("Virt Address = 0x%llx", (u64)vir_kern_addr);
+    LOG_DBG("Npages = %d", npages);
+
+    /* Associated struct page ptr for kernel logical address */
+    pfn = virt_to_phys(vir_kern_addr) >> PAGE_SHIFT;
+    if (!pfn) {
+        LOG_ERR("pfn is NULL");
+        ret_val = -EINVAL;
+        goto mmap_exit;
     }
     LOG_DBG("PFN = 0x%lx", pfn);
+
+    /* remap kernel memory to userspace */
     ret_val = remap_pfn_range(vma, vma->vm_start, pfn,
                     vma->vm_end - vma->vm_start, vma->vm_page_prot);
 
@@ -446,8 +526,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
     struct nvme_prep_cq *prep_cq;   /* CQ params for preparing IO CQ         */
-
-    u16   *ring_sqx;                /* SQ ID to ring the door-bell           */
+    u16   ring_sqx;                /* SQ ID to ring the door-bell           */
     struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params               */
     struct nvme_file    *n_file;         /* dump metrics params              */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
@@ -521,6 +600,8 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
                 /* Clean Up the Data Structures. */
                 deallocate_all_queues(pmetrics_device_element,
                         *ctrl_new_state);
+                /* Clean up meta buff in both disable cases */
+                deallocate_mb(pmetrics_device_element);
             }
          } else {
             LOG_ERR("Device State not correctly specified.");
@@ -554,7 +635,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     case NVME_IOCTL_RING_SQ_DOORBELL:
         LOG_DBG("Driver Call to Ring SQx Doorbell");
         /* Assign user passed parameters to sqx to be rung */
-        ring_sqx = (u16 *)ioctl_param;
+        ring_sqx = (u16)ioctl_param;
         /* Call the ring doorbell driver function */
         ret_val = nvme_ring_sqx_dbl(ring_sqx, pmetrics_device_element);
         break;
@@ -601,6 +682,30 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         dnvme_metrics = (struct metrics_driver *)ioctl_param;
         ret_val = copy_to_user(dnvme_metrics, &g_metrics_drv, sizeof(struct
                 metrics_driver));
+        break;
+
+    case NVME_IOCTL_METABUF_CREATE:
+        LOG_DBG("Meta Buffer Create IOCTL...");
+        /* Assign user passed parameters to alloc_size */
+        if (ioctl_param > MAX_METABUFF_SIZE) {
+            LOG_ERR("Size Exceeds Max(16KB) = 0x%x", (u16)ioctl_param);
+            ret_val = -EINVAL;
+            break;
+        }
+        /* Call meta buff create routine */
+        ret_val = metabuff_create(pmetrics_device_element, (u16)ioctl_param);
+        break;
+
+    case NVME_IOCTL_METABUF_ALLOC:
+        LOG_DBG("Meta Buffer Alloc IOCTL...");
+        /* Call meta buff allocation routine */
+        ret_val = metabuff_alloc(pmetrics_device_element, (u32)ioctl_param);
+        break;
+
+    case NVME_IOCTL_METABUF_DELETE:
+        LOG_DBG("Meta Buffer Delete IOCTL...");
+        /* Call meta buff delete routine */
+        ret_val = metabuff_del(pmetrics_device_element, (u32)ioctl_param);
         break;
 
     case IOCTL_UNIT_TESTS:
@@ -662,6 +767,8 @@ static void __exit dnvme_exit(void)
         destroy_dma_pool(pmetrics_device_element->metrics_device);
         /* Clean Up the Data Structures. */
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
+        deallocate_mb(pmetrics_device_element);
+        kfree(pmetrics_device_element->pmetrics_meta);
         mutex_destroy(pmetrics_device_element->metrics_mtx);
         pdev = pmetrics_device_element->metrics_device->pdev;
         pci_release_regions(pdev);

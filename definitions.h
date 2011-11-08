@@ -61,4 +61,10 @@
 */
 #define AER_CAP_ID             0x1
 
+/**
+ * @def MAX_METABUFF_SIZE
+ * Indicates the Max Meta buff size allowed is 16KB
+ */
+#define MAX_METABUFF_SIZE       0x4000
+
 #endif

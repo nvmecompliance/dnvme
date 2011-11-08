@@ -1,6 +1,7 @@
 rpm/
 rpmbuild/
 dnvme-*/
+Debug/
 
 *.o
 *.ko
