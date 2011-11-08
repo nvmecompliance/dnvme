@@ -44,32 +44,29 @@ int driver_log(struct nvme_file *n_file)
     u8 *filename;
     int ret_code = 0;
 
-    /* Allocating memory for the data in kernel space */
-    filename = kmalloc(n_file->flen, GFP_KERNEL | __GFP_ZERO);
-
-    /*
-     * Check if allocation of memory is not null else return
-     * no memory.
-     */
-    if (!filename) {
+    /* Allocating memory for the data in kernel space, add 1 for a NULL term */
+    if ((filename = kmalloc(n_file->flen+1, (GFP_KERNEL | __GFP_ZERO))) == 0) {
         LOG_ERR("Unable to allocate kernel memory");
         return -ENOMEM;
     }
 
-    /* Copying userspace buffer to kernel memory */
-    if (copy_from_user(filename, (void __user *) n_file->file_name,
+    /* Copy userspace buffer to kernel memory */
+    if (copy_from_user(filename, (void __user *)n_file->file_name,
         n_file->flen)) {
-        LOG_ERR("Invalid copy from user space");
+        LOG_DBG("Unable to copy from user space");
         ret_code = -EFAULT;
         goto err;
     }
 
-    LOG_DBG("File Name in Driver = %s", filename);
+    /* If the user didn't provide a NULL term, we will to avoid problems */
+    filename[n_file->flen] = '\0';
+
+    LOG_DBG("Dumping dnvme metrics to output file: %s", filename);
     oldfs = get_fs();
     set_fs(KERNEL_DS);
-    file = filp_open(filename, O_WRONLY|O_CREAT, 0644);
 
-    if (file) {
+    if ((file = filp_open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0644))) {
+
         /* Loop through the devices */
         list_for_each_entry(pmetrics_device, &metrics_dev_ll,
                 metrics_device_hd) {
@@ -321,10 +318,12 @@ int driver_log(struct nvme_file *n_file)
             } /* End of SQ metrics list */
             pos = meta_nodes_log(file, pos, pmetrics_device);
         } /* End of file writing */
+
         fput(file);
+        filp_close(file, NULL);
     }
     set_fs(oldfs);
-    filp_close(file, NULL); /* Close the file */
+
 err:
     kfree(filename);
     return ret_code;
