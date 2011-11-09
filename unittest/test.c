@@ -728,13 +728,14 @@ void test_reap_regression(int file_desc)
 
 int main()
 {
-    int file_desc, test_case, i;
+    int file_desc, test_case, i, ret_val;
     char *tmpfile1 = "/tmp/temp_file1.txt";
     char *tmpfile2 = "/tmp/temp_file2.txt";
     char *tmpfile3 = "/tmp/temp_file3.txt";
     char *tmpfile4 = "/tmp/temp_file4.txt";
     char *tmpfile5 = "/tmp/temp_file5.txt";
     char *tmpfile6 = "/tmp/temp_file6.txt";
+    char *tmpfile7 = "/tmp/temp_file7.txt";
     char *tmpfile14 = "/tmp/temp_file14.txt";
     char *tmpfile15 = "/tmp/temp_file15.txt";
 
@@ -743,7 +744,7 @@ int main()
     void *identify_buffer;
     void *discontg_sq_buf;
     uint8_t *kadr;
-    uint32_t offset;
+    uint32_t offset,meta_id;
 
     printf("\n*****\t Demo \t*****\n");
 
@@ -867,19 +868,19 @@ int main()
             printf("\nCalling Dump Metrics to tmpfile4\n");
             ioctl_dump(file_desc, tmpfile4);
             break;
-        case 7: /* Send an IO write command */
-            printf("Test7: Sending IO Write Command\n");
+        case 7: /* Send an IO write command through discontig IOQ*/
+            printf("Test7: Sending IO Write Command through Discontig IOQ\n");
             ioctl_send_nvme_write(file_desc);
-            printf("Ringing Doorbell for SQID 2\n");
+            printf("Ringing Doorbell for SQID 1\n");
             ioctl_tst_ring_dbl(file_desc, 1);
             printf("\nCalling Dump Metrics to tmpfile5\n");
             ioctl_dump(file_desc, tmpfile5);
             printf("Test to send IO Write command Done\n");
             break;
-        case 8: /* Send an IO read command */
-            printf("Test8: Sending IO Read Command\n");
+        case 8: /* Send an IO read command through Discontig IOQ*/
+            printf("Test8: Sending IO Read Command through Discontig IOQ\n");
             ioctl_send_nvme_read(file_desc, read_buffer);
-            printf("Ringing Doorbell for SQID 2\n");
+            printf("Ringing Doorbell for SQID 1\n");
             ioctl_tst_ring_dbl(file_desc, 1);
             printf("\nCalling Dump Metrics to tmpfile6\n");
             ioctl_dump(file_desc, tmpfile6);
@@ -904,15 +905,13 @@ int main()
         case 12: /* Display ACQ Contents */
             // ioctl_ut_mmap(file_desc);
             kadr = mmap(0, 4096 * 3, PROT_READ, MAP_SHARED, file_desc, 0x60000000);
-            i = (int)kadr;
-            printf("Kadr = 0x%lx, i = %d\n", (uint64_t)kadr, i);
-            if (i == -1) {
+            if ((int64_t)kadr == -1) {
                 printf("mapping failed\n");
                 break;
             } else {
                 display_contents(kadr, 3 * 4096);
             }
-            if (i != -1) {
+            if ((int64_t)kadr != -1) {
                 munmap(kadr, 4096);
             }
             break;
@@ -947,10 +946,28 @@ int main()
               printf("\nIllelgal Page number!\n");
             }
             break;
+        case 19: /*Tets to check meta buffer support */
+            meta_id = test_meta_buf(file_desc);
+            /* Sending the write command through Contig SQ 2 using meta_buff */
+            printf("\n Sending write IO through Contig SQ 2 using meta_buff \n");
+            ioctl_send_nvme_write_using_metabuff(file_desc, meta_id);
+            printf("Ringing Doorbell for SQID 2\n");
+            ioctl_tst_ring_dbl(file_desc, 2);
+            printf("\nCalling Dump Metrics to tmpfile7\n");
+            ioctl_dump(file_desc, tmpfile7);
+            break;
+        case 20: /*Delete the meta data ID */
+            ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_DELETE, meta_id);
+            if(ret_val < 0) {
+                printf("\nMeta Id = %d deletion failed!\n", meta_id);
+            } else {
+                printf("Meta Id = %d deletion success!!\n", meta_id);
+            }
+            break;
         default:
             printf("Undefined case!\n");
         }
-    } while (test_case < 19);
+    } while (test_case < 21);
     free(read_buffer);
     free(identify_buffer);
     free(discontg_sq_buf);

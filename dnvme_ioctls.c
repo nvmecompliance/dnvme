@@ -784,6 +784,8 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     struct  metrics_sq  *p_cmd_sq;
     /* Particular CQ (within CMD) from linked list of Q's for device */
     struct  metrics_cq  *p_cmd_cq;
+    /* Strucutre describing the meta buf */
+    struct metrics_meta *meta_buf;
     /* Kernel space memory for passed in command */
     void *nvme_cmd_ker;
     /* Pointer to passed in command DW0-DW9 */
@@ -866,6 +868,19 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         LOG_ERR("Invalid copy to user space");
         ret_code = -EFAULT;
         goto err;
+    }
+
+    /* Handling metabuffer */
+    if (nvme_64b_send->bit_mask & MASK_MPTR) {
+        meta_buf = find_meta_node(pmetrics_device, nvme_64b_send->meta_buf_id);
+        if (NULL == meta_buf) {
+            LOG_ERR("Meta Buff ID not found");
+            ret_code = -EINVAL;
+            goto err;
+        }
+        /* Add the required information to the command */
+        nvme_gen_cmd->metadata = meta_buf->meta_dma_addr;
+        LOG_DBG("Metadata address: 0x%llx", nvme_gen_cmd->metadata);
     }
 
     /* Handling special condition for opcodes 0x00,0x01,0x04

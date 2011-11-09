@@ -91,7 +91,6 @@ enum send_64b_bitmask {
 * sending 64 Bytes command to both admin  and IO SQ's and CQ's
 */
 struct nvme_64b_send {
-    uint16_t q_id; /* Queue ID where the cmd_buf command should go */
     /* BIT MASK for PRP1,PRP2 and Metadata pointer */
     enum send_64b_bitmask bit_mask;
     uint32_t data_buf_size; /* Size of Data Buffer */
@@ -99,6 +98,8 @@ struct nvme_64b_send {
     uint8_t const *data_buf_ptr;
     uint8_t *cmd_buf_ptr; /* Virtual Address pointer to 64B command */
     enum nvme_cmds cmd_set; /* Command set for the cmd_buf command */
+    uint32_t meta_buf_id; /* Meta buffer ID when MASK_MPTR is set */
+    uint16_t q_id; /* Queue ID where the cmd_buf command should go */
     uint8_t data_dir; /* Direction of DMA mapped memory 1/0 to/from device */
 };
 

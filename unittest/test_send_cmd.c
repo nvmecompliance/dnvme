@@ -425,3 +425,61 @@ void ioctl_send_nvme_read(int file_desc, void* addr)
     }
 
 }
+
+/* CMD to send NVME IO write command using metabuff*/
+void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id)
+{
+    int ret_val = -1;
+    struct nvme_64b_send user_cmd;
+    struct nvme_user_io nvme_write;
+    void *addr;
+
+    if (posix_memalign(&addr, 4096, READ_BUFFER_SIZE)) {
+        printf("Memalign Failed");
+        return;
+    }
+
+    /* Writing 1's to first page */
+    memset(addr, 2, READ_BUFFER_SIZE/2);
+    /* Writing 2's to second page */
+    memset((addr + 4096), 1, READ_BUFFER_SIZE/2);
+
+    /* Fill the command for create discontig IOSQ*/
+    nvme_write.opcode = 0x01;
+    nvme_write.flags = 0;
+    nvme_write.control = 0;
+    nvme_write.nsid = 0;
+    nvme_write.rsvd2[0] = 0;
+    nvme_write.metadata = 0;
+    nvme_write.prp1 = 0;
+    nvme_write.prp2 = 0;
+    nvme_write.slba = 0;
+    nvme_write.nlb = 15;
+    nvme_write.cmd_flags = 0;
+    nvme_write.dsm = 0;
+    nvme_write.ilbrt = 0;
+    nvme_write.lbat = 0;
+    nvme_write.lbatm = 0;
+
+    /* Fill the user command */
+    user_cmd.q_id = 2; /* Contig SQ ID */
+    user_cmd.bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST |
+        MASK_PRP2_PAGE | MASK_PRP2_LIST | MASK_MPTR);
+    user_cmd.cmd_buf_ptr = (u_int8_t *) &nvme_write;
+    user_cmd.data_buf_size = READ_BUFFER_SIZE;
+    user_cmd.data_buf_ptr = addr;
+    user_cmd.meta_buf_id = meta_id;
+    user_cmd.cmd_set = CMD_NVME;
+    user_cmd.data_dir = 1;
+
+    printf("User Call to send command\n");
+
+    ret_val = ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
+    if (ret_val < 0) {
+        printf("Sending of Command Failed!\n");
+    } else {
+        printf("Command sent succesfully\n");
+    }
+
+    free(addr);
+}
