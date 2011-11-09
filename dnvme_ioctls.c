@@ -864,7 +864,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
     /* Send a copy of the unique ID back to userspace */
     if (copy_to_user((void __user *) (nvme_64b_send->cmd_buf_ptr + 0x02),
-        &nvme_gen_cmd->command_id, 0x02)) {
+        &nvme_gen_cmd->command_id, UNIQUE_ID)) {
         LOG_ERR("Invalid copy to user space");
         ret_code = -EFAULT;
         goto err;
