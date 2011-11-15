@@ -888,6 +888,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         }
 
         if (q_ptr == NULL) {
+            LOG_DBG("List node found, but contents are NULL");
             ret_code = -EPERM;
             LOG_ERR("Required SQID node present in create SQ command not found"
                 "in global structure");
@@ -898,13 +899,13 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             (p_cmd_sq->private_sq.contig == 0)) ||
                 (!(nvme_create_sq->sq_flags & CDW11_PC) &&
                     (p_cmd_sq->private_sq.contig != 0))) {
-            /* Contig flag out of sync with what cmd says */
+            LOG_DBG("Contig flag out of sync with what cmd says");
             goto data_err;
         } else if ((p_cmd_sq->private_sq.contig == 0 &&
             nvme_64b_send->data_buf_ptr == NULL) ||
                 (p_cmd_sq->private_sq.contig != 0 &&
                     p_cmd_sq->private_sq.vir_kern_addr == NULL)) {
-            /* Contig flag out of sync with what cmd says */
+            LOG_DBG("Contig flag out of sync with what cmd says");
             goto data_err;
         } else if ((p_cmd_sq->private_sq.bit_mask & UNIQUE_QID_FLAG) == 0) {
             /* Avoid duplicate Queue creation */
@@ -916,7 +917,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         if (p_cmd_sq->private_sq.contig == 0) {
             /* Creation of Discontiguous IO SQ */
             if (p_cmd_sq->private_sq.size != nvme_64b_send->data_buf_size) {
-                /* Contig flag out of sync with what cmd says */
+                LOG_DBG("Contig flag out of sync with what cmd says");
                 goto data_err;
             }
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
@@ -962,6 +963,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         }
 
         if (q_ptr == NULL) {
+            LOG_DBG("List node found, but contents are NULL");
             ret_code = -EPERM;
             LOG_ERR("Required CQID node present in create CQ command not found"
                 "in global structure");
@@ -973,13 +975,13 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             (p_cmd_cq->private_cq.contig == 0))
                 || (!(nvme_create_cq->cq_flags & CDW11_PC) &&
                     (p_cmd_cq->private_cq.contig != 0))) {
-            /* Contig flag out of sync with what cmd says */
+            LOG_DBG("Contig flag out of sync with what cmd says");
             goto data_err;
         } else if ((p_cmd_cq->private_cq.contig == 0 &&
             nvme_64b_send->data_buf_ptr == NULL) ||
                 (p_cmd_cq->private_cq.contig != 0 &&
                     p_cmd_cq->private_cq.vir_kern_addr == NULL)) {
-            /* Contig flag out of sync with what cmd says */
+            LOG_DBG("Contig flag out of sync with what cmd says");
             goto data_err;
         } else if ((p_cmd_cq->private_cq.bit_mask & UNIQUE_QID_FLAG) == 0) {
             /* Avoid duplicate Queue creation */
@@ -991,7 +993,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         if (p_cmd_cq->private_cq.contig == 0) {
             /* Discontig IOCQ creation */
             if (p_cmd_cq->private_cq.size != nvme_64b_send->data_buf_size) {
-                /* Contig flag out of sync with what cmd says */
+                LOG_DBG("Contig flag out of sync with what cmd says");
                 goto data_err;
             }
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
