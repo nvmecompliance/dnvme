@@ -136,7 +136,7 @@ struct metrics_device_list {
     struct  list_head   metrics_sq_list;   /* SQ linked list                */
     struct  nvme_device *metrics_device;   /* Pointer to this nvme device   */
     struct  mutex       metrics_mtx;       /* Mutex for locking per device  */
-    struct  metrics_meta_data *pmetrics_meta; /* Pointer to meta data buff  */
+    struct  metrics_meta_data metrics_meta; /* Pointer to meta data buff  */
 };
 
 
