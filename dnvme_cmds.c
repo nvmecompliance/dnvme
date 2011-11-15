@@ -10,19 +10,22 @@
 
 
 /* Declaration of static functions belonging to Submitting 64Bytes Command */
-static int data_buf_to_prp(struct nvme_device *, struct metrics_sq *,
-    struct nvme_64b_send *, struct nvme_prps *, __u8, __u16,
-        enum data_buf_type, __u16);
-static int map_user_pg_to_dma(struct nvme_device *, __u8,
-    unsigned long, __u32, struct scatterlist **, struct nvme_prps *,
-        enum data_buf_type);
-static int pages_to_sg(struct page **,
-    __u32, __u32, __u32, struct scatterlist **);
-static int setup_prps(struct nvme_device *, struct scatterlist *,
-    __s32, struct nvme_prps *, __u8, enum send_64b_bitmask);
-static void unmap_user_pg_to_dma(struct nvme_device *, struct nvme_prps *);
-static void free_prp_pool(struct nvme_device *,
-    struct nvme_prps *, __u32);
+static int data_buf_to_prp(struct nvme_device *nvme_dev,
+    struct metrics_sq *pmetrics_sq, struct nvme_64b_send *nvme_64b_send,
+        struct nvme_prps *prps, __u8 opcode, __u16 persist_q_id,
+            enum data_buf_type data_buf_type, __u16 cmd_id);
+static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
+    unsigned long buf_addr, __u32 buf_len, struct scatterlist **sgp,
+        struct nvme_prps *prps, enum data_buf_type data_buf_type);
+static int pages_to_sg(struct page **pages,
+    __u32 nr_pages, __u32 offset, __u32 len, struct scatterlist **sglstp);
+static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
+    __s32 buf_len, struct nvme_prps *prps, __u8 cr_io_q,
+        enum send_64b_bitmask prp_mask);
+static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
+    struct nvme_prps *prps);
+static void free_prp_pool(struct nvme_device *nvme_dev,
+    struct nvme_prps *prps, __u32 npages);
 
 /* prep_send64b_cmd:
  * Prepares the 64 byte command to be sent
@@ -358,6 +361,7 @@ error:
     kfree(pages);
     return err;
 }
+
 /*
  * pages_to_sg:
  * Create a scatterlist from an array of page pointers.

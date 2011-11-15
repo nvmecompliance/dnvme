@@ -87,7 +87,7 @@ void destroy_dma_pool(struct nvme_device *nvme_dev);
 /**
  * del_prps:
  * Deletes the PRP structures of SQ/CQ or command track node
- * @param nvme_dev
+ * @param nvme_device
  * @param prps
  * @return void
  */

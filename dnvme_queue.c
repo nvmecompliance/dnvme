@@ -1131,6 +1131,15 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
         struct  metrics_device_list *pmetrics_device)
 {
     u8 *queue_base_addr; /* Base address for Queue */
+
+    if (pmetrics_cq_node->private_cq.contig != 0) {
+        queue_base_addr = pmetrics_cq_node->private_cq.vir_kern_addr;
+    } else {
+        /* Point to discontig Q memory here */
+        queue_base_addr =
+            pmetrics_cq_node->private_cq.prp_persist.vir_kern_addr;
+    }
+
     /* while there is an element to be reaped */
     while (num_reaped) {
         LOG_DBG("Num Reaping loop = %d", num_reaped);
@@ -1148,13 +1157,6 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
         /* move the user buffer pointer to copy next element */
         buffer += comp_entry_size;
 
-        if (pmetrics_cq_node->private_cq.contig != 0) {
-            queue_base_addr = pmetrics_cq_node->private_cq.vir_kern_addr;
-        } else {
-            /* Point to discontig Q memory here */
-            queue_base_addr =
-                pmetrics_cq_node->private_cq.prp_persist.vir_kern_addr;
-        }
         /* Q wrapped around */
         if (cq_head_ptr >= (queue_base_addr +
             pmetrics_cq_node->private_cq.size)) {
