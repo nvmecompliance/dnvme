@@ -29,7 +29,6 @@ enum nvme_acc_type {
 * system uses.
 */
 enum nvme_irq_type {
-    INT_PIN,
     INT_MSI_SINGLE,
     INT_MSI_MULTI,
     INT_MSIX,
