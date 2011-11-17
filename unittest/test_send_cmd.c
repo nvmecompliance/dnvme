@@ -169,7 +169,7 @@ void ioctl_create_discontig_iosq(int file_desc, void *addr)
     create_sq_cmd.opcode = 0x01;
     create_sq_cmd.sqid = 0x01;
     create_sq_cmd.qsize = 65472;
-    create_sq_cmd.cqid = 0x01;
+    create_sq_cmd.cqid = 0x02;
     create_sq_cmd.sq_flags = 0x00;
 
 
@@ -289,6 +289,40 @@ void ioctl_create_contig_iocq(int file_desc)
         printf("Command sent succesfully\n");
     }
 }
+
+/* CMD to create discontig IOCQ:2 spanning multiple pages of PRP lists*/
+void ioctl_create_discontig_iocq(int file_desc, void *addr)
+{
+    int ret_val = -1;
+    struct nvme_64b_send user_cmd;
+    struct nvme_create_cq create_cq_cmd;
+
+    /* Fill the command for create discontig IOSQ*/
+    create_cq_cmd.opcode = 0x05;
+    create_cq_cmd.cqid = 0x02;
+    create_cq_cmd.qsize = 65280;
+    create_cq_cmd.cq_flags = 0x00;
+
+    /* Fill the user command */
+    user_cmd.q_id = 0;
+    user_cmd.bit_mask = MASK_PRP1_LIST;
+    user_cmd.cmd_buf_ptr = (u_int8_t *) &create_cq_cmd;
+    user_cmd.data_buf_size = DISCONTIG_IO_CQ_SIZE;
+    user_cmd.data_buf_ptr = addr;
+
+    user_cmd.cmd_set = CMD_ADMIN;
+    user_cmd.data_dir = 0;
+
+    printf("User Call to send command\n");
+
+    ret_val = ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
+    if (ret_val < 0) {
+        printf("Sending of Command Failed!\n");
+    } else {
+        printf("Command sent succesfully\n");
+    }
+}
+
 
 /* CMD to send Identify command*/
 void ioctl_send_identify_cmd(int file_desc, void* addr)
@@ -482,4 +516,47 @@ void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id)
     }
 
     free(addr);
+}
+
+/* CMD to send NVME IO read command using metabuff through contig Queue */
+void ioctl_send_nvme_read_using_metabuff(int file_desc, void* addr, uint32_t meta_id)
+{
+    int ret_val = -1;
+    struct nvme_64b_send user_cmd;
+    struct nvme_user_io nvme_read;
+
+    /* Fill the command for create discontig IOSQ*/
+    nvme_read.opcode = 0x02;
+    nvme_read.flags = 0;
+    nvme_read.control = 0;
+    nvme_read.nsid = 0;
+    nvme_read.metadata = 0;
+    nvme_read.slba = 0;
+    nvme_read.nlb = 15;
+    nvme_read.cmd_flags = 0;
+    nvme_read.dsm = 0;
+    nvme_read.ilbrt = 0;
+    nvme_read.lbat = 0;
+    nvme_read.lbatm = 0;
+
+    /* Fill the user command */
+    user_cmd.q_id = 2; /* Contig SQ ID */
+    user_cmd.bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST |
+        MASK_PRP2_PAGE | MASK_PRP2_LIST);
+    user_cmd.cmd_buf_ptr = (u_int8_t *) &nvme_read;
+    user_cmd.data_buf_size = READ_BUFFER_SIZE;
+    user_cmd.data_buf_ptr = addr;
+    user_cmd.meta_buf_id = meta_id;
+    user_cmd.cmd_set = CMD_NVME;
+    user_cmd.data_dir = 0;
+
+    printf("User Call to send command\n");
+
+    ret_val = ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
+    if (ret_val < 0) {
+        printf("Sending of Command Failed!\n");
+    } else {
+        printf("Command sent succesfully\n");
+  }
+
 }

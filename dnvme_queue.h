@@ -17,7 +17,10 @@
 #define ACQS_MASK       0x0FFF0000
 
 /* As Time Out is in lower 32 bits of 64 bit CAP */
-#define NVME_TO_MASK    0xFF000000
+#define NVME_TO_SHIFT_MASK 24
+
+/* CAP.TO field units */
+#define CAP_TO_UNIT 500
 
 /*
  * Maximum AQ entries allowed.

@@ -87,11 +87,11 @@ int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
     u64 timer_delay;    /* Timer delay read from CAP.TO register          */
     u64 ini, end;
 
-    /* As the TO is in lower 32 of 64 bit cap readl is good enough */
-    timer_delay = readl(&pnvme_dev->nvme_ctrl_space->cap) & NVME_TO_MASK;
-    /* Modify TO as it is specified in 500ms units, timer needs in jiffies */
-    timer_delay >>= 24;
-    timer_delay = timer_delay * 500;
+    /* Read in the value of CAP.TO */
+
+    timer_delay = (u64) (readl(&pnvme_dev->nvme_ctrl_space->cap)
+        >> NVME_TO_SHIFT_MASK);
+    timer_delay = timer_delay * (CAP_TO_UNIT);
     LOG_NRM("Checking NVME Device Status (CSTS.RDY = 1)...");
     LOG_NRM("Timer Expires in %lld ms", timer_delay);
     ini = get_jiffies_64(); /* Read Jiffies for timer */
@@ -747,7 +747,8 @@ static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
         struct device *dev)
 {
     u8 tmp_pbit;                    /* Local phase bit      */
-    u8 *q_head_ptr = NULL;          /* mem head ptr in cq   */
+    /* mem head ptr in cq, base address for queue */
+    u8 *q_head_ptr, *queue_base_addr;
     struct cq_completion *cq_entry; /* cq entry format      */
     u16 comp_entry_size = 16;       /* acq entry size       */
     u16 num_remaining = 0;          /* reap elem remaining  */
@@ -757,20 +758,25 @@ static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
         comp_entry_size = (pmetrics_cq_node->private_cq.size) /
                         (pmetrics_cq_node->public_cq.elements);
     }
+
     /* local tmp phase bit */
     tmp_pbit = pmetrics_cq_node->public_cq.pbit_new_entry;
     if (pmetrics_cq_node->private_cq.contig != 0) {
         /* point the address to corresponding head ptr */
         q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr +
               (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr);
+        queue_base_addr = pmetrics_cq_node->private_cq.vir_kern_addr;
     } else {
         /* do sync and update when pointer to discontig Q is reaped inq */
         dma_sync_sg_for_cpu(dev, pmetrics_cq_node->private_cq.prp_persist.sg,
                 pmetrics_cq_node->private_cq.prp_persist.dma_mapped_pgs,
                 pmetrics_cq_node->private_cq.prp_persist.data_dir);
         /* Point to discontig Q memory here */
-        q_head_ptr = pmetrics_cq_node->private_cq.prp_persist.vir_kern_addr +
-              (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr);
+        queue_base_addr =
+            pmetrics_cq_node->private_cq.prp_persist.vir_kern_addr;
+        q_head_ptr = queue_base_addr +
+            (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr);
+
     }
 
     LOG_NRM("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
@@ -791,10 +797,10 @@ static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
             q_head_ptr += comp_entry_size;
             num_remaining += 1;
             /* Q wrapped around */
-            if (q_head_ptr >= (pmetrics_cq_node->private_cq.vir_kern_addr +
-                              pmetrics_cq_node->private_cq.size)) {
+            if (q_head_ptr >= (queue_base_addr +
+                pmetrics_cq_node->private_cq.size)) {
                 tmp_pbit = !tmp_pbit;
-                q_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr;
+                q_head_ptr = queue_base_addr;
                 pmetrics_cq_node->public_cq.tail_ptr = 0;
             }
         } else {
@@ -819,7 +825,6 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
 {
     struct metrics_cq  *pmetrics_cq_node;   /* ptr to cq node       */
     u16 num_remain;
-
 
     /* Find given CQ in list */
     pmetrics_cq_node = find_cq(pmetrics_device, reap_inq->q_id);
@@ -909,7 +914,7 @@ struct metrics_meta *find_meta_node(struct metrics_device_list
 {
     struct  metrics_meta  *pmetrics_meta = NULL;
 
-    list_for_each_entry(pmetrics_meta, &pmetrics_device_elem->pmetrics_meta->
+    list_for_each_entry(pmetrics_meta, &pmetrics_device_elem->metrics_meta.
             meta_trk_list, meta_list_hd) {
         if (meta_id == pmetrics_meta->meta_id) {
             LOG_DBG("Meta ID = %d exists", meta_id);
@@ -1129,7 +1134,6 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
         struct  metrics_device_list *pmetrics_device)
 {
     int latentErr = 0;
-
 
     while (*num_should_reap) {
         LOG_DBG("Reaping CE's, %d left to reap", *num_should_reap);

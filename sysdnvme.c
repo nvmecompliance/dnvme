@@ -345,19 +345,21 @@ op_exit:
  */
 int dnvme_device_release(struct inode *inode, struct file *filp)
 {
-    struct  metrics_device_list *pmetrics_device_element; /* Metrics device  */
+    /* Metrics device */
+    struct  metrics_device_list *pmetrics_device_element;
     int ret_val = SUCCESS;
 
-    LOG_DBG("\n.....Call to Release the device...\n");
+    LOG_DBG("Call to Release the device...");
     pmetrics_device_element = lock_device(inode);
     if (pmetrics_device_element == NULL) {
         LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
         ret_val = -ENODEV;
         goto rel_exit;
     }
+
     pmetrics_device_element->metrics_device->open_flag = 0;
     if (deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY)
-            != SUCCESS) {
+        != SUCCESS) {
         LOG_ERR("Deallocation failed!!");
         ret_val = -EINVAL;
     }
@@ -471,7 +473,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
             goto mmap_exit;
         }
         vir_kern_addr = pmeta_data->vir_kern_addr;
-        mmap_range = pmetrics_device_element->pmetrics_meta->meta_buf_size;
+        mmap_range = pmetrics_device_element->metrics_meta.meta_buf_size;
     } else {
         ret_val = -EINVAL;
         goto mmap_exit;
@@ -768,7 +770,6 @@ static void __exit dnvme_exit(void)
         /* Clean Up the Data Structures. */
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
         deallocate_mb(pmetrics_device_element);
-        kfree(pmetrics_device_element->pmetrics_meta);
         mutex_destroy(pmetrics_device_element->metrics_mtx);
         pdev = pmetrics_device_element->metrics_device->pdev;
         pci_release_regions(pdev);

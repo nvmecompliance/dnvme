@@ -45,7 +45,8 @@ int driver_log(struct nvme_file *n_file)
     int ret_code = 0;
 
     /* Allocating memory for the data in kernel space, add 1 for a NULL term */
-    if ((filename = kmalloc(n_file->flen+1, (GFP_KERNEL | __GFP_ZERO))) == 0) {
+    filename = kmalloc(n_file->flen+1, (GFP_KERNEL | __GFP_ZERO));
+    if (NULL == filename) {
         LOG_ERR("Unable to allocate kernel memory");
         return -ENOMEM;
     }
@@ -65,7 +66,8 @@ int driver_log(struct nvme_file *n_file)
     oldfs = get_fs();
     set_fs(KERNEL_DS);
 
-    if ((file = filp_open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0644))) {
+    file = filp_open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+    if (file) {
 
         /* Loop through the devices */
         list_for_each_entry(pmetrics_device, &metrics_dev_ll,
@@ -336,16 +338,15 @@ static loff_t meta_nodes_log(struct file *file, loff_t pos,
     u8 data1[100];
     int i = 0;
 
-    if ((pmetrics_device->pmetrics_meta == NULL) ||
-            (pmetrics_device->pmetrics_meta->meta_dmapool_ptr == NULL)) {
+    if (pmetrics_device->metrics_meta.meta_dmapool_ptr == NULL) {
         return pos;
     }
     sprintf(data1,
-            IDNT_L1"pmetrics_device->pmetrics_meta->meta_dmapool_ptr = 0x%llx",
-            (u64)pmetrics_device->pmetrics_meta->meta_dmapool_ptr);
+            IDNT_L1"pmetrics_device->metrics_meta.meta_dmapool_ptr = 0x%llx",
+            (u64)pmetrics_device->metrics_meta.meta_dmapool_ptr);
     vfs_write(file, data1, strlen(data1), &pos);
 
-    list_for_each_entry(pmetrics_meta, &pmetrics_device->pmetrics_meta->
+    list_for_each_entry(pmetrics_meta, &pmetrics_device->metrics_meta.
             meta_trk_list, meta_list_hd) {
         /* Get each Meta buffer node and write to file */
         sprintf(data1, IDNT_L2"pmetrics_device->pmetrics_meta[%d]", i++);

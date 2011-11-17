@@ -242,9 +242,8 @@ void test_meta(int file_desc, int log)
         ioctl_dump(file_desc, tmpfile13);
 }
 
-uint32_t test_meta_buf(int file_desc) {
+uint32_t test_meta_buf(int file_desc, uint32_t meta_id) {
     int ret_val;
-    uint32_t meta_id = 0;
     ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_CREATE, 4096);
     if(ret_val < 0) {
         printf("\nMeta data creation failed!\n");
@@ -257,5 +256,5 @@ uint32_t test_meta_buf(int file_desc) {
     } else {
         printf("Meta Id = %d allocation success!!\n", meta_id);
     }
-    return meta_id;
+    return ret_val;
 }

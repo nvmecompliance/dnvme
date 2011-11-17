@@ -736,13 +736,15 @@ int main()
     char *tmpfile5 = "/tmp/temp_file5.txt";
     char *tmpfile6 = "/tmp/temp_file6.txt";
     char *tmpfile7 = "/tmp/temp_file7.txt";
+    char *tmpfile8 = "/tmp/temp_file8.txt";
     char *tmpfile14 = "/tmp/temp_file14.txt";
     char *tmpfile15 = "/tmp/temp_file15.txt";
 
     /* Maximum possible entries */
     void *read_buffer;
     void *identify_buffer;
-    void *discontg_sq_buf;
+    void *discontg_sq_buf, *discontg_cq_buf;
+
     uint8_t *kadr;
     uint32_t offset,meta_id;
 
@@ -775,6 +777,13 @@ int main()
     }
     memset(discontg_sq_buf, 0, DISCONTIG_IO_SQ_SIZE);
 
+    /* Allocating buffer for Discontiguous IOCQ and setting to 0 */
+    if (posix_memalign(&discontg_cq_buf, 4096, DISCONTIG_IO_CQ_SIZE)) {
+        printf("Memalign Failed");
+        return 0;
+    }
+    memset(discontg_cq_buf, 0, DISCONTIG_IO_CQ_SIZE);
+
     test_drv_metrics(file_desc);
     do {
         printf("\nEnter a valid test case number:");
@@ -803,17 +812,17 @@ int main()
             break;
         case 3:
             printf("Test3: Sending Create Discontig IOSQ with ID 1"
-            " and contig IOCQ with ID 1\n");
-            printf("\n Preparing contig CQ with ID 1\n");
-            printf("\n\tCQ ID = 1\n");
-            ioctl_prep_cq(file_desc, 1, 20, 1);
+            " and discontig IOCQ with ID 2\n");
+            printf("\n Preparing discontig CQ with ID 2\n");
+            printf("\n\tCQ ID = 2\n");
+            ioctl_prep_cq(file_desc, 2, 65280, 0);
 
             printf("\n Preparing Discontig SQ with ID 1\n");
-            printf("\n\tSD_ID : CQ ID = 1 : 1\n");
-            ioctl_prep_sq(file_desc, 1, 1, 65472, 0);
+            printf("\n\tSD_ID : CQ ID = 1 : 2\n");
+            ioctl_prep_sq(file_desc, 1, 2, 65472, 0);
 
             printf("Executing SEND 64 byte command both for SQ and CQ\n");
-            ioctl_create_contig_iocq(file_desc);
+            ioctl_create_discontig_iocq(file_desc, discontg_cq_buf);
             ioctl_create_discontig_iosq(file_desc, discontg_sq_buf);
 
             printf("\nCalling Dump Metrics to tmpfile1\n");
@@ -822,17 +831,22 @@ int main()
             printf("Ringing Doorbell for SQID 0\n");
             ioctl_tst_ring_dbl(file_desc, 0);
 
-            printf("Test to Create Discontig/Contig IO Queues Done\n");
+            printf("Test to Create Discontig IO Queues Done\n");
             break;
         case 4:
-            printf("Test4: Sending Create contig IOSQ with ID 2 and linking "
-            "to already created CQ ID1\n");
+            printf("Test4: Sending Create contig IOSQ with ID 2 and contig"
+            "CQ with ID1\n");
+
+            printf("\n Preparing contig CQ with ID 1\n");
+            printf("\n\tCQ ID = 1\n");
+            ioctl_prep_cq(file_desc, 1, 20, 1);
 
             printf("\n Preparing contig SQ with ID 2\n");
             printf("\n\tSD_ID : CQ ID = 2 : 1\n");
             ioctl_prep_sq(file_desc, 2, 1, 256, 1);
 
             printf("Executing SEND 64 byte command\n");
+            ioctl_create_contig_iocq(file_desc);
             ioctl_create_contig_iosq(file_desc);
 
             printf("\nCalling Dump Metrics to tmpfile2\n");
@@ -842,20 +856,21 @@ int main()
             printf("Test to Create contig IOSQ Done\n");
         break;
         case 5: /* Delete the Queues */
-            printf("Test5: Sending Delete IOSQ for ID 1 and 2 "
-            "also deleteing IOCQ ID1\n");
+            printf("Test5: Sending Delete IO Q command to remove all Q");
 
-            printf("Executing SEND 64 byte commands 3 at a time!\n");
+            printf("Executing SEND 64 byte commands 4 at a time!\n");
             printf("Deleting IOSQ 1\n");
             ioctl_delete_ioq(file_desc, 0x00, 1);
             printf("Deleting IOSQ 2\n");
             ioctl_delete_ioq(file_desc, 0x00, 2);
             printf("Deleting IOCQ 1\n");
             ioctl_delete_ioq(file_desc, 0x04, 1);
+            printf("Deleting IOCQ 2\n");
+            ioctl_delete_ioq(file_desc, 0x04, 2);
 
             printf("Ringing Doorbell for SQID 0\n");
             ioctl_tst_ring_dbl(file_desc, 0);
-            printf("Test to Create contig IOSQ Done\n");
+            printf("Test to Delete IOQ's Done\n");
             printf("\nCalling Dump Metrics to tmpfile3\n");
             ioctl_dump(file_desc, tmpfile3);
             break;
@@ -901,6 +916,7 @@ int main()
             break;
         case 11: /* reap on IO CQ for 2 elems */
             set_reap_cq(file_desc, 1, 2, 32, 1);
+            set_reap_cq(file_desc, 2, 2, 32, 1);
             break;
         case 12: /* Display ACQ Contents */
             // ioctl_ut_mmap(file_desc);
@@ -946,8 +962,25 @@ int main()
               printf("\nIllelgal Page number!\n");
             }
             break;
-        case 19: /*Tets to check meta buffer support */
-            meta_id = test_meta_buf(file_desc);
+        case 19: /* Reading contents of Discontig CQ page wise */
+            printf("\nReading contents of Discontig CQ page wise:\n");
+            printf("\nEnter a Page number:");
+            scanf ("%d", &test_case);
+            offset = 4096 * test_case;
+            if (offset < (DISCONTIG_IO_CQ_SIZE - 4096)) {
+                for (i = 0; i < 4096; i++) {
+                    printf("%x ",*(uint8_t *)(discontg_cq_buf + i + offset));
+                }
+            } else {
+              printf("\nIllelgal Page number!\n");
+            }
+            break;
+        case 20: /* Test to check meta buffer support through contig Q */
+            printf("Test20: Test to check meta buffer write command support"
+                "through contig Q\n");
+            printf("\nEnter meta_id:\n");
+            scanf ("%d", &meta_id);
+            test_meta_buf(file_desc, meta_id);
             /* Sending the write command through Contig SQ 2 using meta_buff */
             printf("\n Sending write IO through Contig SQ 2 using meta_buff \n");
             ioctl_send_nvme_write_using_metabuff(file_desc, meta_id);
@@ -956,7 +989,24 @@ int main()
             printf("\nCalling Dump Metrics to tmpfile7\n");
             ioctl_dump(file_desc, tmpfile7);
             break;
-        case 20: /*Delete the meta data ID */
+        case 21: /*Test to check meta buffer support through contig Q */
+            printf("Test21: Test to check meta buffer read cmd support"
+                "through contig Q\n");
+            printf("\nEnter meta_id:\n");
+            scanf ("%d", &meta_id);
+            test_meta_buf(file_desc, meta_id);
+            /* Sending the read command through Contig SQ 2 using meta_buff */
+            printf("\n Sending read IO through Contig SQ 2 using meta_buff \n");
+            ioctl_send_nvme_read_using_metabuff(file_desc, read_buffer, meta_id);
+            printf("Ringing Doorbell for SQID 2\n");
+            ioctl_tst_ring_dbl(file_desc, 2);
+            printf("\nCalling Dump Metrics to tmpfile7\n");
+            ioctl_dump(file_desc, tmpfile8);
+            break;
+        case 22: /*Delete the meta data ID */
+            printf("Deleting the Meta ID's\n");
+            printf("\nEnter metaid:\n");
+            scanf ("%d", &meta_id);
             ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_DELETE, meta_id);
             if(ret_val < 0) {
                 printf("\nMeta Id = %d deletion failed!\n", meta_id);
@@ -967,10 +1017,11 @@ int main()
         default:
             printf("Undefined case!\n");
         }
-    } while (test_case < 21);
+    } while (test_case < 23);
     free(read_buffer);
     free(identify_buffer);
     free(discontg_sq_buf);
+    free(discontg_cq_buf);
     printf("\n\n****** END OF DEMO ******\n\n");
     close(file_desc);
     return 0;

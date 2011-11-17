@@ -592,19 +592,11 @@ int driver_ioctl_init(struct pci_dev *pdev,
         goto iocinit_out;
      }
 
-    /* Allocate memory for the metrics meta node */
-    pmetrics_device_list->pmetrics_meta = kmalloc(sizeof(struct
-            metrics_meta_data), GFP_KERNEL);
-    if (pmetrics_device_list->pmetrics_meta == NULL) {
-        LOG_ERR("Memory allocation for metrics_data failed");
-        ret_val = -ENOMEM;
-        goto iocinit_out;
-    }
     /* Initialize meta data linked list for this device. */
-    INIT_LIST_HEAD(&(pmetrics_device_list->pmetrics_meta->meta_trk_list));
+    INIT_LIST_HEAD(&(pmetrics_device_list->metrics_meta.meta_trk_list));
 
     /* Initialize Meta DMA Pool flag to zero */
-    pmetrics_device_list->pmetrics_meta->meta_dmapool_ptr = NULL;
+    pmetrics_device_list->metrics_meta.meta_dmapool_ptr = NULL;
 
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)pmetrics_device_list->metrics_device->nvme_ctrl_space);
@@ -614,9 +606,6 @@ int driver_ioctl_init(struct pci_dev *pdev,
 iocinit_out:
     if (pmetrics_device_list->metrics_device->prp_page_pool != NULL) {
         dma_pool_destroy(pmetrics_device_list->metrics_device->prp_page_pool);
-    }
-    if (pmetrics_device_list->pmetrics_meta != NULL) {
-        kfree(pmetrics_device_list->pmetrics_meta);
     }
     if (pmetrics_device_list->metrics_device != NULL) {
         kfree(pmetrics_device_list->metrics_device);
@@ -633,12 +622,12 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
 {
     int ret_val = SUCCESS;
 
-    LOG_DBG("pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr = 0x%llx",
-            (u64)pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr);
+    LOG_DBG("pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = 0x%llx",
+            (u64)pmetrics_device_elem->metrics_meta.meta_dmapool_ptr);
 
     /* First Check if the meta pool already exists */
-    if (pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr != NULL) {
-        if (alloc_size == pmetrics_device_elem->pmetrics_meta->meta_buf_size) {
+    if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr != NULL) {
+        if (alloc_size == pmetrics_device_elem->metrics_meta.meta_buf_size) {
             return SUCCESS;
         }
         LOG_ERR("Meta Pool already exists!!");
@@ -646,22 +635,22 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
     }
 
     /* To create coherent DMA mapping for meta data buffer creation */
-    pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr = dma_pool_create
+    pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = dma_pool_create
             ("meta buff", &pmetrics_device_elem->metrics_device->pdev->dev,
                     sizeof(__u32), alloc_size, 0);
-    if (pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr == NULL) {
+    if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr == NULL) {
         LOG_ERR("Creation of DMA Pool failed at meta-data");
         ret_val = -ENOMEM;
         goto meta_cr_out;
     }
-    pmetrics_device_elem->pmetrics_meta->meta_buf_size = alloc_size;
+    pmetrics_device_elem->metrics_meta.meta_buf_size = alloc_size;
     return ret_val;
 
 meta_cr_out:
-    if (pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr != NULL) {
-        dma_pool_destroy(pmetrics_device_elem->pmetrics_meta->
+    if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr != NULL) {
+        dma_pool_destroy(pmetrics_device_elem->metrics_meta.
                 meta_dmapool_ptr);
-        pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr = NULL;
+        pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = NULL;
     }
 
     return ret_val;
@@ -679,9 +668,7 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
     int ret_val = SUCCESS;
 
     /* Check if parameters passed to this function are valid */
-    if ((pmetrics_device_elem->pmetrics_meta == NULL) ||
-            (pmetrics_device_elem->pmetrics_meta->
-                    meta_dmapool_ptr == NULL)) {
+    if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr == NULL) {
         LOG_ERR("Meta data pool is not created...");
         LOG_ERR("Call to Create the meta data pool first...");
         ret_val = -EINVAL;
@@ -705,7 +692,7 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
     pmeta_data->meta_id = meta_id;
     /* Allocated the dma memory and assign to vir_kern_addr */
     pmeta_data->vir_kern_addr = dma_pool_alloc(pmetrics_device_elem->
-            pmetrics_meta->meta_dmapool_ptr, GFP_ATOMIC, &pmeta_data->
+            metrics_meta.meta_dmapool_ptr, GFP_ATOMIC, &pmeta_data->
             meta_dma_addr);
     if (pmeta_data->vir_kern_addr == NULL) {
         LOG_ERR("DMA Allocation failed for meta data buffer.");
@@ -714,16 +701,16 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
     }
     /* Add the meta data node into the linked list */
     list_add_tail(&pmeta_data->meta_list_hd, &pmetrics_device_elem->
-            pmetrics_meta->meta_trk_list);
+            metrics_meta.meta_trk_list);
     return ret_val;
 
 meta_alloc_out:
     if ((pmeta_data->vir_kern_addr != NULL) &&
-            (pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr
+            (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr
                     != NULL)) {
-        dma_pool_free(pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr,
+        dma_pool_free(pmetrics_device_elem->metrics_meta.meta_dmapool_ptr,
                 pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
-        pmetrics_device_elem->pmetrics_meta->meta_dmapool_ptr = NULL;
+        pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = NULL;
     }
     if (pmeta_data != NULL) {
         kfree(pmeta_data);
@@ -743,9 +730,7 @@ int metabuff_del(struct metrics_device_list *pmetrics_device_element,
     struct metrics_meta *pmeta_data = NULL;
 
     /* Check if invalid parameters are passed */
-    if ((pmetrics_device_element->pmetrics_meta == NULL) ||
-            (pmetrics_device_element->pmetrics_meta->
-                    meta_dmapool_ptr == NULL)) {
+    if (pmetrics_device_element->metrics_meta.meta_dmapool_ptr == NULL) {
         LOG_ERR("Meta data pool is not created...");
         LOG_ERR("Call to Create the meta data pool first...");
         return -EINVAL;
@@ -758,7 +743,7 @@ int metabuff_del(struct metrics_device_list *pmetrics_device_element,
     }
     /* free the dma memory if exists */
     if (pmeta_data->vir_kern_addr != NULL) {
-        dma_pool_free(pmetrics_device_element->pmetrics_meta->meta_dmapool_ptr,
+        dma_pool_free(pmetrics_device_element->metrics_meta.meta_dmapool_ptr,
                 pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
     }
     /* Remove from the linked list and free the node */
@@ -826,7 +811,8 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
     if (!cmd_buf_size) {
         ret_code = -EPERM;
-        LOG_ERR("Global Metrics inconsistent");
+        LOG_ERR("Required SQ for sending the command not found"
+            "in global structure");
         goto ret;
     }
 
@@ -904,7 +890,9 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         if (q_ptr == NULL) {
             LOG_DBG("List node found, but contents are NULL");
             ret_code = -EPERM;
-            goto data_err;
+            LOG_ERR("Required SQID node present in create SQ command not found"
+                "in global structure");
+            goto err;
         }
         /* Sanity Checks */
         if (((nvme_create_sq->sq_flags & CDW11_PC) &&
@@ -977,7 +965,9 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         if (q_ptr == NULL) {
             LOG_DBG("List node found, but contents are NULL");
             ret_code = -EPERM;
-            goto data_err;
+            LOG_ERR("Required CQID node present in create CQ command not found"
+                "in global structure");
+            goto err;
         }
 
         /* Sanity Checks */
@@ -1406,31 +1396,30 @@ void deallocate_mb(struct  metrics_device_list *pmetrics_device)
     struct metrics_meta  *pmeta_data_next = NULL;
 
     /* do not assume the node exists always..*/
-    if (pmetrics_device->pmetrics_meta == NULL ||
-            pmetrics_device->pmetrics_meta->meta_dmapool_ptr == NULL) {
+    if (pmetrics_device->metrics_meta.meta_dmapool_ptr == NULL) {
         LOG_DBG("Meta node is not allocated..");
         return;
     }
     /* Loop for each meta data node */
     list_for_each_entry_safe(pmeta_data, pmeta_data_next,
-            &(pmetrics_device->pmetrics_meta->meta_trk_list), meta_list_hd) {
+            &(pmetrics_device->metrics_meta.meta_trk_list), meta_list_hd) {
         /* free the dma pool memory if exists */
-        dma_pool_free(pmetrics_device->pmetrics_meta->meta_dmapool_ptr,
+        dma_pool_free(pmetrics_device->metrics_meta.meta_dmapool_ptr,
                 pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
         /* Delete the current meta data entry from the list */
         list_del(&pmeta_data->meta_list_hd);
         kfree(pmeta_data);
     }
     /* check if it has dma pool created then destroy */
-    if (pmetrics_device->pmetrics_meta->meta_dmapool_ptr != NULL) {
-        dma_pool_destroy(pmetrics_device->pmetrics_meta->
+    if (pmetrics_device->metrics_meta.meta_dmapool_ptr != NULL) {
+        dma_pool_destroy(pmetrics_device->metrics_meta.
                 meta_dmapool_ptr);
-        pmetrics_device->pmetrics_meta->meta_dmapool_ptr = NULL;
+        pmetrics_device->metrics_meta.meta_dmapool_ptr = NULL;
     }
 
-    pmetrics_device->pmetrics_meta->meta_buf_size = 0;
+    pmetrics_device->metrics_meta.meta_buf_size = 0;
 
     /* here list del init is required as we will check while cntlr disable */
-    list_del_init(&pmetrics_device->pmetrics_meta->meta_trk_list);
+    list_del_init(&pmetrics_device->metrics_meta.meta_trk_list);
     return;
 }
