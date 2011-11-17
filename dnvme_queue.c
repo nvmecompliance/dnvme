@@ -1134,15 +1134,28 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
         struct  metrics_device_list *pmetrics_device)
 {
     int latentErr = 0;
+    u8 *queue_base_addr; /* Base address for Queue */
+
+    if (pmetrics_cq_node->private_cq.contig != 0) {
+        queue_base_addr = pmetrics_cq_node->private_cq.vir_kern_addr;
+    } else {
+        /* Point to discontig Q memory here */
+        queue_base_addr =
+            pmetrics_cq_node->private_cq.prp_persist.vir_kern_addr;
+    }
 
     while (*num_should_reap) {
         LOG_DBG("Reaping CE's, %d left to reap", *num_should_reap);
 
         /* Call the process reap algos based on CE entry */
-        if ((latentErr = process_reap_algos((struct cq_completion *)cq_head_ptr,
-                pmetrics_device))) {
+        latentErr = process_reap_algos((struct cq_completion *)cq_head_ptr,
+            pmetrics_device);
+        if (latentErr) {
             LOG_ERR("Unable to find CE.SQ_id in dnvme metrics");
-        } else if (copy_to_user(buffer, cq_head_ptr, comp_entry_size)) {
+        }
+
+        /* Copy to user even on err; allows seeing latent err */
+        if (copy_to_user(buffer, cq_head_ptr, comp_entry_size)) {
             LOG_ERR("Unable to copy request data to user space");
             return -EFAULT;
         }
@@ -1151,10 +1164,11 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
         buffer += comp_entry_size;          /* Prepare for next element */
         *num_should_reap -= 1;              /* decrease for the one reaped. */
 
-        /* Q wrapped around? */
-        if (cq_head_ptr >= (pmetrics_cq_node->private_cq.vir_kern_addr +
-                pmetrics_cq_node->private_cq.size)) {
-            cq_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr;
+        /* Q wrapped around */
+        if (cq_head_ptr >= (queue_base_addr +
+            pmetrics_cq_node->private_cq.size)) {
+            /* Q wrapped so point to base again */
+            cq_head_ptr = queue_base_addr;
         }
 
         if (latentErr) {
@@ -1207,6 +1221,8 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     u16 num_should_reap;
     struct metrics_cq  *pmetrics_cq_node;   /* ptr to CQ node in ll */
     u16 comp_entry_size = 16;               /* Assumption is for ACQ */
+    /* base address for both contig and discontig queues */
+    u8 *queue_base_addr;
 
     /* Find CQ with given id from user */
     pmetrics_cq_node = find_cq(pmetrics_device, reap_data->q_id);
@@ -1235,8 +1251,9 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     }
 
     /* Is this request asking for every CE element? */
-    if (reap_data->elements == 0)
+    if (reap_data->elements == 0) {
         reap_data->elements = num_could_reap;
+    }
     num_will_fit = (reap_data->size / comp_entry_size);
 
     LOG_DBG("Requesting to reap %d elements", reap_data->elements);
@@ -1272,9 +1289,18 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     LOG_DBG("Head ptr before reaping = %d",
         pmetrics_cq_node->public_cq.head_ptr);
 
+    /*Get the required base address */
+    if (pmetrics_cq_node->private_cq.contig != 0) {
+        queue_base_addr = pmetrics_cq_node->private_cq.vir_kern_addr;
+    } else {
+        /* Point to discontig Q memory here */
+        queue_base_addr =
+            pmetrics_cq_node->private_cq.prp_persist.vir_kern_addr;
+    }
+
     /* Copy the number of CE's we should be able to reap */
     ret_val = copy_cq_data(pmetrics_cq_node,
-            (pmetrics_cq_node->private_cq.vir_kern_addr +
+            (queue_base_addr +
             (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr)),
             comp_entry_size, &num_should_reap, reap_data->buffer,
             pmetrics_device);
