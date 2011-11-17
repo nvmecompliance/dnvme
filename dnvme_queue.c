@@ -37,7 +37,7 @@ static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
 static int process_algo_gen(struct metrics_sq *pmetrics_sq_node,
         u16 cmd_id, struct  metrics_device_list *pmetrics_device);
 static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
-        u16 comp_entry_size, u16 num_reaped, u8 *buffer,
+        u16 comp_entry_size, u16 *num_reaped, u8 *buffer,
         struct  metrics_device_list *pmetrics_device);
 
 /* Conditional compilation for QEMU related modifications. */
@@ -1100,6 +1100,9 @@ static int process_reap_algos(struct cq_completion *cq_entry,
         return -EBADSLT; /* Invalid slot */
     }
 
+    /* Update our understanding of the corresponding SQ hdw head ptr */
+    pmetrics_sq_node->public_sq.head_ptr = cq_entry->sq_head_ptr;
+
     /* Find command in sq node */
     pcmd_node = find_cmd(pmetrics_sq_node, cq_entry->cmd_identifier);
     if (pcmd_node != NULL) {
@@ -1122,34 +1125,46 @@ static int process_reap_algos(struct cq_completion *cq_entry,
  * Copy the cq data to user buffer for the elements reaped.
  */
 static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
-        u16 comp_entry_size, u16 num_reaped, u8 *buffer,
+        u16 comp_entry_size, u16 *num_should_reap, u8 *buffer,
         struct  metrics_device_list *pmetrics_device)
 {
-    /* while there is an element to be reaped */
-    while (num_reaped) {
-        LOG_DBG("Num Reaping loop = %d", num_reaped);
+    int latentErr = 0;
+
+
+    while (*num_should_reap) {
+        LOG_DBG("Reaping CE's, %d left to reap", *num_should_reap);
+
         /* Call the process reap algos based on CE entry */
-        if (process_reap_algos((struct cq_completion *)cq_head_ptr,
-                pmetrics_device)) {
-            LOG_ERR("Error in Reap Algos but continue to copy CE to user..");
-        }
-        /* Copy to user here */
-        if (copy_to_user(buffer, cq_head_ptr, comp_entry_size)) {
+        if ((latentErr = process_reap_algos((struct cq_completion *)cq_head_ptr,
+                pmetrics_device))) {
+            LOG_ERR("Unable to find CE.SQ_id in dnvme metrics");
+        } else if (copy_to_user(buffer, cq_head_ptr, comp_entry_size)) {
+            LOG_ERR("Unable to copy request data to user space");
             return -EFAULT;
         }
-        /* Point to next CE entry */
-        cq_head_ptr += comp_entry_size;
-        /* move the user buffer pointer to copy next element */
-        buffer += comp_entry_size;
-        /* Q wrapped around */
+
+        cq_head_ptr += comp_entry_size;     /* Point to next CE entry */
+        buffer += comp_entry_size;          /* Prepare for next element */
+        *num_should_reap -= 1;              /* decrease for the one reaped. */
+
+        /* Q wrapped around? */
         if (cq_head_ptr >= (pmetrics_cq_node->private_cq.vir_kern_addr +
                 pmetrics_cq_node->private_cq.size)) {
-            /* Q wrapped so point to base again */
             cq_head_ptr = pmetrics_cq_node->private_cq.vir_kern_addr;
         }
-        /* decrease by one for one reaped. */
-        num_reaped--;
-    } /* end of while loop */
+
+        if (latentErr) {
+            /* Latent errors were introduced to allow reaping CE's to user
+             * space and also counting them as reaped, because they were
+             * successfully copied. However, there was something about the CE
+             * that indicated an error, possibly malformed CE by hdw, thus the
+             * entire IOCTL should error, but we successfully reaped some CE's
+             * which allows tnvme to inspect and trust the copied CE's for debug
+             */
+            LOG_ERR("Detected a partial reap situation; some, not all reaped");
+            return latentErr;
+        }
+    }
 
     return SUCCESS;
 }
@@ -1183,86 +1198,98 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
         struct nvme_reap *reap_data)
 {
     int ret_val = SUCCESS;
-    u16 num_could_reap = 0;
-    struct metrics_cq  *pmetrics_cq_node; /* ptr to CQ node in ll   */
-    u16 comp_entry_size = 16;           /* CE entry size            */
+    u16 num_will_fit;
+    u16 num_could_reap;
+    u16 num_should_reap;
+    struct metrics_cq  *pmetrics_cq_node;   /* ptr to CQ node in ll */
+    u16 comp_entry_size = 16;               /* Assumption is for ACQ */
 
     /* Find CQ with given id from user */
     pmetrics_cq_node = find_cq(pmetrics_device, reap_data->q_id);
     if (pmetrics_cq_node == NULL) {
-        LOG_ERR("CQ ID = %d does not exist", reap_data->q_id);
-        return -EBADSLT; /* Invalid slot */
+        LOG_ERR("CQ ID = %d not found", reap_data->q_id);
+        return -EBADSLT;
     }
-    /* If IO CQ set the completion Q entry size */
+
+    /* If this CQ is an IOCQ, not ACQ, then lookup the CE size */
     if (pmetrics_cq_node->public_cq.q_id != 0) {
         comp_entry_size = (pmetrics_cq_node->private_cq.size) /
                         (pmetrics_cq_node->public_cq.elements);
     }
-    LOG_NRM("Tail Ptr Before = %d", pmetrics_cq_node->public_cq.tail_ptr);
+    LOG_DBG("Tail ptr position before reaping = %d",
+        pmetrics_cq_node->public_cq.tail_ptr);
+    LOG_DBG("Detected CE size = 0x%04X", comp_entry_size);
 
-    /* Call the reap inquiry on this cq */
+    /* Call the reap inquiry on this CQ, see how many unreaped elements exist */
     num_could_reap = reap_inquiry(pmetrics_cq_node, &pmetrics_device->
             metrics_device->pdev->dev);
-    LOG_NRM("Num Could Reap = %d", num_could_reap);
-    /* Set all CE elements for reaping as reap_data->elements is set to 0 */
-    if (reap_data->elements == 0) {
-        reap_data->elements = num_could_reap; /* Max elements in q */
-    }
-
-    LOG_DBG("reap_data->elements = %d", reap_data->elements);
-    LOG_DBG("reap_data->size = %d", reap_data->size);
-    LOG_DBG("num_could_reap * comp_entry_size  = %d",
-            num_could_reap * comp_entry_size);
-
-    if (num_could_reap != 0) {
-        /* Check how many can be reaped based on size and elements */
-        if ((reap_data->elements <=  num_could_reap) &&
-                (reap_data->size >= num_could_reap * comp_entry_size)) {
-            reap_data->num_remaining = num_could_reap - reap_data->elements;
-        } else {
-            if (num_could_reap > (reap_data->size/comp_entry_size)) {
-                reap_data->num_remaining = num_could_reap - (reap_data->size/
-                    comp_entry_size);
-            } else {
-                reap_data->num_remaining = 0;
-            }
-        }
-
-        LOG_NRM("Head Ptr Before = %d", pmetrics_cq_node->public_cq.head_ptr);
-        LOG_NRM("Remaining elements to be reaped = %d",
-                reap_data->num_remaining);
-
-        /* Compute the elements that can be reaped */
-        reap_data->num_reaped = num_could_reap - reap_data->num_remaining;
-
-        /* Copy the CE entry to user */
-        ret_val = copy_cq_data(pmetrics_cq_node,
-                (pmetrics_cq_node->private_cq.vir_kern_addr +
-                (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr)),
-                comp_entry_size, reap_data->num_reaped, reap_data->buffer,
-                pmetrics_device);
-        if (ret_val < 0) {
-            LOG_ERR("Reap copy error out!!");
-            return ret_val;
-        }
-        /* Position CQ head pointer with num reaped */
-        pos_cq_head_ptr(pmetrics_cq_node, reap_data->num_reaped);
-
-        /* Write to the CQ head door bell register */
-        writel(pmetrics_cq_node->public_cq.head_ptr, pmetrics_cq_node->
-                private_cq.dbs);
-    } else {
-        LOG_DBG("All elements reaped, CQ is empty...");
+    LOG_NRM("%dm elements could be reaped", num_could_reap);
+    if (num_could_reap == 0) {
+        LOG_DBG("All elements reaped, CQ is empty");
         reap_data->num_remaining = 0;
         reap_data->num_reaped = 0;
-        /* Check if the pointers are correctly positioned */
-        if (pmetrics_cq_node->public_cq.head_ptr !=
-                pmetrics_cq_node->public_cq.tail_ptr) {
-            LOG_ERR("Tail Pointer and Head Pointer are not in sync...");
-            LOG_NRM("Head Ptr = %d", pmetrics_cq_node->public_cq.head_ptr);
-            LOG_NRM("Tail Ptr = %d", pmetrics_cq_node->public_cq.tail_ptr);
-            return -EINVAL;
+    }
+
+    /* Is this request asking for every CE element? */
+    if (reap_data->elements == 0)
+        reap_data->elements = num_could_reap;
+    num_will_fit = (reap_data->size / comp_entry_size);
+
+    LOG_DBG("Requesting to reap %d elements", reap_data->elements);
+    LOG_DBG("User space reap buffer size = %d", reap_data->size);
+    LOG_DBG("Total buffer bytes needed to satisfy request = %d",
+            num_could_reap * comp_entry_size);
+    LOG_DBG("num elements which fit in buffer = %d", num_will_fit);
+
+    /* Assume we can fit all which are requested, then adjust if necessary */
+    num_should_reap = num_could_reap;
+    reap_data->num_remaining = 0;
+
+    /* Adjust our assumption based on size and elements */
+    if (reap_data->elements <= num_could_reap) {
+        if (reap_data->size < (num_could_reap * comp_entry_size)) {
+            /* Buffer not large enough to hold all requested */
+            num_should_reap = num_will_fit;
+            reap_data->num_remaining = (num_could_reap - num_should_reap);
+        }
+    } else {    /* Asking for more elements than presently exist in CQ */
+        if (reap_data->size < (num_could_reap * comp_entry_size)) {
+            if (num_could_reap > num_will_fit) {
+                /* Buffer not large enough to hold all requested */
+                num_should_reap = num_will_fit;
+                reap_data->num_remaining = (num_could_reap - num_should_reap);
+            }
         }
     }
+    reap_data->num_reaped = num_should_reap;    /* Expect success */
+    LOG_DBG("num elements will attempt to reap = %d", num_should_reap);
+    LOG_DBG("num elements expected to remain after reap = %d",
+        reap_data->num_remaining);
+    LOG_DBG("Head ptr before reaping = %d",
+        pmetrics_cq_node->public_cq.head_ptr);
+
+    /* Copy the number of CE's we should be able to reap */
+    ret_val = copy_cq_data(pmetrics_cq_node,
+            (pmetrics_cq_node->private_cq.vir_kern_addr +
+            (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr)),
+            comp_entry_size, &num_should_reap, reap_data->buffer,
+            pmetrics_device);
+
+    /* Reevaluate our success during reaping */
+    reap_data->num_reaped -= num_should_reap;
+    reap_data->num_remaining += num_should_reap;
+    LOG_NRM("num CE's reaped = %d, num CE's remaining = %d",
+        reap_data->num_reaped, reap_data->num_remaining);
+
+    /* Update system with number actually reaped */
+    pos_cq_head_ptr(pmetrics_cq_node, reap_data->num_reaped);
+    writel(pmetrics_cq_node->public_cq.head_ptr, pmetrics_cq_node->
+            private_cq.dbs);
+
+    if (ret_val < 0) {
+        LOG_ERR("Reap copy error out!!");
+        return ret_val;
+    }
+
     return ret_val;
 }

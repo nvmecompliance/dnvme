@@ -515,6 +515,7 @@ prp_list:
         prps->prp2 = 0;
         LOG_DBG("PRP1 Entry: %llx", (unsigned long long) prps->prp1);
     } else {
+        LOG_ERR("PRP cmd options don't allow proper description of buffer");
         err = -EFAULT;
         goto error;
     }
@@ -554,6 +555,7 @@ prp_list:
         if (dma_len > 0) {
             continue;
         } else if (dma_len < 0) {
+            LOG_ERR("DMA data length is illegal");
             err = -EFAULT;
             goto error;
         } else {
