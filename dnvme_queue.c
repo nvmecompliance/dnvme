@@ -6,6 +6,7 @@
 #include <linux/jiffies.h>
 #include <linux/uaccess.h>
 #include <linux/errno.h>
+#include <linux/interrupt.h>
 
 #include "definitions.h"
 #include "sysdnvme.h"
@@ -13,6 +14,7 @@
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
 #include "dnvme_cmds.h"
+#include "dnvme_irq.h"
 
 /* Static functions used in this file  */
 static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,

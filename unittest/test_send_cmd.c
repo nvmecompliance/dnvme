@@ -264,11 +264,12 @@ void ioctl_create_contig_iocq(int file_desc)
     struct nvme_64b_send user_cmd;
     struct nvme_create_cq create_cq_cmd;
 
-    /* Fill the command for create discontig IOSQ*/
+    /* Fill the command for create contig IOSQ*/
     create_cq_cmd.opcode = 0x05;
     create_cq_cmd.cqid = 0x01;
     create_cq_cmd.qsize = 20;
-    create_cq_cmd.cq_flags = 0x01;
+    create_cq_cmd.cq_flags = 0x03;
+    create_cq_cmd.irq_vector = 1;
 
     /* Fill the user command */
     user_cmd.q_id = 0;
@@ -301,7 +302,8 @@ void ioctl_create_discontig_iocq(int file_desc, void *addr)
     create_cq_cmd.opcode = 0x05;
     create_cq_cmd.cqid = 0x02;
     create_cq_cmd.qsize = 65280;
-    create_cq_cmd.cq_flags = 0x00;
+    create_cq_cmd.cq_flags = 0x02;
+    create_cq_cmd.irq_vector = 2;
 
     /* Fill the user command */
     user_cmd.q_id = 0;

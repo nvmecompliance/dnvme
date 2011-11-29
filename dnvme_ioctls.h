@@ -1,8 +1,8 @@
 #ifndef _DNVME_IOCTLS_H_
 #define _DNVME_IOCTLS_H_
 
-/* 0.1.16 */
-#define    API_VERSION          0x00000116
+/* 0.1.17 */
+#define    API_VERSION          0x00000117
 
 /**
 * Enumeration types which provide common interface between
@@ -28,6 +28,7 @@ enum {
     NVME_METABUF_ALLOC,    /** <enym Alloc meta buffers                 */
     NVME_METABUF_CREAT,    /** <enum meta buffer create                 */
     NVME_METABUF_DEL,      /** <enum meta buffer delete                 */
+    NVME_SET_IRQ,          /** <enum Set desired IRQ scheme             */
     UNIT_TESTS,            /* Generic IOCTL to set up UT scenarios      */
 };
 
@@ -225,6 +226,13 @@ enum {
 * to kernel.
 */
 #define NVME_IOCTL_METABUF_DELETE _IOWR('A', NVME_METABUF_DEL, uint32_t)
+
+/**
+* @def NVME_IOCTL_SET_IRQ
+* define a unique value for IRQ setting scheme. The third parameter give the
+* irq type passed to this ioctl from user to kernel.
+*/
+#define NVME_IOCTL_SET_IRQ _IOWR('A', NVME_SET_IRQ, struct interrupts)
 
 /**
  * @def IOCTL_UNIT_TESTS

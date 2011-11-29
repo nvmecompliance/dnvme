@@ -122,6 +122,8 @@ struct nvme_gen_cq {
     uint16_t    tail_ptr;    /* The value calculated for respective tail_ptr */
     uint16_t    head_ptr;    /* Actual value in CQxTDBL for this q_id        */
     uint16_t    elements;    /* pass the actual elements in this q           */
+    uint8_t     irq_enabled; /* sets when the irq scheme is active           */
+    uint16_t    int_vec;     /* CQ registered interrupt vector               */
     uint8_t     pbit_new_entry; /* Indicates if a new entry is in CQ         */
 };
 
@@ -132,7 +134,7 @@ struct nvme_gen_cq {
 struct nvme_gen_sq {
     uint16_t    sq_id;    /* Admin SQ are supported with q_id = 0            */
     uint16_t    cq_id;    /* The CQ ID to which this SQ is associated        */
-    uint16_t    tail_ptr;    /* Acutal value in SQxTDBL for this SQ id       */
+    uint16_t    tail_ptr;    /* Actual value in SQxTDBL for this SQ id       */
     uint16_t    tail_ptr_virt; /* future SQxTDBL write value based on no.
         of new cmds copied to SQ */
     uint16_t    head_ptr;    /* Calculate this value based on cmds reaped    */
@@ -174,7 +176,7 @@ struct nvme_create_admn_q {
  * values and the CC.IOSQES is 2^n based.
  */
 struct nvme_prep_sq {
-    uint16_t    elements;   /* Total number of entries that need kernal mem */
+    uint16_t    elements;   /* Total number of entries that need kernel mem */
     uint16_t    sq_id;      /* The user specified unique SQ ID              */
     uint16_t    cq_id;      /* Existing or non-existing CQ ID.              */
     uint8_t     contig;     /* Indicates if SQ is contig or not, 1 = contig */
@@ -196,7 +198,7 @@ struct nvme_prep_cq {
  */
 struct nvme_file {
     uint16_t    flen; /* Length of file name, it is not the total bytes */
-    const char *file_name; /* location and file name to copy metrics   */
+    const char *file_name; /* location and file name to copy metrics    */
 };
 
 /**
@@ -215,7 +217,7 @@ struct nvme_reap {
     uint16_t q_id;          /* CQ ID to reap commands for             */
     uint16_t elements;      /* Get the no. of elements to be reaped   */
     uint16_t num_remaining; /* return no. of cmds waiting for this cq */
-    uint16_t num_reaped;    /* retrun no. of elements reaped          */
+    uint16_t num_reaped;    /* Return no. of elements reaped          */
     uint16_t size;          /* Size of buffer to fill data to         */
     uint8_t  *buffer;       /* Buffer to copy reaped data             */
 };
@@ -280,4 +282,14 @@ struct nvme_del_q {
     uint16_t rsvd10;
     uint32_t rsvd11[5];
 };
+
+/**
+ * Interface structure for setting the desired IRQ type.
+ * works for all type of interrupt scheme expect PIN based.
+ */
+struct interrupts {
+    uint16_t    num_irqs;               /* total no. of irqs req by tnvme */
+    enum        nvme_irq_type irq_type; /* Active IRQ scheme for this dev */
+};
+
 #endif

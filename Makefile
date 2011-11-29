@@ -16,6 +16,7 @@ SOURCES := \
 	dnvme_queue.c \
 	dnvme_cmds.c \
 	dnvme_ds.c \
+	dnvme_irq.c \
 	ut_reap_inq.c
 
 #
@@ -32,7 +33,7 @@ RPMSPECFILE=$(RPMBASE).spec
 SRCDIR?=./src
 
 obj-m := dnvme.o
-dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o dnvme_sts_chk.o dnvme_queue.o dnvme_cmds.o dnvme_ds.o ut_reap_inq.o
+dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o dnvme_sts_chk.o dnvme_queue.o dnvme_cmds.o dnvme_ds.o dnvme_irq.o ut_reap_inq.o
 
 all:
 	make -C $(KDIR) M=$(PWD) modules

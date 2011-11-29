@@ -18,6 +18,7 @@
 #include "dnvme_queue.h"
 #include "dnvme_cmds.h"
 #include "dnvme_ds.h"
+#include "dnvme_irq.h"
 
 /*
 *  device_status_chk  - Generic error checking function
@@ -597,6 +598,21 @@ int driver_ioctl_init(struct pci_dev *pdev,
 
     /* Initialize Meta DMA Pool flag to zero */
     pmetrics_device_list->metrics_meta.meta_dmapool_ptr = NULL;
+
+    /* Initialize the irq mutex state. */
+    mutex_init(&pmetrics_device_list->irq_process.irq_track_mtx);
+    /* Initialize irq linked list for this device. */
+    INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.irq_track_list));
+
+    /* Initialize irq scheme to INT_NONE and perform cleanup */
+    ret_val = init_irq_track(pmetrics_device_list, INT_NONE);
+    if (ret_val < 0) {
+        LOG_ERR("IRQ track initialization failed...");
+        goto iocinit_out;
+    }
+
+    /* Spinlock to protect from kernel preemption in ISR handler */
+    spin_lock_init(&pmetrics_device_list->irq_process.isr_spin_lock);
 
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)pmetrics_device_list->metrics_device->nvme_ctrl_space);

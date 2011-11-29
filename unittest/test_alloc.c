@@ -75,7 +75,7 @@ void ioctl_prep_cq(int file_desc, uint16_t cq_id, uint16_t elem, uint8_t contig)
     }
 }
 
-void ioctl_reap_inquiry(int file_desc, int cq_id)
+int ioctl_reap_inquiry(int file_desc, int cq_id)
 {
     int ret_val = -1;
     struct nvme_reap_inquiry rp_inq;
@@ -90,6 +90,7 @@ void ioctl_reap_inquiry(int file_desc, int cq_id)
         printf("\t\tReaped on CQ ID = %d, Num_Remaining = %d\n",
                 rp_inq.q_id, rp_inq.num_remaining);
     }
+    return rp_inq.num_remaining;
 }
 
 void display_cq_data(unsigned char *cq_buffer, int reap_ele)
@@ -117,7 +118,10 @@ void ioctl_reap_cq(int file_desc, int cq_id, int elements, int size, int display
     rp_cq.elements = elements;
     rp_cq.size = size; //CE entry size is 16 on CQ
     rp_cq.buffer = malloc(sizeof(char) * rp_cq.size);
-
+    if (rp_cq.buffer == NULL) {
+        printf("Malloc Failed");
+        return;
+    }
     ret_val = ioctl(file_desc, NVME_IOCTL_REAP, &rp_cq);
     if(ret_val < 0) {
         printf("\nreap inquiry failed!\n");
@@ -130,6 +134,7 @@ void ioctl_reap_cq(int file_desc, int cq_id, int elements, int size, int display
         if (display)
             display_cq_data(rp_cq.buffer, rp_cq.num_reaped);
     }
+    free(rp_cq.buffer);
 }
 
 void set_admn(int file_desc)

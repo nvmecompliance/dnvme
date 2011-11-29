@@ -26,6 +26,7 @@
 #include "dnvme_ds.h"
 #include "version.h"
 #include "dnvme_cmds.h"
+#include "dnvme_irq.h"
 #include "ut_reap_inq.h"
 
 #define    DRV_NAME             "dnvme"
@@ -367,8 +368,15 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
     /* Meta data allocation clean up */
     deallocate_mb(pmetrics_device_element);
 
+    /* IRQ clean up and set active scheme to INT_NONE */
+    ret_val = init_irq_track(pmetrics_device_element,
+            pmetrics_device_element->metrics_device->irq_active.irq_type);
+    if (ret_val < 0) {
+        LOG_ERR("IRQ cleanup failed...");
+    }
+
 rel_exit:
-    LOG_DBG("\n.....Close Successful!!!....Releasing Mutex...\n");
+    LOG_DBG("Device Closed. Releasing Mutex...");
     unlock_device(pmetrics_device_element);
     return ret_val;
 }
@@ -528,11 +536,12 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct nvme_create_admn_q *create_admn_q; /* create admn q params        */
     struct nvme_prep_sq *prep_sq;   /* SQ params for preparing IO SQ         */
     struct nvme_prep_cq *prep_cq;   /* CQ params for preparing IO CQ         */
-    u16   ring_sqx;                /* SQ ID to ring the door-bell           */
+    u16   ring_sqx;                 /* SQ ID to ring the door-bell           */
     struct nvme_64b_send *nvme_64b_send; /* 64 byte cmd params               */
     struct nvme_file    *n_file;         /* dump metrics params              */
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
     struct nvme_reap *reap_data;         /* Actual Reap params               */
+    struct interrupts *irq_data;         /* IRQ type and IRQ vectors         */
     u16 test_number;
     struct metrics_driver *dnvme_metrics;/* Dnvme Metrics params             */
     struct inode *inode = filp->f_dentry->d_inode;
@@ -604,6 +613,11 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
                         *ctrl_new_state);
                 /* Clean up meta buff in both disable cases */
                 deallocate_mb(pmetrics_device_element);
+
+                /* Initialize irq track from current irq to INT_NONE */
+                ret_val = init_irq_track(pmetrics_device_element,
+                    pmetrics_device_element->metrics_device->irq_active.
+                        irq_type);
             }
          } else {
             LOG_ERR("Device State not correctly specified.");
@@ -710,6 +724,15 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         ret_val = metabuff_del(pmetrics_device_element, (u32)ioctl_param);
         break;
 
+    case NVME_IOCTL_SET_IRQ:
+        LOG_DBG("IRQ Set IOCTL...");
+        irq_data = (struct interrupts *)ioctl_param;
+        LOG_DBG("IRQ Scheme = %d", irq_data->irq_type);
+        /* Call set irq routine to set new interrupt scheme */
+        ret_val = nvme_set_irq(pmetrics_device_element, irq_data);
+
+        break;
+
     case IOCTL_UNIT_TESTS:
         test_number = (u16) ioctl_param;
         LOG_DBG("Test Number = %d", test_number);
@@ -765,13 +788,17 @@ static void __exit dnvme_exit(void)
     /* Loop through the devices available in the metrics list */
     list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
             metrics_device_hd) {
+        pdev = pmetrics_device_element->metrics_device->pdev;
         /* Free up the DMA pool */
         destroy_dma_pool(pmetrics_device_element->metrics_device);
         /* Clean Up the Data Structures. */
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
         deallocate_mb(pmetrics_device_element);
+        init_irq_track(pmetrics_device_element, pmetrics_device_element->
+                metrics_device->irq_active.irq_type);
+        nvme_enable_pin(pdev);
         mutex_destroy(pmetrics_device_element->metrics_mtx);
-        pdev = pmetrics_device_element->metrics_device->pdev;
+        mutex_destroy(pmetrics_device_element->irq_process->irq_track_mtx);
         pci_release_regions(pdev);
         /* free up the cq linked list */
         list_del(&pmetrics_device_element->metrics_cq_list);

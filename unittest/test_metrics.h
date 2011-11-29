@@ -31,7 +31,7 @@ void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id);
 void ioctl_send_nvme_read(int file_desc, void *addr);
 void ioctl_send_nvme_read_using_metabuff(int file_desc, void* addr, uint32_t meta_id);
 
-void ioctl_reap_inquiry(int file_desc, int cq_id);
+int ioctl_reap_inquiry(int file_desc, int cq_id);
 void ioctl_reap_cq(int file_desc, int cq_id, int elements, int size, int display);
 void ioctl_disable_ctrl(int file_desc, enum nvme_state new_state);
 void ioctl_enable_ctrl(int file_desc);
@@ -42,3 +42,5 @@ void test_meta(int file_desc, int log);
 uint32_t test_meta_buf(int file_desc, uint32_t);
 void ioctl_dump(int file_desc, char *tmpfile);
 void display_cq_data(unsigned char *cq_buffer, int reap_ele);
+void test_admin(int file_desc);
+void ioctl_write_data(int file_desc);
