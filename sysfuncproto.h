@@ -172,9 +172,8 @@ int driver_log(struct nvme_file *n_file);
  * with ST_DISABLE_COMPLETELY.
  * @param pmetrics_device
  * @param nstate
- * @return success or failure based on deallocation.
  */
-int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
+void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
         enum nvme_state nstate);
 
 /**

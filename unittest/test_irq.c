@@ -66,8 +66,8 @@ void set_irq_none(int fd)
     else {
         printf("\nSet IRQ NONE success!!\n");
     }
-    printf("Press any key to continue...\n");
-    getchar();
+    // printf("Press any key to continue...\n");
+    // getchar();
 }
 
 void set_irq_msix(int fd)
@@ -76,9 +76,9 @@ void set_irq_msix(int fd)
     struct interrupts new_irq;
     printf("Setting MSI X IRQ Type...\n");
 
-    printf("Enter desired num_irqs = ");
-    scanf("%hu", &new_irq.num_irqs);
-
+    // printf("Enter desired num_irqs = ");
+    // scanf("%hu", &new_irq.num_irqs);
+    new_irq.num_irqs = 2;
     new_irq.irq_type = INT_MSIX;
 
     ret_val = ioctl(fd, NVME_IOCTL_SET_IRQ, &new_irq);
@@ -88,6 +88,24 @@ void set_irq_msix(int fd)
     else {
         printf("\nSet IRQ MSI-X success!!\n");
     }
+}
+
+void test_irq_review568(int fd)
+{
+    int i;
+
+    i = 10000;
+
+    while(i) {
+        printf("\nIRQ Loop Test = %d\n", i + 1);
+        set_irq_msix(fd);
+        i--;
+    }
+    set_irq_none(fd);
+    printf("\nCalling Dump Metrics to irq_loop_test\n");
+    ioctl_dump(fd, "/tmp/test_rev568.txt");
+    printf("\nPressAny key..\n");
+    getchar();
 }
 
 void test_loop_irq(int fd)
@@ -117,7 +135,6 @@ void test_loop_irq(int fd)
     printf("\nCalling Dump Metrics to irq_loop_test\n");
     ioctl_dump(fd, "/tmp/irq_loop_test.txt");
     printf("\nPressAny key..\n");
-    getchar();
     getchar();
 }
 

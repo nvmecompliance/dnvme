@@ -683,7 +683,7 @@ static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
  * 'new_state', ST_DISABLE or ST_DISABLE_COMPLETELY, identifies if you need to
  * clear Admin Q as well along with other Q's.
  */
-int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
+void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
         enum nvme_state new_state)
 {
     s16 exclude_admin = -1;
@@ -737,7 +737,6 @@ int deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
         /* Write 0 to the DMA address into ACQ base address */
         WRITEQ(0x0, &pmetrics_device->metrics_device->nvme_ctrl_space->acq);
     }
-    return SUCCESS;
 }
 
 /*

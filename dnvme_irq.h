@@ -65,19 +65,13 @@ int add_icq_node(struct irq_track *pirq_trk_node, u16 cq_id);
 /*
  * Initialization work for isr is done in this function.
  */
-int isr_init(struct  metrics_device_list *pmetrics_device_elem);
+void isr_init(struct  metrics_device_list *pmetrics_device_elem);
 
 /*
  * ISR callback routine - When any irq is fired the driver invokes the
  * top half isr to process the irq request.
  */
 irqreturn_t tophalf_isr(int int_vec, void *dev_id);
-
-/*
- * Sets the PIN# based interrupt to enable state. This is done to while
- * cleaning up and returning from the driver.
- */
-void nvme_enable_pin(struct pci_dev *dev);
 
 /*
  * Deletes the given cq node for the corresponding irq_vector. If either the

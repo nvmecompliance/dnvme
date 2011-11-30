@@ -123,7 +123,8 @@ struct nvme_gen_cq {
     uint16_t    head_ptr;    /* Actual value in CQxTDBL for this q_id        */
     uint16_t    elements;    /* pass the actual elements in this q           */
     uint8_t     irq_enabled; /* sets when the irq scheme is active           */
-    uint16_t    int_vec;     /* CQ registered interrupt vector               */
+    uint16_t    irq_no;      /* idx in list; always 0 based                  */
+    uint16_t    int_vec;     /* vec number; assigned by OS                   */
     uint8_t     pbit_new_entry; /* Indicates if a new entry is in CQ         */
 };
 

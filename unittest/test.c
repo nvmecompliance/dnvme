@@ -1079,10 +1079,14 @@ int main()
             printf("\nCalling Dump Metrics to tmpfile28\n");
             ioctl_dump(file_desc, tmpfile28);
             break;
+        case 29:
+            printf("IRQ Loop Test for Memory Leak checks...Rev 568");
+            test_irq_review568(file_desc);
+            break;
         default:
             printf("\nUndefined case!\n");
         }
-    } while (test_case < 29);
+    } while (test_case < 30);
 
     printf("\nCalling Dump Metrics to closefile\n");
     ioctl_dump(file_desc, closefile);

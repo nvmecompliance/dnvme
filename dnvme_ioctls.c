@@ -601,6 +601,7 @@ int driver_ioctl_init(struct pci_dev *pdev,
 
     /* Initialize the irq mutex state. */
     mutex_init(&pmetrics_device_list->irq_process.irq_track_mtx);
+
     /* Initialize irq linked list for this device. */
     INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.irq_track_list));
 

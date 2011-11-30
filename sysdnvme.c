@@ -358,16 +358,12 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
         goto rel_exit;
     }
 
+    /* Set the device open flag to false */
     pmetrics_device_element->metrics_device->open_flag = 0;
-    if (deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY)
-        != SUCCESS) {
-        LOG_ERR("Deallocation failed!!");
-        ret_val = -EINVAL;
-    }
-
+    /* Clean the SQ and CQ linked list nodes */
+    deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
     /* Meta data allocation clean up */
     deallocate_mb(pmetrics_device_element);
-
     /* IRQ clean up and set active scheme to INT_NONE */
     ret_val = init_irq_track(pmetrics_device_element,
             pmetrics_device_element->metrics_device->irq_active.irq_type);
@@ -796,7 +792,6 @@ static void __exit dnvme_exit(void)
         deallocate_mb(pmetrics_device_element);
         init_irq_track(pmetrics_device_element, pmetrics_device_element->
                 metrics_device->irq_active.irq_type);
-        nvme_enable_pin(pdev);
         mutex_destroy(pmetrics_device_element->metrics_mtx);
         mutex_destroy(pmetrics_device_element->irq_process->irq_track_mtx);
         pci_release_regions(pdev);

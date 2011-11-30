@@ -393,6 +393,9 @@ static loff_t irq_nodes_log(struct file *file, loff_t pos,
     struct  irq_track     *pirq_node;
     struct  irq_cq_track  *pirq_cq_node;
 
+    /* locking on IRQ MUTEX here for irq track ll access */
+    mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
+
     /* Loop for the first irq node in irq track list */
     list_for_each_entry(pirq_node, &pmetrics_device_elem->
             irq_process.irq_track_list, irq_list_hd) {
@@ -418,5 +421,8 @@ static loff_t irq_nodes_log(struct file *file, loff_t pos,
             vfs_write(file, data1, strlen(data1), &pos);
         }
     }
+
+    /* locking on IRQ MUTEX here for irq track ll access */
+    mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
     return pos;
 }

@@ -44,3 +44,4 @@ void ioctl_dump(int file_desc, char *tmpfile);
 void display_cq_data(unsigned char *cq_buffer, int reap_ele);
 void test_admin(int file_desc);
 void ioctl_write_data(int file_desc);
+void test_irq_review568(int fd);
