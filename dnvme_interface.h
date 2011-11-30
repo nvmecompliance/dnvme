@@ -71,7 +71,7 @@ enum nvme_state {
  */
 enum nvme_cmds {
     CMD_ADMIN,   /* Admin Command Set               */
-    CMD_NVME,    /* NVME Command Set                */
+    CMD_NVM,     /* NVM Command Set                 */
     CMD_AON,     /* AON  Command Set                */
     CMD_FENCE,   /* last element for loop over-run  */
 };
