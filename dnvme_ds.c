@@ -116,6 +116,9 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L2"int_vec = %d", pmetrics_cq_list->
                         public_cq.int_vec);
                 vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L2"irq_no = %d", pmetrics_cq_list->
+                        public_cq.irq_no);
+                vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"pbit_new_entry = %d", pmetrics_cq_list->
                         public_cq.pbit_new_entry);
                 vfs_write(file, data1, strlen(data1), &pos);
@@ -422,7 +425,7 @@ static loff_t irq_nodes_log(struct file *file, loff_t pos,
         }
     }
 
-    /* locking on IRQ MUTEX here for irq track ll access */
+    /* unlock IRQ MUTEX here */
     mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
     return pos;
 }

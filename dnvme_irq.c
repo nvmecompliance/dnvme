@@ -37,9 +37,6 @@ static void mask_interrupts(int irq_no, struct nvme_device *metrics_device);
 static void ummask_interrupts(int irq_no, struct nvme_device *metrics_device);
 static void nvme_disable_pin(struct pci_dev *dev);
 
-#ifdef PIN_IRQ /* To avoid compilation warning */
-static void nvme_enable_pin(struct pci_dev *dev);
-#endif
 /*
  * nvme_set_irq will set the new interrupt scheme for this device regardless
  * of the current irq scheme that is active for this device. It also validates
@@ -198,20 +195,20 @@ static void nvme_disable_pin(struct pci_dev *dev)
     pci_write_config_word(dev, CMD_OFFSET, val);    /* write value          */
 }
 
-#ifdef PIN_IRQ
 /*
  * We need to enable the HW pin based interrupts when the driver unloads.
  * This will allow the card to generate PIN# IRQ.
  */
-static void nvme_enable_pin(struct pci_dev *dev)
+/* static void nvme_enable_pin(struct pci_dev *dev)
 {
-    u16 val;    /* temp variable to read cmd value */
-    /* Enable pin based INT by writing 1 in bit position 10 of CMD_OFFSET  */
-    pci_read_config_word(dev, CMD_OFFSET, &val);    /* Read value           */
-    val &= ~PIN_INT_BIT_MASK;                       /* Modify in place      */
-    pci_write_config_word(dev, CMD_OFFSET, val);    /* write value          */
+    u16 val;    // temp variable to read cmd value
+    // Enable pin based INT by writing 1 in bit position 10 of CMD_OFFSET
+    pci_read_config_word(dev, CMD_OFFSET, &val);    // Read value
+    val &= ~PIN_INT_BIT_MASK;                       // Modify in place
+    pci_write_config_word(dev, CMD_OFFSET, val);    // write value
 }
-#endif
+*/
+
 /*
  * Check if the controller supports the interrupt type requested. If it
  * supports returns the offset, otherwise it will return invalid for the
