@@ -1,4 +1,4 @@
-/*/*
+/*
 * NVM Express Compliance Suite
 * Copyright (c) 2011, Intel Corporation.
 *
