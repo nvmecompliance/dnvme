@@ -30,7 +30,7 @@
 #include "ut_reap_inq.h"
 
 #define    DRV_NAME             "dnvme"
-#define    NVME_DEVICE_NAME     "qnvme"
+#define    NVME_DEVICE_NAME     "nvme"
 
 /*
 * Define the PCI storage express as

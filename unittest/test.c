@@ -20,7 +20,7 @@
 #include "test_metrics.h"
 #include "test_irq.h"
 
-#define DEVICE_FILE_NAME "/dev/qnvme0"
+#define DEVICE_FILE_NAME "/dev/nvme0"
 #define RANDOM_VAL      10
 /*
  * Functions for the ioctl calls
@@ -416,7 +416,7 @@ int test_regression(int file_desc)
     printf("\n******\t Sprint 2 Demo \t******\n");
 
     /*printf("Ensure you have permissions to device..\n\
-    else \n do \"chmod 777 /dev/qnvme0\" \n");*/
+    else \n do \"chmod 777 /dev/nvme0\" \n");*/
     printf("Starting Test Application...\n");
 
     printf("Try opening an already opened device...\n");
