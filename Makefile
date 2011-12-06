@@ -35,7 +35,7 @@ SRCDIR?=./src
 obj-m := dnvme.o
 dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o dnvme_sts_chk.o dnvme_queue.o dnvme_cmds.o dnvme_ds.o dnvme_irq.o ut_reap_inq.o
 
-all:
+all: doc
 	make -C $(KDIR) M=$(PWD) modules
 
 rpm: rpmzipsrc rpmbuild
@@ -50,7 +50,7 @@ clean:
 	rm -f $(RPMSRCFILE).tar*
 
 clobber: clean
-	rm -rf doc
+	rm -rf Doc/HTML
 	rm -f $(DRV_NAME)
 
 doc:
