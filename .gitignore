@@ -2,6 +2,7 @@ rpm/
 rpmbuild/
 dnvme-*/
 Debug/
+Doc/HTML
 
 *.o
 *.ko
@@ -9,6 +10,7 @@ Debug/
 *.symvers
 *.mod.c
 *.order
+doxygen.log
 .tmp_versions/
 dnvme*.tar.gz
 .project
