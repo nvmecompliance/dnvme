@@ -19,9 +19,12 @@
 /*
  * Specify the software release version numbers on their own line for use with
  * awk and the creation of RPM's while also being compatible with building
- * the binaries via the Makefile with *.cpp source code. If the placement of the
- * below lines change then modify Makefile and build.sh script parsing line no.
-*/
+ * the binaries via the Makefile with *.cpp source code.
+ * If the line numbers within this file change by the result of editing, then
+ * you must modify both the Makefile and build.sh for awk parsing. Additionally
+ * test this modification by running the Makefile rpm target.
+ */
+
 #define VER_MAJOR    \
 0
 

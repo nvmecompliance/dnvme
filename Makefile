@@ -41,8 +41,8 @@ SOURCES := \
 # RPM build parameters
 #
 RPMBASE=$(DRV_NAME)
-MAJOR=$(shell awk 'FNR==26' $(PWD)/version.h)
-MINOR=$(shell awk 'FNR==29' $(PWD)/version.h)
+MAJOR=$(shell awk 'FNR==29' $(PWD)/version.h)
+MINOR=$(shell awk 'FNR==32' $(PWD)/version.h)
 SOFTREV=$(MAJOR).$(MINOR)
 RPMFILE=$(RPMBASE)-$(SOFTREV)
 RPMCOMPILEDIR=$(PWD)/rpmbuild
