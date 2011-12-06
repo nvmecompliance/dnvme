@@ -1,29 +1,29 @@
 /*
-* NVM Express Compliance Suite
-* Copyright (c) 2011, Intel Corporation.
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms and conditions of the GNU General Public License,
-* version 2, as published by the Free Software Foundation.
-*
-* This program is distributed in the hope it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along with
-* this program; if not, write to the Free Software Foundation, Inc.,
-* 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
 
 #ifndef _DNVME_INTERFACE_H_
 #define _DNVME_INTERFACE_H_
 
 /**
-* These are the enum types used for branching to
-* required offset as specified by either PCI space
-* or a NVME space enum value defined here.
-*/
+ * These are the enum types used for branching to
+ * required offset as specified by either PCI space
+ * or a NVME space enum value defined here.
+ */
 enum nvme_io_space {
     NVMEIO_PCI_HDR,
     NVMEIO_BAR01,
@@ -31,9 +31,9 @@ enum nvme_io_space {
 };
 
 /**
-* These are the enum types used for specifying the
-* required access width of registers or memory space.
-*/
+ * These are the enum types used for specifying the
+ * required access width of registers or memory space.
+ */
 enum nvme_acc_type {
     BYTE_LEN,
     WORD_LEN,
@@ -43,9 +43,9 @@ enum nvme_acc_type {
 };
 
 /**
-* These enums define the type of interrupt scheme that the overall
-* system uses.
-*/
+ * These enums define the type of interrupt scheme that the overall
+ * system uses.
+ */
 enum nvme_irq_type {
     INT_MSI_SINGLE,
     INT_MSI_MULTI,
@@ -61,11 +61,12 @@ enum nvme_q_type {
     ADMIN_SQ,
     ADMIN_CQ,
 };
+
 /**
-* This struct is the basic structure which has important
-* parameter for the generic read  and write function to seek the correct
-* offset and length while reading or writing to nvme card.
-*/
+ * This struct is the basic structure which has important
+ * parameter for the generic read  and write function to seek the correct
+ * offset and length while reading or writing to nvme card.
+ */
 struct rw_generic {
     enum nvme_io_space type;
     uint32_t  offset;
@@ -75,9 +76,9 @@ struct rw_generic {
 };
 
 /**
-* These enums are used while enabling or disabling or completely disabling the
-* controller.
-*/
+ * These enums are used while enabling or disabling or completely disabling the
+ * controller.
+ */
 enum nvme_state {
     ST_ENABLE,              /* Set the NVME Controller to enable state      */
     ST_DISABLE,             /* Controller reset without affecting Admin Q   */
@@ -104,9 +105,9 @@ enum send_64b_bitmask {
 };
 
 /**
-* This struct is the basic structure which has important parameter for
-* sending 64 Bytes command to both admin  and IO SQ's and CQ's
-*/
+ * This struct is the basic structure which has important parameter for
+ * sending 64 Bytes command to both admin  and IO SQ's and CQ's
+ */
 struct nvme_64b_send {
     /* BIT MASK for PRP1,PRP2 and Metadata pointer */
     enum send_64b_bitmask bit_mask;
@@ -171,10 +172,10 @@ enum metrics_type {
 };
 
 /**
-  * Interface structure for returning the Q metrics. The buffer is where the
-  * data is stored for the user to copy from. This assumes that the user will
-  * provide correct buffer space to store the required metrics.
-  */
+ * Interface structure for returning the Q metrics. The buffer is where the
+ * data is stored for the user to copy from. This assumes that the user will
+ * provide correct buffer space to store the required metrics.
+ */
 struct nvme_get_q_metrics {
     uint16_t    q_id;       /* Pass the Q id for which metrics is desired   */
     enum        metrics_type    type;   /* SQ or CQ metrics desired         */

@@ -1,20 +1,20 @@
 /*
-* NVM Express Compliance Suite
-* Copyright (c) 2011, Intel Corporation.
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms and conditions of the GNU General Public License,
-* version 2, as published by the Free Software Foundation.
-*
-* This program is distributed in the hope it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along with
-* this program; if not, write to the Free Software Foundation, Inc.,
-* 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -44,17 +44,17 @@
 #define    NVME_DEVICE_NAME     "nvme"
 
 /*
-* Define the PCI storage express as
-* 0xFFFFF00 to be used while informing to kernel.
-*/
+ * Define the PCI storage express as
+ * 0xFFFFF00 to be used while informing to kernel.
+ */
 static DEFINE_PCI_DEVICE_TABLE(dnvme_pci_tbl) = {
     { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xFFFF00) },
     { 0, }
 };
 
 /*
-* PCI dnvme driver structure definition.
-*/
+ * PCI dnvme driver structure definition.
+ */
 static struct pci_driver dnvme_pci_driver = {
     .name           = DRV_NAME,
     .id_table       = dnvme_pci_tbl,
@@ -62,9 +62,9 @@ static struct pci_driver dnvme_pci_driver = {
 };
 
 /*
-*   This is the main ioctl for char type device
-*   this ioctl invoke the dnvme device ioctls.
-*/
+ *   This is the main ioctl for char type device
+ *   this ioctl invoke the dnvme device ioctls.
+ */
 static const struct file_operations dnvme_fops_f = {
     .owner = THIS_MODULE,
     .unlocked_ioctl = dnvme_ioctl_device,
@@ -91,11 +91,11 @@ int nvme_minor_x;
 module_param(NVME_MAJOR, int, 0);
 
 /*
-*   First initialization for Driver code.
-*   dnvme_init - Perform early initialization of the host
-*   host: dnvme host to initialize
-*   @return returns 0 if initialization was successful.
-*   @author T.Sravan Kumar
+ * First initialization for Driver code.
+ * dnvme_init - Perform early initialization of the host
+ * host: dnvme host to initialize
+ * @return returns 0 if initialization was successful.
+ * @author T.Sravan Kumar
 */
 static int dnvme_init(void)
 {
@@ -139,10 +139,10 @@ static int dnvme_init(void)
 }
 
 /*
-* dnvme_pci_probe - Probe the NVME PCIe device for BARs. This function is
-* called when the driver invokes the fops after basic initialization is
-* performed.
-*/
+ * dnvme_pci_probe - Probe the NVME PCIe device for BARs. This function is
+ * called when the driver invokes the fops after basic initialization is
+ * performed.
+ */
 int __devinit dnvme_pci_probe(struct pci_dev *pdev,
         const struct pci_device_id *id)
 {
@@ -530,7 +530,7 @@ mmap_exit:
  * If the ioctl is write or read/write (meaning output is returned to the
  * calling process), the ioctl call returns the output of this function.
  *
-*/
+ */
 long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         unsigned long ioctl_param)
 {
@@ -778,9 +778,9 @@ ictl_exit:
 }
 
 /*
-*  Module Exit code.
-*  dnvme_exit - Perform clean exit
-*/
+ *  Module Exit code.
+ *  dnvme_exit - Perform clean exit
+ */
 static void __exit dnvme_exit(void)
 {
     struct pci_dev *pdev;
@@ -819,8 +819,8 @@ static void __exit dnvme_exit(void)
 }
 
 /*
-*  Driver Module Calls.
-*/
+ *  Driver Module Calls.
+ */
 MODULE_DESCRIPTION("Kernel Device Driver for NVME PCI Express card");
 MODULE_AUTHOR("T Sravan Kumar <sravan.kumar.thokala@intel.com>");
 MODULE_LICENSE("GPL");

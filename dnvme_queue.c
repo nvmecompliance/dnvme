@@ -1,20 +1,20 @@
 /*
-* NVM Express Compliance Suite
-* Copyright (c) 2011, Intel Corporation.
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms and conditions of the GNU General Public License,
-* version 2, as published by the Free Software Foundation.
-*
-* This program is distributed in the hope it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along with
-* this program; if not, write to the Free Software Foundation, Inc.,
-* 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -63,9 +63,9 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
 /* Conditional compilation for QEMU related modifications. */
 #ifdef QEMU
 /*
-* if QEMU is defined then we do 64 bit write in two 32 bit writes using
-* writel's otherwise directly call writeq.
-*/
+ * if QEMU is defined then we do 64 bit write in two 32 bit writes using
+ * writel's otherwise directly call writeq.
+ */
 static inline void WRITEQ(__u64 val, volatile void __iomem *addr)
 {
     writel(val, addr);
@@ -98,10 +98,10 @@ static inline __u64 READQ(const volatile void __iomem *addr)
 #endif
 
 /*
-* nvme_ctrlrdy_capto - This function is used for checking if the controller
-* is ready to process commands after CC.EN is set to 1. This will wait a
-* min of CAP.TO seconds before failing.
-*/
+ * nvme_ctrlrdy_capto - This function is used for checking if the controller
+ * is ready to process commands after CC.EN is set to 1. This will wait a
+ * min of CAP.TO seconds before failing.
+ */
 int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
 {
     u64 timer_delay;    /* Timer delay read from CAP.TO register          */
@@ -138,10 +138,10 @@ int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
 }
 
 /*
-* nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
-* flag and this function which call the timer handler and check for the timer
-* expiration. It returns success if the ctrl in rdy before timeout.
-*/
+ * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
+ * flag and this function which call the timer handler and check for the timer
+ * expiration. It returns success if the ctrl in rdy before timeout.
+ */
 int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element)
 {
     struct nvme_device *pnvme_dev;
@@ -169,10 +169,10 @@ int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element)
 }
 
 /*
-* nvme_ctrl_disable - NVME controller disable function.This will reset the
-* CAP.EN flag and this function which call the timer handler and check for
-* the timer expiration. It returns success if the ctrl in rdy before timeout.
-*/
+ * nvme_ctrl_disable - NVME controller disable function.This will reset the
+ * CAP.EN flag and this function which call the timer handler and check for
+ * the timer expiration. It returns success if the ctrl in rdy before timeout.
+ */
 int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element)
 {
     struct nvme_device *pnvme_dev;
@@ -201,10 +201,10 @@ int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element)
 }
 
 /*
-* create_admn_sq - This routine is called when the driver invokes the ioctl for
-* admn sq creation. It returns success if the submission q creation is success
-* after dma_coherent_alloc else returns failure at any step which fails.
-*/
+ * create_admn_sq - This routine is called when the driver invokes the ioctl for
+ * admn sq creation. It returns success if the submission q creation is success
+ * after dma_coherent_alloc else returns failure at any step which fails.
+ */
 int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
         struct  metrics_sq  *pmetrics_sq_list)
 {
@@ -306,10 +306,10 @@ asq_out:
 }
 
 /*
-* create_admn_cq - This routine is called when the driver invokes the ioctl for
-* admn cq creation. It returns success if the completion q creation is success
-* after dma_coherent_alloc else returns failure at any step which fails.
-*/
+ * create_admn_cq - This routine is called when the driver invokes the ioctl for
+ * admn cq creation. It returns success if the completion q creation is success
+ * after dma_coherent_alloc else returns failure at any step which fails.
+ */
 int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
         struct  metrics_cq  *pmetrics_cq_list)
 {
@@ -406,9 +406,9 @@ acq_out:
 }
 
 /*
-* nvme_prepare_sq - This routine is called when the driver invokes the ioctl for
-* IO SQ Creation. It will retrieve the q size from IOSQES from CC.
-*/
+ * nvme_prepare_sq - This routine is called when the driver invokes the ioctl
+ * for IO SQ Creation. It will retrieve the q size from IOSQES from CC.
+ */
 int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
             struct nvme_device *pnvme_dev)
 {
@@ -481,9 +481,9 @@ psq_out:
 }
 
 /*
-* nvme_prepare_cq - This routine is called when the driver invokes the ioctl for
-* IO CQ Preparation. It will retrieve the q size from IOSQES from CC.
-*/
+ * nvme_prepare_cq - This routine is called when the driver invokes the ioctl
+ * for IO CQ Preparation. It will retrieve the q size from IOSQES from CC.
+ */
 int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
             struct nvme_device *pnvme_dev)
 {
@@ -494,7 +494,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
     u16 u16cap_mqes = 0;
 #endif
 
-    /*Read Controller Configuration CC register at offset 0x14h. */
+    /* Read Controller Configuration CC register at offset 0x14h. */
     ctrl_config = readl(&pnvme_dev->nvme_ctrl_space->cc);
     /* Extract the IOCQES from CC */
     ctrl_config = (ctrl_config >> 20) & 0xF;
@@ -556,11 +556,11 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 }
 
 /*
-* nvme_ring_sqx_dbl - This routine is called when the driver invokes the ioctl
-* for Ring SQ doorbell. It will retrieve the q from the linked list, copy the
-* tail_ptr with virtual pointer, and write the tail pointer value to SqxTDBL
-* already in dbs.
-*/
+ * nvme_ring_sqx_dbl - This routine is called when the driver invokes the ioctl
+ * for Ring SQ doorbell. It will retrieve the q from the linked list, copy the
+ * tail_ptr with virtual pointer, and write the tail pointer value to SqxTDBL
+ * already in dbs.
+ */
 int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
         *pmetrics_device_element)
 {
@@ -696,7 +696,7 @@ static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
 }
 
 /*
- *  deallocate_all_queues - This function will start freeing up the memory for
+ * deallocate_all_queues - This function will start freeing up the memory for
  * the queues (SQ and CQ) allocated during the prepare queues. The parameter
  * 'new_state', ST_DISABLE or ST_DISABLE_COMPLETELY, identifies if you need to
  * clear Admin Q as well along with other Q's.

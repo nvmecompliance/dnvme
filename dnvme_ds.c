@@ -1,20 +1,20 @@
 /*
-* NVM Express Compliance Suite
-* Copyright (c) 2011, Intel Corporation.
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms and conditions of the GNU General Public License,
-* version 2, as published by the Free Software Foundation.
-*
-* This program is distributed in the hope it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along with
-* this program; if not, write to the Free Software Foundation, Inc.,
-* 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -45,9 +45,9 @@ static loff_t meta_nodes_log(struct file *file, loff_t pos,
 static loff_t irq_nodes_log(struct file *file, loff_t pos,
         struct  metrics_device_list *pmetrics_device_elem);
 /*
-*   driver_log - Generic Log functionality for logging metrics data
-*   into file name specified from user.
-*/
+ *   driver_log - Generic Log functionality for logging metrics data
+ *   into file name specified from user.
+ */
 int driver_log(struct nvme_file *n_file)
 {
     struct file *file;  /* File pointer where the data is written           */

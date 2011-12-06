@@ -1,20 +1,20 @@
 /*
-* NVM Express Compliance Suite
-* Copyright (c) 2011, Intel Corporation.
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms and conditions of the GNU General Public License,
-* version 2, as published by the Free Software Foundation.
-*
-* This program is distributed in the hope it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along with
-* this program; if not, write to the Free Software Foundation, Inc.,
-* 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -27,10 +27,10 @@
 #include "sysdnvme.h"
 #include "dnvme_reg.h"
 /*
-*  device_status_pci  - PCI device status check function
-*  which checks error registers and set kernel
-*  alert if a error is detected.
-*/
+ *  device_status_pci  - PCI device status check function
+ *  which checks error registers and set kernel
+ *  alert if a error is detected.
+ */
 int device_status_pci(u16 device_data)
 {
     int status;
@@ -74,9 +74,9 @@ int device_status_pci(u16 device_data)
 }
 
 /*
-* nvme_controller_status - This function checks the controller status
-* register CSTS at offset 0x1C from the BAR01 offset.
-*/
+ * nvme_controller_status - This function checks the controller status
+ * register CSTS at offset 0x1C from the BAR01 offset.
+ */
 int nvme_controller_status(struct pci_dev *pdev)
 {
     int status;
@@ -134,12 +134,12 @@ int nvme_controller_status(struct pci_dev *pdev)
 }
 
 /*
-* device_status_next  - This function will check if the NVME device supports
-* NEXT capability item in the linked list. If the device supports the NEXT
-* capabilty then it goes into each of the status registers and checks the
-* device current state. It reports back to the caller wither SUCCESS or FAIL.
-* Print out to the kernel message details of the status.
-*/
+ * device_status_next  - This function will check if the NVME device supports
+ * NEXT capability item in the linked list. If the device supports the NEXT
+ * capabilty then it goes into each of the status registers and checks the
+ * device current state. It reports back to the caller wither SUCCESS or FAIL.
+ * Print out to the kernel message details of the status.
+ */
 int device_status_next(struct pci_dev *pdev)
 {
     int status     = 0;
@@ -304,10 +304,10 @@ int device_status_next(struct pci_dev *pdev)
 }
 
 /*
-* device_status_pmcs: This function checks the pci power management
-* control and status.
-* PMCAP + 4h --> PMCS.
-*/
+ * device_status_pmcs: This function checks the pci power management
+ * control and status.
+ * PMCAP + 4h --> PMCS.
+ */
 int device_status_pmcs(u16 device_data)
 {
     int status;
@@ -323,9 +323,9 @@ int device_status_pmcs(u16 device_data)
 }
 
 /*
-* device_status_msicap: This function checks the Message Signaled Interrupt
-* control and status bits.
-*/
+ * device_status_msicap: This function checks the Message Signaled Interrupt
+ * control and status bits.
+ */
 int device_status_msicap(struct pci_dev *pdev, u16 device_data)
 {
     int status;
@@ -340,9 +340,9 @@ int device_status_msicap(struct pci_dev *pdev, u16 device_data)
     return status;
 }
 /*
-* device_status_msixcap: This func checks the Message Signaled Interrupt - X
-* control and status bits.
-*/
+ * device_status_msixcap: This func checks the Message Signaled Interrupt - X
+ * control and status bits.
+ */
 int device_status_msixcap(struct pci_dev *pdev, u16 device_data)
 {
     int status;
@@ -357,9 +357,9 @@ int device_status_msixcap(struct pci_dev *pdev, u16 device_data)
     return status;
 }
 /*
-* device_status_pxcap: This func checks the PCI Express
-* Capability status register
-*/
+ * device_status_pxcap: This func checks the PCI Express
+ * Capability status register
+ */
 int device_status_pxcap(struct pci_dev *pdev, u16 base_offset)
 {
     int status;
@@ -437,9 +437,9 @@ int device_status_pxcap(struct pci_dev *pdev, u16 base_offset)
 }
 
 /*
-* device_status_aerap: This func checks the status register of
-* Advanced error reporting capability of PCI express device.
-*/
+ * device_status_aerap: This func checks the status register of
+ * Advanced error reporting capability of PCI express device.
+ */
 int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
 {
     int status; /* Status indicating SUCCESS or FAIL */

@@ -1,20 +1,20 @@
 /*
-* NVM Express Compliance Suite
-* Copyright (c) 2011, Intel Corporation.
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms and conditions of the GNU General Public License,
-* version 2, as published by the Free Software Foundation.
-*
-* This program is distributed in the hope it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along with
-* this program; if not, write to the Free Software Foundation, Inc.,
-* 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -39,10 +39,10 @@
 #include "dnvme_irq.h"
 
 /*
-*  device_status_chk  - Generic error checking function
-*  which checks error registers and set kernel
-*  alert if a error is detected.
-*/
+ *  device_status_chk  - Generic error checking function
+ *  which checks error registers and set kernel
+ *  alert if a error is detected.
+ */
 int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
         int *status)
 {
@@ -105,9 +105,9 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
 }
 
 /*
-*   driver_genric_read - Generic Read functionality for reading
-*   NVME PCIe registers and memory mapped address
-*/
+ *   driver_genric_read - Generic Read functionality for reading
+ *   NVME PCIe registers and memory mapped address
+ */
 int driver_generic_read(struct rw_generic *nvme_data,
     struct  metrics_device_list *pmetrics_device_element)
 {
@@ -274,9 +274,9 @@ err:
 }
 
 /*
-*   driver_generic_write - Generic write function for
-*   NVME PCIe registers and memory mapped address
-*/
+ *   driver_generic_write - Generic write function for
+ *   NVME PCIe registers and memory mapped address
+ */
 int driver_generic_write(struct rw_generic *nvme_data,
         struct  metrics_device_list *pmetrics_device_element)
 {
@@ -425,9 +425,9 @@ err:
 }
 
 /*
-*   driver_create_asq - Driver Admin Submission Queue creation routine
-*   from Q create ioctl.
-*/
+ *   driver_create_asq - Driver Admin Submission Queue creation routine
+ *   from Q create ioctl.
+ */
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
         struct  metrics_device_list *pmetrics_device_element)
 {
@@ -494,9 +494,9 @@ asq_exit:
 }
 
 /*
-*  driver_create_acq - Driver Admin Completion Queue creation routine
-*  from Q create ioctl.
-*/
+ *  driver_create_acq - Driver Admin Completion Queue creation routine
+ *  from Q create ioctl.
+ */
 int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
         struct  metrics_device_list *pmetrics_device_element)
 {
@@ -561,9 +561,9 @@ acq_exit:
     return ret_code;
 }
 /*
-*  driver_iotcl_init - Driver Initialization routine before starting to
-*  issue  ioctls.
-*/
+ *  driver_iotcl_init - Driver Initialization routine before starting to
+ *  issue  ioctls.
+ */
 int driver_ioctl_init(struct pci_dev *pdev,
         struct metrics_device_list *pmetrics_device_list)
 {
@@ -789,9 +789,9 @@ int metabuff_del(struct metrics_device_list *pmetrics_device_element,
 }
 
 /*
-*  driver_send_64b - Routine for sending 64 bytes command into
-*  admin/IO SQ/CQ's
-*/
+ *  driver_send_64b - Routine for sending 64 bytes command into
+ *  admin/IO SQ/CQ's
+ */
 int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     struct nvme_64b_send *nvme_64b_send)
 {
