@@ -269,7 +269,7 @@ struct nvme_create_cq {
     uint16_t  cqid;
     uint16_t  qsize;
     uint16_t  cq_flags;
-    uint16_t  irq_vector;
+    uint16_t  irq_no;
     uint32_t  rsvd12[4];
 };
 

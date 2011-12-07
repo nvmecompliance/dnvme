@@ -156,7 +156,7 @@ int driver_log(struct nvme_file *n_file)
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"dbs = 0X%llX", (u64)pmetrics_cq_list->
                         private_cq.dbs);
-
+                vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L3"prp_persist:");
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"npages = %d", pmetrics_cq_list->
@@ -442,7 +442,6 @@ static loff_t irq_nodes_log(struct file *file, loff_t pos,
             vfs_write(file, data1, strlen(data1), &pos);
         }
     }
-
     /* unlock IRQ MUTEX here */
     mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
     return pos;

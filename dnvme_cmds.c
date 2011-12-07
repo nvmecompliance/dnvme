@@ -255,7 +255,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
                     (__le64) prp_vlist);
             }
 
-          LOG_DBG("PRP List: %llx", (unsigned long long) prp_vlist[i]);
+            LOG_DBG("PRP List: %llx", (unsigned long long) prp_vlist[i]);
         }
 
     } else if (prps->type == PRP1) {

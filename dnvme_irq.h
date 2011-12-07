@@ -92,11 +92,11 @@ void isr_init(struct  metrics_device_list *pmetrics_device_elem);
 irqreturn_t tophalf_isr(int int_vec, void *dev_id);
 
 /*
- * Deletes the given cq node for the corresponding irq_vector. If either the
- * irq vector is not found or the cq id is not in the list it returns invalid.
+ * Deletes the given cq node for the corresponding irq_no. If either the
+ * irq no is not found or the cq id is not in the list it returns invalid.
  */
 int remove_icq_node(struct  metrics_device_list
-        *pmetrics_device, u16 cq_id, u16 irq_vector);
+        *pmetrics_device, u16 cq_id, u16 irq_no);
 
 /*
  * Get the corresponding interrupt vector for the given irq_no in the
@@ -104,5 +104,29 @@ int remove_icq_node(struct  metrics_device_list
  */
 u16 get_int_vec(struct  metrics_device_list *pmetrics_device_elem,
                     u16 irq_no);
+
+/*
+ * Set the IO CQ interrupt vector for the given cq_id. Add a node in the
+ * IRQ tracklist with this CQ entry.
+ */
+int set_ivec_cq(struct  metrics_device_list *pmetrics_device_elem, u16 cq_id,
+        u16 irq_vector, u8 *irq_enabled, u16 *int_vec);
+
+/*
+ * reap_inquiry_isr will process reap inquiry for the given cq using irq_vec
+ * and isr_fired flags from two nodes, public cq node and irq_track list node.
+ * It fills the num_remaining with number of elements remaining or 0 based on
+ * CE entries. If the IRQ aggregation is enabled it returns 0 if aggregation
+ * limit is not reached.
+ */
+int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
+        struct  metrics_device_list *pmetrics_device_elem, u16 *num_remaining);
+
+/*
+ * Reset ISR will reset the ISR fired and ISR count to 0 when called for
+ * the given cq node.
+ */
+int reset_isr_reap(struct metrics_cq  *pmetrics_cq_node,
+        struct  metrics_device_list *pmetrics_device_elem);
 
 #endif

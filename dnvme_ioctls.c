@@ -551,6 +551,16 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     list_add_tail(&pmetrics_cq_list->cq_list_hd,
             &pmetrics_device_element->metrics_cq_list);
 
+    /* After the CQ Node is added in the list, set interrupts to ACQ */
+    ret_code = set_ivec_cq(pmetrics_device_element, admn_id, 0,
+            &pmetrics_cq_list->public_cq.irq_enabled, &pmetrics_cq_list->
+                public_cq.int_vec);
+    if (ret_code != SUCCESS) {
+        LOG_ERR("Adding IRQ node for Admin CQ failed!!");
+        goto acq_exit;
+    }
+    LOG_DBG("Admn irq_no:int_vec = %d:%d", pmetrics_cq_list->public_cq.irq_no,
+            pmetrics_cq_list->public_cq.int_vec);
     LOG_DBG("Admin CQ successfully created and added to linked list...");
     return ret_code;
 
@@ -1024,6 +1034,29 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             ret_code = -EINVAL;
             goto err;
         }
+
+        /* Check if interrupts should be enabled for IO CQ */
+        if (nvme_create_cq->cq_flags & CDW11_IEN) {
+            /* Assign irq_no for IO_CQ in public CQ metrics node */
+            p_cmd_cq->public_cq.irq_no = nvme_create_cq->irq_no;
+            /* Call set_ivec_cq which sets the IO CQ for the irq_no */
+            ret_code = set_ivec_cq(pmetrics_device, p_cmd_cq->public_cq.q_id,
+                p_cmd_cq->public_cq.irq_no, &p_cmd_cq->public_cq.irq_enabled,
+                    &p_cmd_cq->public_cq.int_vec);
+            if (ret_code < 0) {
+                LOG_ERR("Setting Irq No = %d failed for IO CQ = %d!",
+                        nvme_create_cq->irq_no, p_cmd_cq->public_cq.q_id);
+                goto err;
+            }
+            /* consistency b/w cmd and set_irq checking. If set_irq is set to
+             * INT_NONE and Create IO cmds has IEN set then error out */
+            if (p_cmd_cq->public_cq.irq_enabled == 0) {
+                LOG_ERR("CQ %d's CMD is to set IRQ, but IRQ is INT_NONE",
+                        p_cmd_cq->public_cq.q_id);
+                ret_code = -EINVAL;
+                goto err;
+            }
+        } /* end of irq setting for IO CQs */
 
         if (p_cmd_cq->private_cq.contig == 0) {
             /* Discontig IOCQ creation */

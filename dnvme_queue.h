@@ -219,4 +219,15 @@ struct metrics_meta *find_meta_node(struct metrics_device_list
 int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
         struct nvme_get_q_metrics *get_q_metrics);
 
+/**
+ *  reap_inquiry - This generic function will try to inquire the number of
+ *  CE entries in the Completion Queue that are waiting to be reaped for any
+ *  given q_id.
+ *  @param pmetrics_cq_node
+ *  @param dev
+ *  @return number of CE's remaining
+  */
+u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
+        struct device *dev);
+
 #endif

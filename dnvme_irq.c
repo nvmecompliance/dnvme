@@ -46,7 +46,7 @@ static void set_irq_cq_nodes(struct metrics_device_list *pmetrics_device_elem,
         u16 int_vec);
 static u16 get_irq_enabled(u16 int_vec[]);
 static struct irq_track *find_irq_node(
-        struct  metrics_device_list *pmetrics_device_elem, u16 irq_vector);
+        struct  metrics_device_list *pmetrics_device_elem, u16 irq_no);
 static struct irq_cq_track *find_icq_node(struct  irq_track *pirq_node,
         u16 cq_id);
 static u16 get_ivec_index(struct  metrics_device_list *pmetrics_device_elem,
@@ -606,7 +606,7 @@ static u16 get_irq_enabled(u16 int_vec[])
 static void set_irq_cq_nodes(struct metrics_device_list *pmetrics_device_elem,
         u16 int_vec)
 {
-    struct  irq_track     *pirq_node;     /* Pointer to irq node */
+    struct  irq_track     *pirq_node;  /* Pointer to irq node */
     struct  irq_cq_track  *picq_node;  /* Pointer to cq node  */
 
     /* Loop for each irq node */
@@ -619,11 +619,9 @@ static void set_irq_cq_nodes(struct metrics_device_list *pmetrics_device_elem,
                 picq_node->isr_count++;
                 LOG_DBG("ISR Count = %d for CQ ID = %d",
                         picq_node->isr_count, picq_node->cq_id);
-            }
-            return;
-        }
-    }
-    LOG_DBG("IRQ node does not exist");
+            } /* end of list for icq */
+        } /* end of if ivec */
+    } /* end of list for irq */
 }
 
 /*
@@ -761,6 +759,140 @@ int add_icq_node(struct irq_track *pirq_trk_node, u16 cq_id)
 }
 
 /*
+ * Additions to both IOCTL_CREATE_ADMIN_Q and IOCTL_SEND_64B_CMD for CQs.
+ * This will set the interrupt vector X to CQ only when the IRQ scheme
+ * is not INT_NONE. If the IRQ Scheme is NONE return success.
+ * NOTE: This function will set or reset the irq_enabled flag.
+ */
+int set_ivec_cq(struct  metrics_device_list *pmetrics_device_elem, u16 cq_id,
+        u16 irq_no, u8 *irq_enabled, u16 *int_vec)
+{
+    enum nvme_irq_type irq_type = pmetrics_device_elem->metrics_device->
+            irq_active.irq_type;
+    int ret_val = SUCCESS;
+    struct irq_track *pirq_node = NULL;
+
+    /* lock onto IRQ linked list mutex as we would access the IRQ list */
+    mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
+    /* Set irq to disabled as we will return success when irq is INT_NONE */
+    *irq_enabled = 0;
+    /* branch on active irq scheme */
+    switch (irq_type) {
+    case INT_NONE:
+        /* If the IRQ scheme is NONE simply return success
+         * with irq enabled flag set to 0 */
+        ret_val = SUCCESS;
+        break;
+    case INT_MSI_SINGLE: /* Same as MSI-X */
+    case INT_MSI_MULTI:  /* Same as MSI-X */
+    case INT_MSIX:
+        /* fetch the Irq node for given irq no */
+        pirq_node = find_irq_node(pmetrics_device_elem, irq_no);
+        if (pirq_node == NULL) {
+            ret_val = -EINVAL;
+            break;
+        }
+        /* Add the CQ node into this irq node */
+        ret_val = add_icq_node(pirq_node, cq_id);
+        if (ret_val == SUCCESS) {
+            /* After successfully adding the cq node then enable the irq in
+             * metrics cq linked list */
+            *irq_enabled = 1;
+        }
+        break;
+    default:
+        ret_val = -EINVAL;
+        break;
+    }
+
+    /* Only when the irq is set and irq_enabled flag is true then
+     * populate the int_vec in the metrics cq node for given irq_no */
+    if ((ret_val == SUCCESS) && (*irq_enabled != 0)) {
+        *int_vec = get_int_vec(pmetrics_device_elem, irq_no);
+    }
+
+    /* unlock IRQ linked list mutex */
+    mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
+
+    return ret_val;
+}
+
+/*
+ * reap_inquiry_isr - will process reap inquiry for the given cq using irq_vec
+ * and isr_fired flags from two nodes, public cq node and irq_track list node.
+ * NOTE: This function should be called with irq mutex locked otherwise it
+ * will error out.
+ */
+int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
+        struct  metrics_device_list *pmetrics_device_elem, u16 *num_remaining)
+{
+    u16 irq_no = pmetrics_cq_node->public_cq.irq_no; /* irq_no for CQ   */
+    u16 cq_id = pmetrics_cq_node->public_cq.q_id; /* CQ ID for reap inq */
+    struct irq_track *pirq_node = NULL;
+    struct irq_cq_track *picq_node = NULL;
+
+#ifdef DEBUG
+    /* If mutex is not locked then exit here */
+    if (!mutex_is_locked(&pmetrics_device_elem->irq_process.irq_track_mtx)) {
+        LOG_ERR("Mutex should have been locked before this...");
+        /* Mutex is not locked so exiting */
+        return -EINVAL;
+    }
+#endif
+
+    /* Get the Irq node for given irq vector */
+    pirq_node = find_irq_node(pmetrics_device_elem, irq_no);
+    if (pirq_node == NULL) {
+        LOG_ERR("Node for IRQ No = %d does not exist in IRQ list!", irq_no);
+        return -EINVAL;
+    }
+    /* Get the CQ node in the irq node found */
+    picq_node = find_icq_node(pirq_node, cq_id);
+    if (picq_node == NULL) {
+        LOG_ERR("CQ node does not exist in the IRQ Tracked node!");
+        return -EINVAL;
+    }
+    /* Check if ISR is really fired for this CQ */
+    if (picq_node->isr_fired != 0) {
+        /* process reap inquiry for isr fired case */
+        *num_remaining = reap_inquiry(pmetrics_cq_node, &pmetrics_device_elem
+                ->metrics_device->pdev->dev);
+    } else {
+        /* To deal with ISR's aggregation, not supposed to notify CE's yet */
+        *num_remaining = 0;
+    }
+    return SUCCESS;
+}
+
+/*
+ * Reset ISR will reset the ISR fired and ISR count to 0 when called for
+ * the given cq node.
+ */
+int reset_isr_reap(struct metrics_cq  *pmetrics_cq_node,
+        struct  metrics_device_list *pmetrics_device_elem)
+{
+    u16 irq_no = pmetrics_cq_node->public_cq.irq_no; /* irq_no for CQ    */
+    u16 cq_id = pmetrics_cq_node->public_cq.q_id; /* CQ ID for reap inq  */
+    struct irq_track *pirq_node = NULL;
+    struct irq_cq_track *picq_node = NULL;
+
+    /* Get the Irq node for given irq no */
+    pirq_node = find_irq_node(pmetrics_device_elem, irq_no);
+    if (pirq_node == NULL) {
+        LOG_ERR("Node for Irq_no = %d does not exist in IRQ list!", irq_no);
+        return -EINVAL;
+    }
+    /* Get the CQ node in the irq node found */
+    picq_node = find_icq_node(pirq_node, cq_id);
+    if (picq_node == NULL) {
+        LOG_ERR("CQ node does not exist in the IRQ Tracked node!");
+        return -EINVAL;
+    }
+    picq_node->isr_fired = 0;
+    return SUCCESS;
+}
+
+/*
  * Get the index into the list for the given int vector in the irq linked list.
  * Search the irq_track linked list, if the int_vec matches then return the
  * irq_no for this int_vector. If search fails then return MAX_MSIX + 1 to
@@ -805,18 +937,18 @@ u16 get_int_vec(struct  metrics_device_list *pmetrics_device_elem,
 
 /*
  * Find_irq_node - return the pointer to the irq node in the irq track list
- * for the irq_vector if found otherwise return NULL.
+ * for the irq_no if found otherwise return NULL.
  */
 static struct irq_track *find_irq_node(
-        struct  metrics_device_list *pmetrics_device_elem, u16 irq_vector)
+        struct  metrics_device_list *pmetrics_device_elem, u16 irq_no)
 {
     struct  irq_track     *pirq_node;     /* Pointer to irq node */
 
     /* Loop for the irq node in irq track list */
     list_for_each_entry(pirq_node, &pmetrics_device_elem->irq_process.
             irq_track_list, irq_list_hd) {
-            /* if the irq vector matches then return this irq node */
-            if (irq_vector == pirq_node->int_vec) {
+            /* if the irq no matches then return this irq node */
+            if (irq_no == pirq_node->irq_no) {
                 return pirq_node;
             }
     }
@@ -846,20 +978,20 @@ static struct irq_cq_track *find_icq_node(struct  irq_track *pirq_node,
 /*
  * Remove the given CQ node from the IRQ track linked list. From the
  * irq_track linked list, get the pointer to the irq_node for the
- * given irq_vector and inside this irq_node, find the corresponding
+ * given irq_no and inside this irq_node, find the corresponding
  * CQ node. using this pointer to CQ node, delete this CQ node and
  * free up the memory.
  */
 int remove_icq_node(struct  metrics_device_list
-        *pmetrics_device, u16 cq_id, u16 irq_vector)
+        *pmetrics_device, u16 cq_id, u16 irq_no)
 {
     struct irq_track *pirq_node = NULL;
     struct irq_cq_track *picq_node = NULL;
 
-    LOG_DBG("Call to remove the ICQ = %d for ivec = %d",
-            cq_id, irq_vector);
+    LOG_DBG("Call to remove the ICQ = %d for irq_no = %d",
+            cq_id, irq_no);
     /* Get the Irq node for given irq vector */
-    pirq_node = find_irq_node(pmetrics_device, irq_vector);
+    pirq_node = find_irq_node(pmetrics_device, irq_no);
     if (pirq_node == NULL) {
         return -EINVAL;
     }
@@ -907,7 +1039,7 @@ void deallocate_irq_trk(struct  metrics_device_list *pmetrics_device_elem)
     struct  irq_track   *pirq_trk_list; /* Type to use as loop cursor       */
     struct  irq_track   *pirq_trk_next; /* Same type to use as temp storage */
 
-    LOG_ERR("Deallocate IRQ Track...");
+    LOG_DBG("Deallocate IRQ Track...");
     /* Loop for each irq node */
     list_for_each_entry_safe(pirq_trk_list, pirq_trk_next,
             &pmetrics_device_elem->irq_process.irq_track_list, irq_list_hd) {

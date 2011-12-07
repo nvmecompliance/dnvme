@@ -38,14 +38,12 @@
 static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device);
 static int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list);
-static int deallocate_metrics_cq(struct device *dev,
+static void deallocate_metrics_cq(struct device *dev,
         struct  metrics_cq  *pmetrics_cq_list,
         struct  metrics_device_list *pmetrics_device);
-static int deallocate_metrics_sq(struct device *dev,
+static void deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device);
-static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
-        struct device *dev);
 static void pos_cq_head_ptr(struct metrics_cq  *pmetrics_cq_node,
         u16 num_reaped);
 static int process_reap_algos(struct cq_completion *cq_entry,
@@ -606,7 +604,7 @@ int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
  * memory based on the contig flag. The kernel memory is given back, nodes
  * from the cq list are deleted.
  */
-static int deallocate_metrics_cq(struct device *dev,
+static void deallocate_metrics_cq(struct device *dev,
         struct  metrics_cq  *pmetrics_cq_list,
         struct  metrics_device_list *pmetrics_device)
 {
@@ -628,7 +626,6 @@ static int deallocate_metrics_cq(struct device *dev,
     /* free the node from the ll */
     kfree(pmetrics_cq_list);
 
-    return SUCCESS;
 }
 
 /*
@@ -637,7 +634,7 @@ static int deallocate_metrics_cq(struct device *dev,
  * from the sq list are deleted. The cmds tracked are dropped and nodes in
  * command list are deleted.
  */
-static int deallocate_metrics_sq(struct device *dev,
+static void deallocate_metrics_sq(struct device *dev,
         struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device)
 {
@@ -660,7 +657,6 @@ static int deallocate_metrics_sq(struct device *dev,
     /* Delete the current sq entry from the list */
     list_del_init(&pmetrics_sq_list->sq_list_hd);
     kfree(pmetrics_sq_list);
-    return SUCCESS;
 }
 
 /*
@@ -762,7 +758,7 @@ void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
  *  commands in the Completion Queue that are waiting to be reaped for any
  *  given q_id.
  */
-static u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
+u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
         struct device *dev)
 {
     u8 tmp_pbit;                    /* Local phase bit      */
@@ -844,6 +840,7 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
 {
     struct metrics_cq  *pmetrics_cq_node;   /* ptr to cq node       */
     u16 num_remain;
+    int ret_val;
 
     /* Find given CQ in list */
     pmetrics_cq_node = find_cq(pmetrics_device, reap_inq->q_id);
@@ -853,8 +850,28 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         return -ENODEV;
     }
 
-    num_remain = reap_inquiry(pmetrics_cq_node,
-            &pmetrics_device->metrics_device->pdev->dev);
+    /* If the irq is enabled, process reap_inq isr else do polling based inq */
+    if (pmetrics_cq_node->public_cq.irq_enabled == 0) {
+        /* Process reap inquiry for non-isr case */
+        LOG_DBG("Non-ISR Reap Inq on CQ = %d",
+                pmetrics_cq_node->public_cq.q_id);
+        num_remain = reap_inquiry(pmetrics_cq_node,
+                &pmetrics_device->metrics_device->pdev->dev);
+    } else {
+        LOG_DBG("ISR Reap Inq on CQ = %d", pmetrics_cq_node->public_cq.q_id);
+        /* Lock onto irq mutex for reap inquiry. */
+        mutex_lock(&pmetrics_device->irq_process.irq_track_mtx);
+        /* Process ISR based reap inquiry as isr is enabled */
+        ret_val = reap_inquiry_isr(pmetrics_cq_node, pmetrics_device,
+                &num_remain);
+        /* unlock irq track mutex here */
+        mutex_unlock(&pmetrics_device->irq_process.irq_track_mtx);
+        /* delay ret_val checking to return after mutex unlock */
+        if (ret_val < 0) {
+            LOG_ERR("ISR Reap Inquiry failed...");
+            return -EINVAL;
+         }
+    }
 
     /* Copy to user the remaining elements in this q */
     if (copy_to_user(&reap_inq->num_remaining, &num_remain,
@@ -992,7 +1009,7 @@ static int remove_cq_node(struct  metrics_device_list
     pmetrics_cq_node = find_cq(pmetrics_device, cq_id);
     if (pmetrics_cq_node == NULL) {
         LOG_ERR("CQ ID = %d does not exist", cq_id);
-        return -EBADSLT; /* Invalid slot */
+        return -EBADSLT;
     }
 
     deallocate_metrics_cq(&pmetrics_device->metrics_device->pdev->dev,
@@ -1002,6 +1019,29 @@ static int remove_cq_node(struct  metrics_device_list
 }
 
 /*
+ * Remove the CQ node from the ISR Tracked linked list.
+ */
+static int remove_isr_cq_node(struct  metrics_device_list
+        *pmetrics_device, u16 cq_id)
+{
+    struct  metrics_cq  *pmetrics_cq_node;
+
+    pmetrics_cq_node = find_cq(pmetrics_device, cq_id);
+    if (pmetrics_cq_node == NULL) {
+        LOG_ERR("CQ ID = %d does not exist", cq_id);
+        return -EBADSLT;
+    }
+    /* If irq is enabled then clean up the irq track list */
+    if (pmetrics_cq_node->public_cq.irq_enabled != 0) {
+        if (remove_icq_node(pmetrics_device, cq_id, pmetrics_cq_node->
+                public_cq.irq_no) < 0) {
+            LOG_ERR("Removal of IRQ CQ node failed. ");
+            return -EINVAL;
+        }
+    }
+    return SUCCESS;
+}
+/*
  * Process Algorithm for IO Qs.
  */
 static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
@@ -1010,6 +1050,7 @@ static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
         enum metrics_type type)
 {
     int ret_val = SUCCESS;
+    int lat_ret_val;
 
     LOG_DBG("Persist Q Id = %d", pcmd_node->persist_q_id);
     LOG_DBG("Unique Cmd Id = %d", pcmd_node->unique_id);
@@ -1022,11 +1063,14 @@ static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
             return ret_val;
         }
         if (type == METRICS_CQ) {
+            lat_ret_val = remove_isr_cq_node(pmetrics_device, pcmd_node->
+                    persist_q_id);
             ret_val = remove_cq_node(pmetrics_device, pcmd_node->persist_q_id);
-            if (ret_val != SUCCESS) {
+            if ((ret_val != SUCCESS) || (lat_ret_val != SUCCESS)) {
                 LOG_ERR("CQ Removal failed...");
-                return ret_val;
+                return (ret_val < 0) ? ret_val : lat_ret_val;
             }
+
         } else if (type == METRICS_SQ) {
             ret_val = remove_sq_node(pmetrics_device, pcmd_node->persist_q_id);
             if (ret_val != SUCCESS) {
@@ -1260,9 +1304,24 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     LOG_DBG("Detected CE size = 0x%04X", comp_entry_size);
 
     /* Call the reap inquiry on this CQ, see how many unreaped elements exist */
-    num_could_reap = reap_inquiry(pmetrics_cq_node, &pmetrics_device->
-            metrics_device->pdev->dev);
-    LOG_NRM("%dm elements could be reaped", num_could_reap);
+    /* Check if the IRQ is enabled and process accordingly */
+    if (pmetrics_cq_node->public_cq.irq_enabled == 0) {
+        /* Process reap inquiry for non-isr case */
+        num_could_reap = reap_inquiry(pmetrics_cq_node, &pmetrics_device->
+                metrics_device->pdev->dev);
+    } else { /* ISR Reap additions for IRQ support as irq_enabled is set */
+        /* Lock the IRQ mutex to guarantee coherence with bottom half. */
+        mutex_lock(&pmetrics_device->irq_process.irq_track_mtx);
+        /* Process ISR based reap inquiry as isr is enabled */
+        if (reap_inquiry_isr
+                (pmetrics_cq_node, pmetrics_device, &num_could_reap) < 0) {
+            LOG_ERR("ISR Reap Inquiry failed...");
+            ret_val = -EINVAL;
+            goto exit_out;
+        }
+    }
+
+    LOG_NRM("%d elements could be reaped", num_could_reap);
     if (num_could_reap == 0) {
         LOG_DBG("All elements reaped, CQ is empty");
         reap_data->num_remaining = 0;
@@ -1302,13 +1361,14 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
         }
     }
     reap_data->num_reaped = num_should_reap;    /* Expect success */
+
     LOG_DBG("num elements will attempt to reap = %d", num_should_reap);
     LOG_DBG("num elements expected to remain after reap = %d",
         reap_data->num_remaining);
     LOG_DBG("Head ptr before reaping = %d",
         pmetrics_cq_node->public_cq.head_ptr);
 
-    /*Get the required base address */
+    /* Get the required base address */
     if (pmetrics_cq_node->private_cq.contig != 0) {
         queue_base_addr = pmetrics_cq_node->private_cq.vir_kern_addr;
     } else {
@@ -1334,6 +1394,24 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     pos_cq_head_ptr(pmetrics_cq_node, reap_data->num_reaped);
     writel(pmetrics_cq_node->public_cq.head_ptr, pmetrics_cq_node->
             private_cq.dbs);
+
+    /* if 0 CE in a given cq, then reset the isr flag. */
+    if ((reap_data->num_remaining == 0) &&
+            (pmetrics_cq_node->public_cq.irq_enabled)) {
+        /* reset isr fired flag for this CQ. */
+        ret_val = reset_isr_reap(pmetrics_cq_node, pmetrics_device);
+        if (ret_val < 0) {
+            LOG_ERR("Error while resetting the ISR fired flag..");
+            goto exit_out;
+        }
+    }
+
+exit_out:
+    /* If irq is enabled then unlock irq mutex so bottom half can
+     * proceed with updating the irq linked list. */
+    if (pmetrics_cq_node->public_cq.irq_enabled) {
+        mutex_unlock(&pmetrics_device->irq_process.irq_track_mtx);
+    }
 
     if (ret_val < 0) {
         LOG_ERR("Reap copy error out!!");

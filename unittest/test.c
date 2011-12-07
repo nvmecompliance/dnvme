@@ -756,6 +756,7 @@ int main()
     void *read_buffer;
     void *identify_buffer;
     void *discontg_sq_buf, *discontg_cq_buf;
+    void *irq_dcq_buf, *irq_dsq_buf;
 
     uint8_t *kadr;
     uint32_t offset,meta_id;
@@ -797,6 +798,21 @@ int main()
     }
     memset(discontg_cq_buf, 0, DISCONTIG_IO_CQ_SIZE);
 
+    /* Allocating buffer for Discontiguous IOCQ and setting to 0 */
+    if (posix_memalign(&irq_dcq_buf, 4096, PAGE_SIZE_I * 16)) {
+        printf("Memalign Failed");
+        return 0;
+    }
+    memset(irq_dcq_buf, 0, PAGE_SIZE_I * 16);
+
+    /* Allocating buffer for Discontiguous IOSQ and setting to 0 */
+    if (posix_memalign(&irq_dsq_buf, 4096, PAGE_SIZE_I * 64)) {
+        printf("Memalign Failed");
+        return 0;
+    }
+    memset(irq_dsq_buf, 0, PAGE_SIZE_I * 64);
+
+
     test_drv_metrics(file_desc);
 
     do {
@@ -819,6 +835,9 @@ int main()
             printf("\nWriting the Registers of NVME space\n");
             ioctl_write_data(file_desc);
             printf("\nTest to initialize the state of controller done\n");
+
+            printf("\nCalling Dump Metrics to tmpfile1\n");
+            ioctl_dump(file_desc, tmpfile1);
             break;
         case 2:
             printf("Test2: Disabling the controller completely\n");
@@ -961,18 +980,16 @@ int main()
             break;
         case 16:
             printf("Test to Create CQ's with IRQ flag set...\n");
-            printf("Enter Number of CQ IDs = ");
+            printf("Enter Number of CQs = ");
             scanf("%hu", &cq_id);
-            printf("Enter IRQ vector Number = ");
-            scanf("%hu", &int_vec);
+            int_vec = 1;
             for (i = 1; i <= cq_id; i++) {
                 admin_create_iocq_irq(file_desc, i + RANDOM_VAL, int_vec,
                         0x03);
                 int_vec++;
+                printf("Ring Doorbell for SQID 0\n");
+                ioctl_tst_ring_dbl(file_desc, 0);
             }
-            printf("Ring Doorbell for SQID 0\n");
-            ioctl_tst_ring_dbl(file_desc, 0);
-
             printf("\nCalling Dump Metrics to tmpfile1\n");
             ioctl_dump(file_desc, tmpfilei);
             break;
@@ -1083,10 +1100,36 @@ int main()
             printf("IRQ Loop Test for Memory Leak checks...Rev 568");
             test_irq_review568(file_desc);
             break;
+        case 30:
+            printf("Create IO Q's with Interrupt Enabled...\n");
+            ioctl_dump(file_desc, "/tmp/temp_irq30_1.txt");
+            /* First Create CQ before assoc CQ */
+            set_cq_irq(file_desc, irq_dcq_buf);
+            set_sq_irq(file_desc, irq_dsq_buf);
+            ioctl_dump(file_desc, "/tmp/temp_irq30_2.txt");
+            break;
+        case 31:
+            printf("IRQ test with Reading from Contig IO Q's\n");
+            ioctl_dump(file_desc, "/tmp/temp_irq31_1.txt");
+            test_contig_io_irq(file_desc, read_buffer);
+            ioctl_dump(file_desc, "/tmp/temp_irq31_2.txt");
+            break;
+        case 32:
+            printf("IRQ test with Reading from discontig IO Q's\n");
+            ioctl_dump(file_desc, "/tmp/temp_irq32_1.txt");
+            test_discontig_io_irq(file_desc, read_buffer);
+            ioctl_dump(file_desc, "/tmp/temp_irq32_2.txt");
+            break;
+        case 33:
+            printf("IRQ Test for Deleting the IOQs");
+            ioctl_dump(file_desc, "/tmp/temp_irq33_1.txt");
+            test_irq_delete(file_desc);
+            ioctl_dump(file_desc, "/tmp/temp_irq33_2.txt");
+            break;
         default:
             printf("\nUndefined case!\n");
         }
-    } while (test_case < 30);
+    } while (test_case < 34);
 
     printf("\nCalling Dump Metrics to closefile\n");
     ioctl_dump(file_desc, closefile);
@@ -1100,6 +1143,8 @@ int main()
     free(identify_buffer);
     free(discontg_sq_buf);
     free(discontg_cq_buf);
+    free(irq_dcq_buf);
+    free(irq_dsq_buf);
     printf("\n\n****** END OF DEMO ******\n\n");
     close(file_desc);
     return 0;
