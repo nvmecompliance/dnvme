@@ -59,16 +59,6 @@ int dnvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
     unsigned long arg);
 
 /**
- * This function prototype is for assigning disk
- * parameters in case if the device pdev is of block type
- * device.
- * @param pdev
- * @param which
- * @return whether successful or not.
- */
-int dnvme_blk_gendisk(struct pci_dev *pdev, int which);
-
-/**
  * This is the main entry point for IOCTL char device type.
  * The user selection of IOCTL required is specified in the
  * ioctl_num parameter based on which corresponding IOCTL

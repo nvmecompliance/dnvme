@@ -35,9 +35,9 @@
 #include "dnvme_irq.h"
 
 /* Static functions used in this file  */
-static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
+static void reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device);
-static int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list);
+static void reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list);
 static void deallocate_metrics_cq(struct device *dev,
         struct  metrics_cq  *pmetrics_cq_list,
         struct  metrics_device_list *pmetrics_device);
@@ -663,32 +663,28 @@ static void deallocate_metrics_sq(struct device *dev,
  * Reinitialize the admin completion queue's public parameters, when
  * a controller is not completely diabled
  */
-static int reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
+static void reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
 {
     /* reinit required params in admin node */
     pmetrics_cq_list->public_cq.head_ptr = 0;
     pmetrics_cq_list->public_cq.tail_ptr = 0;
-    return SUCCESS;
 }
 
 /*
  * Reinitialize the admin Submission queue's public parameters, when
  * a controller is not completely diabled
  */
-static int reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
+static void reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
         struct  metrics_device_list *pmetrics_device)
 {
     /* Free command track list for admin */
     empty_cmd_track_list(pmetrics_device->metrics_device, pmetrics_sq_list);
-
 
     /* reinit required params in admin node */
     pmetrics_sq_list->public_sq.head_ptr = 0;
     pmetrics_sq_list->public_sq.tail_ptr = 0;
     pmetrics_sq_list->public_sq.tail_ptr_virt = 0;
     pmetrics_sq_list->private_sq.unique_cmd_id = 0;
-
-    return SUCCESS;
 }
 
 /*
