@@ -776,6 +776,8 @@ int set_ivec_cq(struct  metrics_device_list *pmetrics_device_elem, u16 cq_id,
     mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
     /* Set irq to disabled as we will return success when irq is INT_NONE */
     *irq_enabled = 0;
+    *int_vec = 0xFFFF;
+
     /* branch on active irq scheme */
     switch (irq_type) {
     case INT_NONE:
