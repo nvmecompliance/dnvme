@@ -24,6 +24,10 @@
 #define DEVICE_LIST_SIZE     20
 #define CONFIG_PCI           1
 #define NVME_DEV_INIT        0x3
+
+#ifndef USHRT_MAX
+#define USHRT_MAX       ((u16)(~0U))
+#endif
 /**
  * @def PCI_CLASS_STORAGE_EXPRESS
  * Set to value matching with NVME HW

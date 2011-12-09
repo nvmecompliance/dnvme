@@ -156,16 +156,17 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 
     /* Following the Iniitalization steps from LDD 3 */
     LOG_DBG("Start probing for NVME PCI Express Device");
-    if ((retCode == pci_enable_device(pdev)) < 0) {
+    retCode = pci_enable_device(pdev);
+    if (retCode < 0) {
         LOG_ERR("PciEnable not successful");
         return retCode;
     }
-
-    /* Why does retcode is negative here and still success? TSK */
     LOG_DBG("PCI enable Success!. Return Code = 0x%x", retCode);
-    if (pci_enable_device_mem(pdev)) {
+
+    retCode = pci_enable_device_mem(pdev);
+    if (retCode < 0) {
         LOG_ERR("pci_enalbe_device_mem not successful");
-        return -1;
+        return retCode;
     }
 
     LOG_DBG("NVME Probing... Dev = 0x%x Vendor = 0x%x", pdev->device,
@@ -210,9 +211,10 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     /* Make BAR mask from the resource */
     bars = pci_select_bars(pdev, IORESOURCE_MEM);
 
-    if (pci_request_selected_regions(pdev, bars, DRV_NAME)) {
+    retCode = pci_request_selected_regions(pdev, bars, DRV_NAME);
+    if (retCode < 0) {
         LOG_ERR("Can't select regions, Exiting!!!");
-        return -EINVAL;
+        return retCode;
     } else {
         LOG_DBG("Select regions success");
     }
@@ -239,9 +241,9 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     }
     /* Initialize the current device found */
     retCode = driver_ioctl_init(pdev, pmetrics_device_element);
-    if (retCode != SUCCESS) {
+    if (retCode < 0) {
         LOG_ERR("Failed driver ioctl initializations!!");
-        return -EINVAL;
+        return retCode;
     }
     /* Update info in the metrics list */
     pmetrics_device_element->metrics_device->minor_no = nvme_minor_x;
