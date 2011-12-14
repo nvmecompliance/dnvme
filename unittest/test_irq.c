@@ -511,7 +511,7 @@ void test_irq_delete(int fd)
 
     /* SQ Case */
     op_code = 0x0;
-    q_id = 31;
+    q_id = 32;
     num = ioctl_reap_inquiry(fd, 0);
     ioctl_delete_ioq(fd, op_code, q_id);
     ioctl_tst_ring_dbl(fd, 0);
@@ -527,7 +527,7 @@ void test_irq_delete(int fd)
 
     /* SQ Case */
     op_code = 0x0;
-    q_id = 32;
+    q_id = 31;
     num = ioctl_reap_inquiry(fd, 0);
     ioctl_delete_ioq(fd, op_code, q_id);
     ioctl_tst_ring_dbl(fd, 0);

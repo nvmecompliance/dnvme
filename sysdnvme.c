@@ -219,6 +219,13 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
         LOG_DBG("Select regions success");
     }
 
+    /* Resume the device. */
+    retCode = pci_reenable_device(pdev);
+    if (retCode < 0) {
+        LOG_ERR("Can't reenable PCI device.. Exiting!!!");
+        return retCode;
+    }
+
     LOG_DBG("Mask for PCI BARS = 0x%x", bars);
     LOG_DBG("PCI Probe Success!. Return Code = 0x%x", retCode);
 
@@ -786,13 +793,8 @@ ictl_exit:
 static void __exit dnvme_exit(void)
 {
     struct pci_dev *pdev;
+    int bars;
     struct  metrics_device_list *pmetrics_device_element;  /* Metrics device */
-
-    device_del(device);
-    class_destroy(class_nvme);
-    cdev_del(char_dev);
-    unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
-    pci_unregister_driver(&dnvme_pci_driver);
 
     /* Loop through the devices available in the metrics list */
     list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
@@ -802,20 +804,32 @@ static void __exit dnvme_exit(void)
         destroy_dma_pool(pmetrics_device_element->metrics_device);
         /* Clean Up the Data Structures. */
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
+        /* Clean up the Meta data structure and destroy meta buff dma pool */
         deallocate_mb(pmetrics_device_element);
+        /* Clean up IRQ and free_irq */
         init_irq_track(pmetrics_device_element, pmetrics_device_element->
                 metrics_device->irq_active.irq_type);
+        /* destroy all mutexes */
         mutex_destroy(pmetrics_device_element->metrics_mtx);
         mutex_destroy(pmetrics_device_element->irq_process->irq_track_mtx);
-        pci_release_regions(pdev);
+        /* Release the seleted PCI regions that were reserved */
+        bars = pci_select_bars(pdev, IORESOURCE_MEM);
+        pci_release_selected_regions(pdev, bars);
         /* free up the cq linked list */
         list_del(&pmetrics_device_element->metrics_cq_list);
-        /* free up the cq linked list */
+        /* free up the sq linked list */
         list_del(&pmetrics_device_element->metrics_sq_list);
     }
 
     /* free up the device linked list */
     list_del(&metrics_dev_ll);
+
+    /* Driver clean up */
+    pci_unregister_driver(&dnvme_pci_driver);
+    unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
+    device_del(device);
+    class_destroy(class_nvme);
+    cdev_del(char_dev);
 
     LOG_DBG("dnvme driver Exited...Bye!!");
 }
