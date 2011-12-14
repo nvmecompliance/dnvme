@@ -1,3 +1,21 @@
+/*
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/types.h>
@@ -237,7 +255,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
                     (__le64) prp_vlist);
             }
 
-          LOG_DBG("PRP List: %llx", (unsigned long long) prp_vlist[i]);
+            LOG_DBG("PRP List: %llx", (unsigned long long) prp_vlist[i]);
         }
 
     } else if (prps->type == PRP1) {
@@ -520,6 +538,7 @@ prp_list:
         prps->prp2 = 0;
         LOG_DBG("PRP1 Entry: %llx", (unsigned long long) prps->prp1);
     } else {
+        LOG_ERR("PRP cmd options don't allow proper description of buffer");
         err = -EFAULT;
         goto error;
     }
@@ -559,6 +578,7 @@ prp_list:
         if (dma_len > 0) {
             continue;
         } else if (dma_len < 0) {
+            LOG_ERR("DMA data length is illegal");
             err = -EFAULT;
             goto error;
         } else {

@@ -1,3 +1,21 @@
+/*
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 #ifndef _DNVME_QUEUE_H_
 #define _DNVME_QUEUE_H_
 
@@ -28,9 +46,9 @@
 #define MAX_AQ_ENTRIES   4096
 
 /*
-* This lines are commented to use inline functions.
-* if required at multiple places uncomment this.
-*/
+ * This lines are commented to use inline functions.
+ * if required at multiple places uncomment this.
+ */
 #if 0
 #ifdef QEMU
 #define WRITEQ(a, b) { writel(a, b); writel(a >> 32, b + 4); }
@@ -39,9 +57,9 @@
 #endif
 #endif
 /*
-* Enumerating the different NVME Controller Capabilities of the
-* PCI Express device as per NVME Spec 1.0b.
-*/
+ * Enumerating the different NVME Controller Capabilities of the
+ * PCI Express device as per NVME Spec 1.0b.
+ */
 enum {
     NVME_CC_ENABLE        = 1 << 0,
     NVME_CC_CSS_NVM       = 0 << 4,
@@ -73,85 +91,85 @@ struct cq_completion {
 };
 
 /**
-* The user selection of IOCTL for creating admin cq eventually calls
-* this function if init is successful. This will create infrastructure
-* for Admin Completion Q creation
-* @param pnvme_dev
-* @param qsize
-* @param pmetrics_cq_list
-* @return whether ACQ creation successful or not.
-*/
+ * The user selection of IOCTL for creating admin cq eventually calls
+ * this function if init is successful. This will create infrastructure
+ * for Admin Completion Q creation
+ * @param pnvme_dev
+ * @param qsize
+ * @param pmetrics_cq_list
+ * @return whether ACQ creation successful or not.
+ */
 int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
         struct  metrics_cq  *pmetrics_cq_list);
 
 /**
-* The user selection of IOCTL for creating admin sq eventually calls
-* this function if init is successful. This will create infrastructure
-* for Admin Submission Q creation
-* @param pnvme_dev
-* @param qsize
-* @param pmetrics_sq_list
-* @return whether ASQ creation successful or not.
-*/
+ * The user selection of IOCTL for creating admin sq eventually calls
+ * this function if init is successful. This will create infrastructure
+ * for Admin Submission Q creation
+ * @param pnvme_dev
+ * @param qsize
+ * @param pmetrics_sq_list
+ * @return whether ASQ creation successful or not.
+ */
 int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
         struct  metrics_sq  *pmetrics_sq_list);
 
 /**
-* nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
-* flag and this function which call the timer handler and check for the timer
-* expiration. It returns success if the ctrl in rdy before timeout.
-* @param  pmetrics_device_element
-* @return SUCCESS or FAIL
-*/
+ * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
+ * flag and this function which call the timer handler and check for the timer
+ * expiration. It returns success if the ctrl in rdy before timeout.
+ * @param  pmetrics_device_element
+ * @return SUCCESS or FAIL
+ */
 int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element);
 
 /**
-* nvme_ctrl_disable - NVME controller disable function.This will reset the
-* CAP.EN flag and this function which call the timer handler and check for
-* the timer expiration. It returns success if the ctrl in rdy before timeout.
-* @param pmetrics_device_element
-* @return SUCCESS or FAIL
-*/
+ * nvme_ctrl_disable - NVME controller disable function.This will reset the
+ * CAP.EN flag and this function which call the timer handler and check for
+ * the timer expiration. It returns success if the ctrl in rdy before timeout.
+ * @param pmetrics_device_element
+ * @return SUCCESS or FAIL
+ */
 int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element);
 
 /**
-* identify_unique - verify if the q_id specified is unique. If not unique then
-* return fail.
-* @param q_id
-* @param type
-* @param pmetrics_device_element
-* @return SUCCESS or FAIL
-*/
+ * identify_unique - verify if the q_id specified is unique. If not unique then
+ * return fail.
+ * @param q_id
+ * @param type
+ * @param pmetrics_device_element
+ * @return SUCCESS or FAIL
+ */
 int identify_unique(u16 q_id, enum metrics_type type,
         struct  metrics_device_list *pmetrics_device_element);
 
 /**
-* nvme_prepare_sq - NVME controller prepare sq function. This will check
-* if q is allocated and then create a memory for the IO SQ.
-* @param pmetrics_sq_list
-* @param pnvme_dev
-* @return SUCCESS or FAIL
-*/
+ * nvme_prepare_sq - NVME controller prepare sq function. This will check
+ * if q is allocated and then create a memory for the IO SQ.
+ * @param pmetrics_sq_list
+ * @param pnvme_dev
+ * @return SUCCESS or FAIL
+ */
 int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
             struct nvme_device *pnvme_dev);
 
 /**
-* nvme_prepare_cq - NVME controller prepare cq function. This will check
-* if q is allocated and then create a memory for the IO SQ.
-* @param pmetrics_cq_list
-* @param pnvme_dev
-* @return SUCCESS or FAIL
-*/
+ * nvme_prepare_cq - NVME controller prepare cq function. This will check
+ * if q is allocated and then create a memory for the IO SQ.
+ * @param pmetrics_cq_list
+ * @param pnvme_dev
+ * @return SUCCESS or FAIL
+ */
 int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
             struct nvme_device *pnvme_dev);
 
 /**
-* nvme_ring_sqx_dbl - NVME controller function to ring the appropriate
-* SQ doorbell.
-* @param ring_sqx
-* @param pmetrics_device_element
-* @return SUCCESS or FAIL
-*/
+ * nvme_ring_sqx_dbl - NVME controller function to ring the appropriate
+ * SQ doorbell.
+ * @param ring_sqx
+ * @param pmetrics_device_element
+ * @return SUCCESS or FAIL
+ */
 int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
         *pmetrics_device_element);
 
@@ -200,5 +218,16 @@ struct metrics_meta *find_meta_node(struct metrics_device_list
  */
 int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
         struct nvme_get_q_metrics *get_q_metrics);
+
+/**
+ *  reap_inquiry - This generic function will try to inquire the number of
+ *  CE entries in the Completion Queue that are waiting to be reaped for any
+ *  given q_id.
+ *  @param pmetrics_cq_node
+ *  @param dev
+ *  @return number of CE's remaining
+  */
+u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
+        struct device *dev);
 
 #endif

@@ -1,15 +1,38 @@
+/*
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 #ifndef _DNVME_DS_H_
 #define _DNVME_DS_H_
 
 #include <linux/cdev.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/workqueue.h>
+#include <linux/spinlock.h>
+
 #include "dnvme_interface.h"
 
 /* 0.0.01 */
 #define    DRIVER_VERSION           0x00000001
 #define    DRIVER_VERSION_STR(VER)  #VER
 
+/* To store the max vector locations */
+#define    MAX_VEC_SLT              2048
 /*
  * Strucutre used to define all the essential parameters
  * related to PRP1, PRP2 and PRP List
@@ -95,6 +118,26 @@ struct metrics_sq {
 };
 
 /*
+ * Structure with cq track parameters for interrupt related functionality.
+ */
+struct irq_cq_track {
+    struct  list_head   irq_cq_head;    /* linked list head for irq CQ trk   */
+    u16     cq_id;                      /* Completion Q id                   */
+    u8      isr_fired;                  /* flag to indicate if irq has fired */
+    u32     isr_count;                  /* total no. of times irq fired      */
+};
+
+/*
+ * Structure with parameters of IRQ vector, CQ track linked list and irq_no
+ */
+struct irq_track {
+    struct  list_head   irq_list_hd;    /* list head for irq track list   */
+    u16     irq_no;                     /* idx in list; always 0 based    */
+    u16     int_vec;                    /* vec number; assigned by OS     */
+    struct  list_head   irq_cq_track;   /* linked list of IRQ CQ nodes    */
+};
+
+/*
  * structure for meta data per device parameters.
  */
 struct metrics_meta_data {
@@ -124,6 +167,25 @@ struct nvme_device {
     struct device   *dmadev;         /* Pointer to the dma device from pdev */
     int minor_no;                    /* Minor no. of the device being used  */
     u8 open_flag;                    /* Allows device opening only once     */
+    struct interrupts irq_active;    /* active irq vectors and irq type     */
+};
+
+/*
+ * Work container which holds vectors and scheduled work queue item
+ */
+struct work_container {
+    struct  work_struct sched_wq;     /* Work Struct item used in bh */
+    u16     int_vec_ctx[MAX_VEC_SLT]; /* Array to indicate irq fired */
+};
+
+/*
+ * Irq Processing structure to hold all the irq parameters per device.
+ */
+struct irq_processing {
+    struct  mutex       irq_track_mtx;     /* Mutex for locking irq list    */
+    struct  work_container wrk_sched;      /* work struct container for bh  */
+    spinlock_t isr_spin_lock;              /* isr spin lock per device      */
+    struct  list_head   irq_track_list;    /* IRQ list; sorted by irq_no    */
 };
 
 /*
@@ -136,9 +198,9 @@ struct metrics_device_list {
     struct  list_head   metrics_sq_list;   /* SQ linked list                */
     struct  nvme_device *metrics_device;   /* Pointer to this nvme device   */
     struct  mutex       metrics_mtx;       /* Mutex for locking per device  */
-    struct  metrics_meta_data metrics_meta; /* Pointer to meta data buff  */
+    struct  metrics_meta_data metrics_meta; /* Pointer to meta data buff    */
+    struct  irq_processing irq_process;    /* IRQ processing structure      */
 };
-
 
 /* extern device metrics linked list for exporting to project files */
 extern struct metrics_driver g_metrics_drv;

@@ -1,3 +1,21 @@
+/*
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -24,10 +42,12 @@
 /* local static functions */
 static loff_t meta_nodes_log(struct file *file, loff_t pos,
         struct  metrics_device_list *pmetrics_device);
+static loff_t irq_nodes_log(struct file *file, loff_t pos,
+        struct  metrics_device_list *pmetrics_device_elem);
 /*
-*   driver_log - Generic Log functionality for logging metrics data
-*   into file name specified from user.
-*/
+ *   driver_log - Generic Log functionality for logging metrics data
+ *   into file name specified from user.
+ */
 int driver_log(struct nvme_file *n_file)
 {
     struct file *file;  /* File pointer where the data is written           */
@@ -84,6 +104,12 @@ int driver_log(struct nvme_file *n_file)
             sprintf(data1, "pdev = 0X%llX\n",
                     (u64)pmetrics_device->metrics_device->pdev);
             vfs_write(file, data1, strlen(data1), &pos);
+            sprintf(data1, "Interrupts:Active Scheme (S=0/M=1/X=2/N=3) = %d\n",
+                    pmetrics_device->metrics_device->irq_active.irq_type);
+            vfs_write(file, data1, strlen(data1), &pos);
+            sprintf(data1, "Interrupts:num_irqs = %d\n",
+                    pmetrics_device->metrics_device->irq_active.num_irqs);
+            vfs_write(file, data1, strlen(data1), &pos);
             /* Looping through the available CQ list */
             list_for_each_entry(pmetrics_cq_list, &pmetrics_device->
                     metrics_cq_list, cq_list_hd) {
@@ -101,6 +127,15 @@ int driver_log(struct nvme_file *n_file)
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"elements = %d", pmetrics_cq_list->
                         public_cq.elements);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L2"irq enabled = %d", pmetrics_cq_list->
+                        public_cq.irq_enabled);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L2"int_vec = %d", pmetrics_cq_list->
+                        public_cq.int_vec);
+                vfs_write(file, data1, strlen(data1), &pos);
+                sprintf(data1, IDNT_L2"irq_no = %d", pmetrics_cq_list->
+                        public_cq.irq_no);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"pbit_new_entry = %d", pmetrics_cq_list->
                         public_cq.pbit_new_entry);
@@ -121,7 +156,7 @@ int driver_log(struct nvme_file *n_file)
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"dbs = 0X%llX", (u64)pmetrics_cq_list->
                         private_cq.dbs);
-
+                vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L3"prp_persist:");
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L4"npages = %d", pmetrics_cq_list->
@@ -319,6 +354,7 @@ int driver_log(struct nvme_file *n_file)
                 } /* End of cmd track list */
             } /* End of SQ metrics list */
             pos = meta_nodes_log(file, pos, pmetrics_device);
+            pos = irq_nodes_log(file, pos, pmetrics_device);
         } /* End of file writing */
 
         fput(file);
@@ -331,6 +367,9 @@ err:
     return ret_code;
 }
 
+/*
+ * Logging Meta data nodes into user space file.
+ */
 static loff_t meta_nodes_log(struct file *file, loff_t pos,
         struct  metrics_device_list *pmetrics_device)
 {
@@ -361,5 +400,49 @@ static loff_t meta_nodes_log(struct file *file, loff_t pos,
                 (u64)pmetrics_meta->vir_kern_addr);
         vfs_write(file, data1, strlen(data1), &pos);
     }
+    return pos;
+}
+
+/*
+ * logging irq nodes into user space file.
+ */
+static loff_t irq_nodes_log(struct file *file, loff_t pos,
+        struct  metrics_device_list *pmetrics_device_elem)
+{
+    u8 data1[100];
+    int i = 0;
+    struct  irq_track     *pirq_node;
+    struct  irq_cq_track  *pirq_cq_node;
+
+    /* locking on IRQ MUTEX here for irq track ll access */
+    mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
+
+    /* Loop for the first irq node in irq track list */
+    list_for_each_entry(pirq_node, &pmetrics_device_elem->
+            irq_process.irq_track_list, irq_list_hd) {
+        sprintf(data1, "\npirq_node[%d]", i++);
+        vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L1"pirq_node->irq_no = %d",
+                pirq_node->irq_no);
+        vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L1"pirq_node->int_vec = %d",
+                pirq_node->int_vec);
+        vfs_write(file, data1, strlen(data1), &pos);
+        /* Loop for each cq node within this irq node */
+        list_for_each_entry(pirq_cq_node, &pirq_node->irq_cq_track,
+                irq_cq_head) {
+            sprintf(data1, IDNT_L2"pirq_cq_node->cq_id = %d",
+                    pirq_cq_node->cq_id);
+            vfs_write(file, data1, strlen(data1), &pos);
+            sprintf(data1, IDNT_L2"pirq_cq_node->isr_fired = %d",
+                    pirq_cq_node->isr_fired);
+            vfs_write(file, data1, strlen(data1), &pos);
+            sprintf(data1, IDNT_L2"pirq_cq_node->isr_count = %d",
+                    pirq_cq_node->isr_count);
+            vfs_write(file, data1, strlen(data1), &pos);
+        }
+    }
+    /* unlock IRQ MUTEX here */
+    mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
     return pos;
 }

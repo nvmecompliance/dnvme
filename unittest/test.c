@@ -18,9 +18,10 @@
 #include "../dnvme_ioctls.h"
 
 #include "test_metrics.h"
+#include "test_irq.h"
 
-#define DEVICE_FILE_NAME "/dev/qnvme0"
-
+#define DEVICE_FILE_NAME "/dev/nvme0"
+#define RANDOM_VAL      10
 /*
  * Functions for the ioctl calls
 */
@@ -36,7 +37,10 @@ void ioctl_read_data(int file_desc)
     test_data.acc_type = BYTE_LEN;
 
     test_data.buffer = malloc(sizeof(char) * test_data.nBytes);
-
+    if (test_data.buffer == NULL) {
+        printf("Malloc Failed");
+        return;
+    }
     printf("Reading Test Application...\n");
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
 
@@ -53,6 +57,7 @@ void ioctl_read_data(int file_desc)
     i++;
     test_data.nBytes--;
     }
+    free(test_data.buffer);
 
 }
 
@@ -347,16 +352,17 @@ void ioctl_dump(int file_desc, char *tmpfile)
 
     //printf("size = %d\n", pfile.flen);
 
-    pfile.file_name = malloc(sizeof(char) * pfile.flen);
+    pfile.file_name = malloc(pfile.flen);
     strcpy((char *)pfile.file_name, tmpfile);
 
     printf("File name = %s\n", pfile.file_name);
 
     ret_val = ioctl(file_desc, NVME_IOCTL_DUMP_METRICS, &pfile);
     if(ret_val < 0)
-        printf("Dump Metircs failed!\n");
+        printf("Dump Metrics failed!\n");
     else
         printf("Dump Metrics SUCCESS\n");
+
 }
 
 int test_prp(int file_desc)
@@ -390,10 +396,11 @@ void test_reap_inquiry(int file_desc)
 void display_contents(uint8_t *kadr, int elem)
 {
     int i;
-    for (i = 0; i < elem; i+=16) {
+    for (i = 0; i < elem; i += 16) {
         printf("%x ", *kadr);
         // display_cq_data((unsigned char *)kadr, 1);
-        kadr += 16;
+        // kadr += 16;
+        kadr++;
     }
 }
 
@@ -409,7 +416,7 @@ int test_regression(int file_desc)
     printf("\n******\t Sprint 2 Demo \t******\n");
 
     /*printf("Ensure you have permissions to device..\n\
-    else \n do \"chmod 777 /dev/qnvme0\" \n");*/
+    else \n do \"chmod 777 /dev/nvme0\" \n");*/
     printf("Starting Test Application...\n");
 
     printf("Try opening an already opened device...\n");
@@ -739,15 +746,23 @@ int main()
     char *tmpfile8 = "/tmp/temp_file8.txt";
     char *tmpfile14 = "/tmp/temp_file14.txt";
     char *tmpfile15 = "/tmp/temp_file15.txt";
-
+    char *tmpfile17 = "/tmp/temp_file17.txt";
+    char *tmpfile18 = "/tmp/temp_file18.txt";
+    char *tmpfile27 = "/tmp/temp_file27.txt";
+    char *tmpfile28 = "/tmp/temp_file28.txt";
+    char *tmpfilei = "/tmp/irq_test.txt";
+    char *closefile = "/tmp/closefile.txt";
     /* Maximum possible entries */
     void *read_buffer;
     void *identify_buffer;
     void *discontg_sq_buf, *discontg_cq_buf;
     void *write_buffer, *write_buffer_wo_meta;
+    void *irq_dcq_buf, *irq_dsq_buf;
+
 
     uint8_t *kadr;
     uint32_t offset,meta_id;
+    uint16_t cq_id, int_vec;
 
     printf("\n*****\t Demo \t*****\n");
 
@@ -782,7 +797,6 @@ int main()
     }
     memset(discontg_cq_buf, 0, DISCONTIG_IO_CQ_SIZE);
 
-
     /* Allocating buffer for write buffer wo merta data */
     if (posix_memalign(&write_buffer_wo_meta, 16, READ_BUFFER_SIZE)) {
         printf("Memalign Failed");
@@ -802,32 +816,51 @@ int main()
         *(char *)(write_buffer + i) = i;
     }
 
+    /* Allocating buffer for Discontiguous IOCQ and setting to 0 */
+    if (posix_memalign(&irq_dcq_buf, 4096, PAGE_SIZE_I * 16)) {
+        printf("Memalign Failed");
+        return 0;
+    }
+    memset(irq_dcq_buf, 0, PAGE_SIZE_I * 16);
+
+    /* Allocating buffer for Discontiguous IOSQ and setting to 0 */
+    if (posix_memalign(&irq_dsq_buf, 4096, PAGE_SIZE_I * 64)) {
+        printf("Memalign Failed");
+        return 0;
+    }
+    memset(irq_dsq_buf, 0, PAGE_SIZE_I * 64);
+
+
 
     test_drv_metrics(file_desc);
+
     do {
         printf("\nEnter a valid test case number:");
         scanf ("%d", &test_case);
         switch(test_case) {
-        case 1:
+        case 1: /* Create Admin */
             printf("Test1: Initializing the state of the device to Run tests\n");
-            printf("Calling Contoller State to set to Disable state\n");
-            ioctl_disable_ctrl(file_desc, ST_DISABLE);
+
+            /* This disable is commented here to make this test case
+             * just not to disable controller here */
+            /*
+             * printf("Calling Contoller State to set to Disable state\n");
+             * ioctl_disable_ctrl(file_desc, ST_DISABLE);
+             */
             test_admin(file_desc);
             printf("\n.Test PASS if creation is success.");
-            printf("Calling Contoller State to set to Enable state\n");
+            printf("\nCalling Controller State to set to Enable state\n");
             ioctl_enable_ctrl(file_desc);
-            printf("Writing the Registers of NVME space\n");
+            printf("\nWriting the Registers of NVME space\n");
             ioctl_write_data(file_desc);
-            printf("Test to initialize the state of controller done\n");
+            printf("\nTest to initialize the state of controller done\n");
+
+            printf("\nCalling Dump Metrics to tmpfile1\n");
+            ioctl_dump(file_desc, tmpfile1);
             break;
         case 2:
-            printf("Test2: Disabling the controller completley\n");
+            printf("Test2: Disabling the controller completely\n");
             ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
-            /* NOTE:- Disable Controller not called in unit tests since Disable
-            * is an asyn request to the HW and as of now we dont have any means
-            * to wait till CQ entries are posted
-            * TODO : will be called when IOCTL_REAP is implemented
-            */
             break;
         case 3:
             printf("Test3: Sending Create Discontig IOSQ with ID 1"
@@ -876,7 +909,6 @@ int main()
         break;
         case 5: /* Delete the Queues */
             printf("Test5: Sending Delete IO Q command to remove all Q");
-
             printf("Executing SEND 64 byte commands 4 at a time!\n");
             printf("Deleting IOSQ 1\n");
             ioctl_delete_ioq(file_desc, 0x00, 1);
@@ -957,18 +989,52 @@ int main()
             }
             break;
         case 14: /* Test Reap */
+            printf("Test case for testing IOCTL REAP\n");
             test_reap(file_desc);
             break;
         case 15: /* Test Meta */
+            printf("Test case for testing Meta buffers\
+                    creation, allocation and deletion\n");
             test_meta(file_desc, 1);
             break;
-        case 16: /* Regression testing */
+        case 16:
+            printf("Test to Create CQ's with IRQ flag set...\n");
+            printf("Enter Number of CQs = ");
+            scanf("%hu", &cq_id);
+            int_vec = 1;
+            for (i = 1; i <= cq_id; i++) {
+                admin_create_iocq_irq(file_desc, i + RANDOM_VAL, int_vec,
+                        0x03);
+                int_vec++;
+                printf("Ring Doorbell for SQID 0\n");
+                ioctl_tst_ring_dbl(file_desc, 0);
+            }
+            printf("\nCalling Dump Metrics to tmpfile1\n");
+            ioctl_dump(file_desc, tmpfilei);
+            break;
+        case 17:
+            printf("Setup MSI-X interrupt scheme.\n");
+            set_irq_msix(file_desc);
+            printf("\nCalling Dump Metrics to tmpfile17\n");
+            ioctl_dump(file_desc, tmpfile17);
+            break;
+        case 18:
+            printf("Setup interrupt scheme to INT_NONE.\n");
+            set_irq_none(file_desc);
+            printf("\nCalling Dump Metrics to tmpfile18\n");
+            ioctl_dump(file_desc, tmpfile18);
+            break;
+        case 19: /* call to disable only */
+            printf("call to DISABLE only.\n");
+            ioctl_disable_ctrl(file_desc, ST_DISABLE);
+            break;
+        case 20: /* Regression testing */
             test_regression(file_desc);
             break;
-        case 17: /* Reap Regression Testing */
+        case 21: /* Reap Regression Testing */
             test_reap_regression(file_desc);
             break;
-        case 18: /* Reading contents of Discontig SQ page wise */
+        case 22: /* Reading contents of Discontig SQ page wise */
             printf("\nReading contents of Discontig SQ page wise:\n");
             printf("\nEnter a Page number:");
             scanf ("%d", &test_case);
@@ -981,7 +1047,7 @@ int main()
               printf("\nIllelgal Page number!\n");
             }
             break;
-        case 19: /* Reading contents of Discontig CQ page wise */
+        case 23: /* Reading contents of Discontig CQ page wise */
             printf("\nReading contents of Discontig CQ page wise:\n");
             printf("\nEnter a Page number:");
             scanf ("%d", &test_case);
@@ -994,7 +1060,7 @@ int main()
               printf("\nIllelgal Page number!\n");
             }
             break;
-        case 20: /* Test to check meta buffer support through contig Q */
+        case 24: /* Test to check meta buffer support through contig Q */
             printf("Test20: Test to check meta buffer write command support"
                 "through contig Q\n");
             printf("\nEnter meta_id:\n");
@@ -1005,10 +1071,12 @@ int main()
             ioctl_send_nvme_write_using_metabuff(file_desc, meta_id, write_buffer);
             printf("Ringing Doorbell for SQID 2\n");
             ioctl_tst_ring_dbl(file_desc, 2);
+
             printf("\nCalling Dump Metrics to tmpfile7\n");
+            getchar();
             ioctl_dump(file_desc, tmpfile7);
             break;
-        case 21: /*Test to check meta buffer support through contig Q */
+        case 25: /*Test to check meta buffer support through contig Q */
             printf("Test21: Test to check meta buffer read cmd support"
                 "through contig Q\n");
             printf("\nEnter meta_id:\n");
@@ -1019,10 +1087,10 @@ int main()
             ioctl_send_nvme_read_using_metabuff(file_desc, read_buffer, meta_id);
             printf("Ringing Doorbell for SQID 2\n");
             ioctl_tst_ring_dbl(file_desc, 2);
-            printf("\nCalling Dump Metrics to tmpfile7\n");
+            printf("\nCalling Dump Metrics to tmpfile8\n");
             ioctl_dump(file_desc, tmpfile8);
             break;
-        case 22: /*Delete the meta data ID */
+        case 26: /*Delete the meta data ID */
             printf("Deleting the Meta ID's\n");
             printf("\nEnter metaid:\n");
             scanf ("%d", &meta_id);
@@ -1033,16 +1101,72 @@ int main()
                 printf("Meta Id = %d deletion success!!\n", meta_id);
             }
             break;
+        case 27:
+            printf("\nPerform Reap Inquiry on required CQ Id\n");
+            printf("\nEnter cq id: ");
+            scanf ("%hu", &cq_id);
+            ioctl_reap_inquiry(file_desc, cq_id);
+            printf("\nCalling Dump Metrics to tmpfile27\n");
+            ioctl_dump(file_desc, tmpfile27);
+            break;
+        case 28: /* Test looping for IRQ */
+            printf("IRQ loop test, sends multiple cmds, check the isr cnts\n");
+            test_loop_irq(file_desc);
+            printf("\nCalling Dump Metrics to tmpfile28\n");
+            ioctl_dump(file_desc, tmpfile28);
+            break;
+        case 29:
+            printf("IRQ Loop Test for Memory Leak checks...Rev 568");
+            test_irq_review568(file_desc);
+            break;
+        case 30:
+            printf("Create IO Q's with Interrupt Enabled...\n");
+            ioctl_dump(file_desc, "/tmp/temp_irq30_1.txt");
+            /* First Create CQ before assoc CQ */
+            set_cq_irq(file_desc, irq_dcq_buf);
+            set_sq_irq(file_desc, irq_dsq_buf);
+            ioctl_dump(file_desc, "/tmp/temp_irq30_2.txt");
+            break;
+        case 31:
+            printf("IRQ test with Reading from Contig IO Q's\n");
+            ioctl_dump(file_desc, "/tmp/temp_irq31_1.txt");
+            test_contig_io_irq(file_desc, read_buffer);
+            ioctl_dump(file_desc, "/tmp/temp_irq31_2.txt");
+            break;
+        case 32:
+            printf("IRQ test with Reading from discontig IO Q's\n");
+            ioctl_dump(file_desc, "/tmp/temp_irq32_1.txt");
+            test_discontig_io_irq(file_desc, read_buffer);
+            ioctl_dump(file_desc, "/tmp/temp_irq32_2.txt");
+            break;
+        case 33:
+            printf("IRQ Test for Deleting the IOQs");
+            ioctl_dump(file_desc, "/tmp/temp_irq33_1.txt");
+            test_irq_delete(file_desc);
+            ioctl_dump(file_desc, "/tmp/temp_irq33_2.txt");
+            break;
         default:
-            printf("Undefined case!\n");
+            printf("\nUndefined case!\n");
         }
-    } while (test_case < 23);
+    } while (test_case < 34);
+
+    printf("\nCalling Dump Metrics to closefile\n");
+    ioctl_dump(file_desc, closefile);
+
+    /* Exit gracefully */
+    printf("\nNow Exiting gracefully....\n");
+    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+    set_irq_none(file_desc);
+
     free(read_buffer);
     free(identify_buffer);
     free(discontg_sq_buf);
     free(discontg_cq_buf);
     free(write_buffer);
     free(write_buffer_wo_meta);
+    free(irq_dcq_buf);
+    free(irq_dsq_buf);
+
     printf("\n\n****** END OF DEMO ******\n\n");
     close(file_desc);
     return 0;

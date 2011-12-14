@@ -264,7 +264,7 @@ void ioctl_create_contig_iocq(int file_desc)
     struct nvme_64b_send user_cmd;
     struct nvme_create_cq create_cq_cmd;
 
-    /* Fill the command for create discontig IOSQ*/
+    /* Fill the command for create contig IOSQ*/
     create_cq_cmd.opcode = 0x05;
     create_cq_cmd.cqid = 0x01;
     create_cq_cmd.qsize = 20;
@@ -391,7 +391,7 @@ void ioctl_send_nvme_write(int file_desc, void *addr)
     user_cmd.data_buf_size = READ_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
 
-    user_cmd.cmd_set = CMD_NVME;
+    user_cmd.cmd_set = CMD_NVM;
     user_cmd.data_dir = 1;
 
     printf("User Call to send command\n");
@@ -434,7 +434,7 @@ void ioctl_send_nvme_read(int file_desc, void* addr)
     user_cmd.data_buf_size = READ_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
 
-    user_cmd.cmd_set = CMD_NVME;
+    user_cmd.cmd_set = CMD_NVM;
     user_cmd.data_dir = 0;
 
     printf("User Call to send command\n");
@@ -480,7 +480,7 @@ void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id, void*
     user_cmd.data_buf_size = READ_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
     user_cmd.meta_buf_id = meta_id;
-    user_cmd.cmd_set = CMD_NVME;
+    user_cmd.cmd_set = CMD_NVM;
     user_cmd.data_dir = 1;
 
     printf("User Call to send command\n");
@@ -523,7 +523,7 @@ void ioctl_send_nvme_read_using_metabuff(int file_desc, void* addr, uint32_t met
     user_cmd.data_buf_size = READ_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
     user_cmd.meta_buf_id = meta_id;
-    user_cmd.cmd_set = CMD_NVME;
+    user_cmd.cmd_set = CMD_NVM;
     user_cmd.data_dir = 0;
 
     printf("User Call to send command\n");

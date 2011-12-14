@@ -1,3 +1,21 @@
+/*
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -10,9 +28,9 @@
 /* Conditional compilation for QEMU related modifications. */
 #ifdef QEMU
 /*
-* if QEMU is defined then we do 64 bit write in two 32 bit writes using
-* writel's otherwise directly call writeq.
-*/
+ * if QEMU is defined then we do 64 bit write in two 32 bit writes using
+ * writel's otherwise directly call writeq.
+ */
 static inline __u64 READQ(const volatile void __iomem *addr)
 {
     const volatile u32 __iomem *p = addr;
@@ -29,9 +47,9 @@ static inline __u64 READQ(const volatile void __iomem *addr)
     return u64data;
 }
 /*
-* if QEMU is defined then we do 64 bit write in two 32 bit writes using
-* writel's otherwise directly call writeq.
-*/
+ * if QEMU is defined then we do 64 bit write in two 32 bit writes using
+ * writel's otherwise directly call writeq.
+ */
 static inline void WRITEQ(__u64 val, volatile void __iomem *addr)
 {
     writel(val, addr);
@@ -49,10 +67,10 @@ static inline __u64 READQ(const volatile void __iomem *addr)
 #endif
 
 /*
-* read_nvme_reg_generic  - Function to read the controller registers located in
-* the MLBAR/MUBAR (PCI BAR 0 and 1) that are mapped to memory area which
-* supports in-order access.
-*/
+ * read_nvme_reg_generic  - Function to read the controller registers located in
+ * the MLBAR/MUBAR (PCI BAR 0 and 1) that are mapped to memory area which
+ * supports in-order access.
+ */
 int read_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space, u8 *udata,
         int nbytes, int offset, enum nvme_acc_type acc_type)
 {
@@ -153,10 +171,10 @@ int read_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space, u8 *udata,
 }
 
 /*
-* write_nvme_reg_generic  - Function to write the controller registers
-* located in the MLBAR/MUBAR (PCI BAR 0 and 1) that are mapped to
-* memory area which supports in-order access.
-*/
+ * write_nvme_reg_generic  - Function to write the controller registers
+ * located in the MLBAR/MUBAR (PCI BAR 0 and 1) that are mapped to
+ * memory area which supports in-order access.
+ */
 int write_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space,
         u8 *u8data, int nbytes, int offset, enum nvme_acc_type acc_type)
 {

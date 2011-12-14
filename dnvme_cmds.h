@@ -1,3 +1,21 @@
+/*
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 #ifndef _DNVME_CMDS_H_
 #define _DNVME_CMDS_H_
 
@@ -14,6 +32,7 @@ enum {
     PERSIST_QID_0 = 0, /* Default value of Persist queue ID */
     CDW11_PC = 1, /* Mask for checking CDW11.PC of create IO Q cmds */
     UNIQUE_ID = 2, /* Offset for unique ID within the command */
+    CDW11_IEN = 2, /* Mask to check if CDW11.IEN is set */
 };
 
 /* Enum specifying PRP1,PRP2 or List */

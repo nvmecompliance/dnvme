@@ -1,11 +1,29 @@
+/*
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 #ifndef _DNVME_INTERFACE_H_
 #define _DNVME_INTERFACE_H_
 
 /**
-* These are the enum types used for branching to
-* required offset as specified by either PCI space
-* or a NVME space enum value defined here.
-*/
+ * These are the enum types used for branching to
+ * required offset as specified by either PCI space
+ * or a NVME space enum value defined here.
+ */
 enum nvme_io_space {
     NVMEIO_PCI_HDR,
     NVMEIO_BAR01,
@@ -13,9 +31,9 @@ enum nvme_io_space {
 };
 
 /**
-* These are the enum types used for specifying the
-* required access width of registers or memory space.
-*/
+ * These are the enum types used for specifying the
+ * required access width of registers or memory space.
+ */
 enum nvme_acc_type {
     BYTE_LEN,
     WORD_LEN,
@@ -25,9 +43,9 @@ enum nvme_acc_type {
 };
 
 /**
-* These enums define the type of interrupt scheme that the overall
-* system uses.
-*/
+ * These enums define the type of interrupt scheme that the overall
+ * system uses.
+ */
 enum nvme_irq_type {
     INT_MSI_SINGLE,
     INT_MSI_MULTI,
@@ -43,11 +61,12 @@ enum nvme_q_type {
     ADMIN_SQ,
     ADMIN_CQ,
 };
+
 /**
-* This struct is the basic structure which has important
-* parameter for the generic read  and write function to seek the correct
-* offset and length while reading or writing to nvme card.
-*/
+ * This struct is the basic structure which has important
+ * parameter for the generic read  and write function to seek the correct
+ * offset and length while reading or writing to nvme card.
+ */
 struct rw_generic {
     enum nvme_io_space type;
     uint32_t  offset;
@@ -57,9 +76,9 @@ struct rw_generic {
 };
 
 /**
-* These enums are used while enabling or disabling or completely disabling the
-* controller.
-*/
+ * These enums are used while enabling or disabling or completely disabling the
+ * controller.
+ */
 enum nvme_state {
     ST_ENABLE,              /* Set the NVME Controller to enable state      */
     ST_DISABLE,             /* Controller reset without affecting Admin Q   */
@@ -71,7 +90,7 @@ enum nvme_state {
  */
 enum nvme_cmds {
     CMD_ADMIN,   /* Admin Command Set               */
-    CMD_NVME,    /* NVME Command Set                */
+    CMD_NVM,     /* NVM Command Set                 */
     CMD_AON,     /* AON  Command Set                */
     CMD_FENCE,   /* last element for loop over-run  */
 };
@@ -86,9 +105,9 @@ enum send_64b_bitmask {
 };
 
 /**
-* This struct is the basic structure which has important parameter for
-* sending 64 Bytes command to both admin  and IO SQ's and CQ's
-*/
+ * This struct is the basic structure which has important parameter for
+ * sending 64 Bytes command to both admin  and IO SQ's and CQ's
+ */
 struct nvme_64b_send {
     /* BIT MASK for PRP1,PRP2 and Metadata pointer */
     enum send_64b_bitmask bit_mask;
@@ -122,6 +141,9 @@ struct nvme_gen_cq {
     uint16_t    tail_ptr;    /* The value calculated for respective tail_ptr */
     uint16_t    head_ptr;    /* Actual value in CQxTDBL for this q_id        */
     uint16_t    elements;    /* pass the actual elements in this q           */
+    uint8_t     irq_enabled; /* sets when the irq scheme is active           */
+    uint16_t    irq_no;      /* idx in list; always 0 based                  */
+    uint16_t    int_vec;     /* vec number; assigned by OS                   */
     uint8_t     pbit_new_entry; /* Indicates if a new entry is in CQ         */
 };
 
@@ -132,7 +154,7 @@ struct nvme_gen_cq {
 struct nvme_gen_sq {
     uint16_t    sq_id;    /* Admin SQ are supported with q_id = 0            */
     uint16_t    cq_id;    /* The CQ ID to which this SQ is associated        */
-    uint16_t    tail_ptr;    /* Acutal value in SQxTDBL for this SQ id       */
+    uint16_t    tail_ptr;    /* Actual value in SQxTDBL for this SQ id       */
     uint16_t    tail_ptr_virt; /* future SQxTDBL write value based on no.
         of new cmds copied to SQ */
     uint16_t    head_ptr;    /* Calculate this value based on cmds reaped    */
@@ -150,10 +172,10 @@ enum metrics_type {
 };
 
 /**
-  * Interface structure for returning the Q metrics. The buffer is where the
-  * data is stored for the user to copy from. This assumes that the user will
-  * provide correct buffer space to store the required metrics.
-  */
+ * Interface structure for returning the Q metrics. The buffer is where the
+ * data is stored for the user to copy from. This assumes that the user will
+ * provide correct buffer space to store the required metrics.
+ */
 struct nvme_get_q_metrics {
     uint16_t    q_id;       /* Pass the Q id for which metrics is desired   */
     enum        metrics_type    type;   /* SQ or CQ metrics desired         */
@@ -174,7 +196,7 @@ struct nvme_create_admn_q {
  * values and the CC.IOSQES is 2^n based.
  */
 struct nvme_prep_sq {
-    uint16_t    elements;   /* Total number of entries that need kernal mem */
+    uint16_t    elements;   /* Total number of entries that need kernel mem */
     uint16_t    sq_id;      /* The user specified unique SQ ID              */
     uint16_t    cq_id;      /* Existing or non-existing CQ ID.              */
     uint8_t     contig;     /* Indicates if SQ is contig or not, 1 = contig */
@@ -196,7 +218,7 @@ struct nvme_prep_cq {
  */
 struct nvme_file {
     uint16_t    flen; /* Length of file name, it is not the total bytes */
-    const char *file_name; /* location and file name to copy metrics   */
+    const char *file_name; /* location and file name to copy metrics    */
 };
 
 /**
@@ -215,7 +237,7 @@ struct nvme_reap {
     uint16_t q_id;          /* CQ ID to reap commands for             */
     uint16_t elements;      /* Get the no. of elements to be reaped   */
     uint16_t num_remaining; /* return no. of cmds waiting for this cq */
-    uint16_t num_reaped;    /* retrun no. of elements reaped          */
+    uint16_t num_reaped;    /* Return no. of elements reaped          */
     uint16_t size;          /* Size of buffer to fill data to         */
     uint8_t  *buffer;       /* Buffer to copy reaped data             */
 };
@@ -247,7 +269,7 @@ struct nvme_create_cq {
     uint16_t  cqid;
     uint16_t  qsize;
     uint16_t  cq_flags;
-    uint16_t  irq_vector;
+    uint16_t  irq_no;
     uint32_t  rsvd12[4];
 };
 
@@ -280,4 +302,14 @@ struct nvme_del_q {
     uint16_t rsvd10;
     uint32_t rsvd11[5];
 };
+
+/**
+ * Interface structure for setting the desired IRQ type.
+ * works for all type of interrupt scheme expect PIN based.
+ */
+struct interrupts {
+    uint16_t    num_irqs;               /* total no. of irqs req by tnvme */
+    enum        nvme_irq_type irq_type; /* Active IRQ scheme for this dev */
+};
+
 #endif

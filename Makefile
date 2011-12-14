@@ -1,3 +1,21 @@
+#
+# NVM Express Compliance Suite
+# Copyright (c) 2011, Intel Corporation.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms and conditions of the GNU General Public License,
+# version 2, as published by the Free Software Foundation.
+#
+# This program is distributed in the hope it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
 # Modify the Makefile to point to Linux build tree.
 DIST ?= $(shell uname -r)
 KDIR:=/lib/modules/$(DIST)/build/
@@ -16,14 +34,15 @@ SOURCES := \
 	dnvme_queue.c \
 	dnvme_cmds.c \
 	dnvme_ds.c \
+	dnvme_irq.c \
 	ut_reap_inq.c
 
 #
 # RPM build parameters
 #
 RPMBASE=$(DRV_NAME)
-MAJOR=$(shell awk 'FNR==5' $(PWD)/version.h)
-MINOR=$(shell awk 'FNR==8' $(PWD)/version.h)
+MAJOR=$(shell awk 'FNR==29' $(PWD)/version.h)
+MINOR=$(shell awk 'FNR==32' $(PWD)/version.h)
 SOFTREV=$(MAJOR).$(MINOR)
 RPMFILE=$(RPMBASE)-$(SOFTREV)
 RPMCOMPILEDIR=$(PWD)/rpmbuild
@@ -32,9 +51,9 @@ RPMSPECFILE=$(RPMBASE).spec
 SRCDIR?=./src
 
 obj-m := dnvme.o
-dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o dnvme_sts_chk.o dnvme_queue.o dnvme_cmds.o dnvme_ds.o ut_reap_inq.o
+dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o dnvme_sts_chk.o dnvme_queue.o dnvme_cmds.o dnvme_ds.o dnvme_irq.o ut_reap_inq.o
 
-all:
+all: doc
 	make -C $(KDIR) M=$(PWD) modules
 
 rpm: rpmzipsrc rpmbuild
@@ -49,7 +68,7 @@ clean:
 	rm -f $(RPMSRCFILE).tar*
 
 clobber: clean
-	rm -rf doc
+	rm -rf Doc/HTML
 	rm -f $(DRV_NAME)
 
 doc:

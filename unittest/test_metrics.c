@@ -37,7 +37,10 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
         get_q_metrics.buffer = malloc(sizeof(uint8_t) *
                     sizeof(struct nvme_gen_cq));
     }
-
+    if (get_q_metrics.buffer == NULL) {
+        printf("Malloc Failed");
+        return;
+    }
     ret_val = ioctl(file_desc, NVME_IOCTL_GET_Q_METRICS, &get_q_metrics);
 
     if(ret_val < 0)
@@ -69,7 +72,7 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
             printf("\tIrq Enabled = %d\n", tmp);
         }
     }
-
+    free(get_q_metrics.buffer);
 }
 
 void test_drv_metrics(int file_desc)

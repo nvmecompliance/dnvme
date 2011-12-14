@@ -1,3 +1,21 @@
+/*
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -18,12 +36,13 @@
 #include "dnvme_queue.h"
 #include "dnvme_cmds.h"
 #include "dnvme_ds.h"
+#include "dnvme_irq.h"
 
 /*
-*  device_status_chk  - Generic error checking function
-*  which checks error registers and set kernel
-*  alert if a error is detected.
-*/
+ *  device_status_chk  - Generic error checking function
+ *  which checks error registers and set kernel
+ *  alert if a error is detected.
+ */
 int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
         int *status)
 {
@@ -86,9 +105,9 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
 }
 
 /*
-*   driver_genric_read - Generic Read functionality for reading
-*   NVME PCIe registers and memory mapped address
-*/
+ *   driver_genric_read - Generic Read functionality for reading
+ *   NVME PCIe registers and memory mapped address
+ */
 int driver_generic_read(struct rw_generic *nvme_data,
     struct  metrics_device_list *pmetrics_device_element)
 {
@@ -255,9 +274,9 @@ err:
 }
 
 /*
-*   driver_generic_write - Generic write function for
-*   NVME PCIe registers and memory mapped address
-*/
+ *   driver_generic_write - Generic write function for
+ *   NVME PCIe registers and memory mapped address
+ */
 int driver_generic_write(struct rw_generic *nvme_data,
         struct  metrics_device_list *pmetrics_device_element)
 {
@@ -406,9 +425,9 @@ err:
 }
 
 /*
-*   driver_create_asq - Driver Admin Submission Queue creation routine
-*   from Q create ioctl.
-*/
+ *   driver_create_asq - Driver Admin Submission Queue creation routine
+ *   from Q create ioctl.
+ */
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
         struct  metrics_device_list *pmetrics_device_element)
 {
@@ -475,9 +494,9 @@ asq_exit:
 }
 
 /*
-*  driver_create_acq - Driver Admin Completion Queue creation routine
-*  from Q create ioctl.
-*/
+ *  driver_create_acq - Driver Admin Completion Queue creation routine
+ *  from Q create ioctl.
+ */
 int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
         struct  metrics_device_list *pmetrics_device_element)
 {
@@ -532,6 +551,16 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     list_add_tail(&pmetrics_cq_list->cq_list_hd,
             &pmetrics_device_element->metrics_cq_list);
 
+    /* After the CQ Node is added in the list, set interrupts to ACQ */
+    ret_code = set_ivec_cq(pmetrics_device_element, admn_id, 0,
+            &pmetrics_cq_list->public_cq.irq_enabled, &pmetrics_cq_list->
+                public_cq.int_vec);
+    if (ret_code != SUCCESS) {
+        LOG_ERR("Adding IRQ node for Admin CQ failed!!");
+        goto acq_exit;
+    }
+    LOG_DBG("Admn irq_no:int_vec = %d:%d", pmetrics_cq_list->public_cq.irq_no,
+            pmetrics_cq_list->public_cq.int_vec);
     LOG_DBG("Admin CQ successfully created and added to linked list...");
     return ret_code;
 
@@ -542,9 +571,9 @@ acq_exit:
     return ret_code;
 }
 /*
-*  driver_iotcl_init - Driver Initialization routine before starting to
-*  issue  ioctls.
-*/
+ *  driver_iotcl_init - Driver Initialization routine before starting to
+ *  issue  ioctls.
+ */
 int driver_ioctl_init(struct pci_dev *pdev,
         struct metrics_device_list *pmetrics_device_list)
 {
@@ -597,6 +626,22 @@ int driver_ioctl_init(struct pci_dev *pdev,
 
     /* Initialize Meta DMA Pool flag to zero */
     pmetrics_device_list->metrics_meta.meta_dmapool_ptr = NULL;
+
+    /* Initialize the irq mutex state. */
+    mutex_init(&pmetrics_device_list->irq_process.irq_track_mtx);
+
+    /* Initialize irq linked list for this device. */
+    INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.irq_track_list));
+
+    /* Initialize irq scheme to INT_NONE and perform cleanup */
+    ret_val = init_irq_track(pmetrics_device_list, INT_NONE);
+    if (ret_val < 0) {
+        LOG_ERR("IRQ track initialization failed...");
+        goto iocinit_out;
+    }
+
+    /* Spinlock to protect from kernel preemption in ISR handler */
+    spin_lock_init(&pmetrics_device_list->irq_process.isr_spin_lock);
 
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)pmetrics_device_list->metrics_device->nvme_ctrl_space);
@@ -754,9 +799,9 @@ int metabuff_del(struct metrics_device_list *pmetrics_device_element,
 }
 
 /*
-*  driver_send_64b - Routine for sending 64 bytes command into
-*  admin/IO SQ/CQ's
-*/
+ *  driver_send_64b - Routine for sending 64 bytes command into
+ *  admin/IO SQ/CQ's
+ */
 int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     struct nvme_64b_send *nvme_64b_send)
 {
@@ -989,6 +1034,29 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             ret_code = -EINVAL;
             goto err;
         }
+
+        /* Check if interrupts should be enabled for IO CQ */
+        if (nvme_create_cq->cq_flags & CDW11_IEN) {
+            /* Assign irq_no for IO_CQ in public CQ metrics node */
+            p_cmd_cq->public_cq.irq_no = nvme_create_cq->irq_no;
+            /* Call set_ivec_cq which sets the IO CQ for the irq_no */
+            ret_code = set_ivec_cq(pmetrics_device, p_cmd_cq->public_cq.q_id,
+                p_cmd_cq->public_cq.irq_no, &p_cmd_cq->public_cq.irq_enabled,
+                    &p_cmd_cq->public_cq.int_vec);
+            if (ret_code < 0) {
+                LOG_ERR("Setting Irq No = %d failed for IO CQ = %d!",
+                        nvme_create_cq->irq_no, p_cmd_cq->public_cq.q_id);
+                goto err;
+            }
+            /* consistency b/w cmd and set_irq checking. If set_irq is set to
+             * INT_NONE and Create IO cmds has IEN set then error out */
+            if (p_cmd_cq->public_cq.irq_enabled == 0) {
+                LOG_ERR("CQ %d's CMD is to set IRQ, but IRQ is INT_NONE",
+                        p_cmd_cq->public_cq.q_id);
+                ret_code = -EINVAL;
+                goto err;
+            }
+        } /* end of irq setting for IO CQs */
 
         if (p_cmd_cq->private_cq.contig == 0) {
             /* Discontig IOCQ creation */
