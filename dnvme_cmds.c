@@ -306,6 +306,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
 
     /* Map the pinned down pages in kernel memory */
     if (data_buf_type) {
+        /* Note : not suitable for pages with offsets */
         vir_kern_addr = vmap(pages, count, VM_MAP, PAGE_KERNEL);
         LOG_DBG("Virtual Kernel Address: %llx", (unsigned long long)
             vir_kern_addr);
