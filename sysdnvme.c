@@ -253,12 +253,13 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
         return retCode;
     }
     /* Update info in the metrics list */
-    pmetrics_device_element->metrics_device->minor_no = nvme_minor_x;
+    pmetrics_device_element->metrics_device->private_dev.
+        minor_no = nvme_minor_x;
     /* update the device minor number */
     nvme_minor_x = nvme_minor_x + 1;
 
     /* set device open status to false when initialized */
-    pmetrics_device_element->metrics_device->open_flag = 0;
+    pmetrics_device_element->metrics_device->private_dev.open_flag = 0;
 
     /* Initialize the mutex state. */
     mutex_init(&pmetrics_device_element->metrics_mtx);
@@ -280,9 +281,9 @@ static struct  metrics_device_list *find_device(struct inode *inode)
     list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
             metrics_device_hd) {
         LOG_DBG("Minor Number in the List = %d", pmetrics_device_element->
-                metrics_device->minor_no);
+                metrics_device->private_dev.minor_no);
         if (iminor(inode) == pmetrics_device_element->metrics_device->
-                minor_no) {
+                private_dev.minor_no) {
             LOG_DBG("Found device in the metrics list");
             return pmetrics_device_element;
         } else {
@@ -344,8 +345,8 @@ int dnvme_device_open(struct inode *inode, struct file *filp)
         goto op_exit;
     }
 
-    if (pmetrics_device_element->metrics_device->open_flag == 0) {
-        pmetrics_device_element->metrics_device->open_flag = 1;
+    if (pmetrics_device_element->metrics_device->private_dev.open_flag == 0) {
+        pmetrics_device_element->metrics_device->private_dev.open_flag = 1;
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
         deallocate_mb(pmetrics_device_element);
     } else {
@@ -379,14 +380,14 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
     }
 
     /* Set the device open flag to false */
-    pmetrics_device_element->metrics_device->open_flag = 0;
+    pmetrics_device_element->metrics_device->private_dev.open_flag = 0;
     /* Clean the SQ and CQ linked list nodes */
     deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
     /* Meta data allocation clean up */
     deallocate_mb(pmetrics_device_element);
     /* IRQ clean up and set active scheme to INT_NONE */
-    ret_val = init_irq_track(pmetrics_device_element,
-            pmetrics_device_element->metrics_device->irq_active.irq_type);
+    ret_val = init_irq_track(pmetrics_device_element, pmetrics_device_element->
+            metrics_device->public_dev.irq_active.irq_type);
     if (ret_val < 0) {
         LOG_ERR("IRQ cleanup failed...");
     }
@@ -560,6 +561,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct interrupts *irq_data;         /* IRQ type and IRQ vectors         */
     u16 test_number;
     struct metrics_driver *dnvme_metrics;/* Dnvme Metrics params             */
+    struct public_nvme_dev_metrics *dev_metrics;  /* public nvme dev metrics */
     struct inode *inode = filp->f_dentry->d_inode;
 
     LOG_DBG("Minor No = %d", iminor(inode));
@@ -632,8 +634,8 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
                 /* Initialize irq track from current irq to INT_NONE */
                 ret_val = init_irq_track(pmetrics_device_element,
-                    pmetrics_device_element->metrics_device->irq_active.
-                        irq_type);
+                    pmetrics_device_element->metrics_device->public_dev.
+                        irq_active.irq_type);
             }
          } else {
             LOG_ERR("Device State not correctly specified.");
@@ -749,6 +751,14 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
         break;
 
+    case NVME_IOCTL_GET_DEVICE_METRICS:
+        LOG_DBG("Return IRQ device metrics....");
+        dev_metrics = (struct public_nvme_dev_metrics *)ioctl_param;
+        ret_val = copy_to_user(dev_metrics, &pmetrics_device_element->
+            metrics_device->public_dev, sizeof
+                (struct public_nvme_dev_metrics));
+        break;
+
     case IOCTL_UNIT_TESTS:
         test_number = (u16) ioctl_param;
         LOG_DBG("Test Number = %d", test_number);
@@ -799,7 +809,7 @@ static void __exit dnvme_exit(void)
     /* Loop through the devices available in the metrics list */
     list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
             metrics_device_hd) {
-        pdev = pmetrics_device_element->metrics_device->pdev;
+        pdev = pmetrics_device_element->metrics_device->private_dev.pdev;
         /* Free up the DMA pool */
         destroy_dma_pool(pmetrics_device_element->metrics_device);
         /* Clean Up the Data Structures. */
@@ -808,7 +818,7 @@ static void __exit dnvme_exit(void)
         deallocate_mb(pmetrics_device_element);
         /* Clean up IRQ and free_irq */
         init_irq_track(pmetrics_device_element, pmetrics_device_element->
-                metrics_device->irq_active.irq_type);
+                metrics_device->public_dev.irq_active.irq_type);
         /* destroy all mutexes */
         mutex_destroy(pmetrics_device_element->metrics_mtx);
         mutex_destroy(pmetrics_device_element->irq_process->irq_track_mtx);

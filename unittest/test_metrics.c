@@ -87,3 +87,16 @@ void test_drv_metrics(int file_desc)
     printf("\nDrv Version = 0x%X\n", get_drv_metrics.driver_version);
     printf("Api Version = 0x%X\n", get_drv_metrics.api_version);
 }
+
+void test_dev_metrics(int file_desc)
+{
+    struct public_nvme_dev_metrics get_dev_metrics;
+    int ret_val = -1;
+
+    ret_val = ioctl(file_desc, NVME_IOCTL_GET_DEVICE_METRICS, &get_dev_metrics);
+    if (ret_val < 0) {
+        printf("\tDev metrics failed!\n");
+    }
+    printf("\nIRQ Type = %d (0=S/1=M/2=X/3=N)", get_dev_metrics.irq_active.irq_type);
+    printf("\nIRQ No's = %d\n", get_dev_metrics.irq_active.num_irqs);
+}

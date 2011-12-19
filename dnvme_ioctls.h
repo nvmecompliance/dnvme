@@ -47,6 +47,7 @@ enum {
     NVME_METABUF_CREAT,    /** <enum meta buffer create                 */
     NVME_METABUF_DEL,      /** <enum meta buffer delete                 */
     NVME_SET_IRQ,          /** <enum Set desired IRQ scheme             */
+    NVME_GET_DEVICE_METRICS, /** <enum Return device metrics to user    */
     UNIT_TESTS,            /* Generic IOCTL to set up UT scenarios      */
 };
 
@@ -251,6 +252,14 @@ enum {
  * irq type passed to this ioctl from user to kernel.
  */
 #define NVME_IOCTL_SET_IRQ _IOWR('A', NVME_SET_IRQ, struct interrupts)
+
+/**
+ * @def NVME_IOCTL_GET_DEVICE_METRICS
+ * define a unique value for returning the device metrics. The third parameter
+ * gives the structure where to copy data.
+ */
+#define NVME_IOCTL_GET_DEVICE_METRICS _IOWR('A', NVME_GET_DEVICE_METRICS,\
+        struct public_nvme_dev_metrics)
 
 /**
  * @def IOCTL_UNIT_TESTS

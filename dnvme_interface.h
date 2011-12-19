@@ -312,4 +312,12 @@ struct interrupts {
     enum        nvme_irq_type irq_type; /* Active IRQ scheme for this dev */
 };
 
+/**
+ * Public interface for the nvme device parameters. These parameters are
+ * copied to user on request through an IOCTL interface GET_DEVICE_METRICS.
+ */
+struct public_nvme_dev_metrics {
+    struct interrupts irq_active;  /* Active IRQ state if the nvme device */
+};
+
 #endif

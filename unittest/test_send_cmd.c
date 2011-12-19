@@ -336,7 +336,7 @@ void ioctl_send_identify_cmd(int file_desc, void* addr)
 
     /* Fill the command for create discontig IOSQ*/
     nvme_identify.opcode = 0x06;
-    nvme_identify.nsid = 0;
+    nvme_identify.nsid = 1;
     nvme_identify.cns = 1;
 
     /* Fill the user command */
@@ -360,22 +360,11 @@ void ioctl_send_identify_cmd(int file_desc, void* addr)
 }
 
 /* CMD to send NVME IO write command */
-void ioctl_send_nvme_write(int file_desc)
+void ioctl_send_nvme_write(int file_desc, void *addr)
 {
     int ret_val = -1;
     struct nvme_64b_send user_cmd;
     struct nvme_user_io nvme_write;
-    void *addr;
-
-    if (posix_memalign(&addr, 4096, READ_BUFFER_SIZE)) {
-        printf("Memalign Failed");
-        return;
-    }
-
-    /* Writing 1's to first page */
-    memset(addr, 1, READ_BUFFER_SIZE/2);
-    /* Writing 2's to second page */
-    memset((addr + 4096), 2, READ_BUFFER_SIZE/2);
 
     /* Fill the command for create discontig IOSQ*/
     nvme_write.opcode = 0x01;
@@ -414,7 +403,6 @@ void ioctl_send_nvme_write(int file_desc)
         printf("Command sent succesfully\n");
     }
 
-    free(addr);
 }
 
 /* CMD to send NVME IO write command */
@@ -461,22 +449,11 @@ void ioctl_send_nvme_read(int file_desc, void* addr)
 }
 
 /* CMD to send NVME IO write command using metabuff*/
-void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id)
+void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id, void* addr)
 {
     int ret_val = -1;
     struct nvme_64b_send user_cmd;
     struct nvme_user_io nvme_write;
-    void *addr;
-
-    if (posix_memalign(&addr, 4096, READ_BUFFER_SIZE)) {
-        printf("Memalign Failed");
-        return;
-    }
-
-    /* Writing 1's to first page */
-    memset(addr, 2, READ_BUFFER_SIZE/2);
-    /* Writing 2's to second page */
-    memset((addr + 4096), 1, READ_BUFFER_SIZE/2);
 
     /* Fill the command for create discontig IOSQ*/
     nvme_write.opcode = 0x01;
@@ -487,7 +464,7 @@ void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id)
     nvme_write.metadata = 0;
     nvme_write.prp1 = 0;
     nvme_write.prp2 = 0;
-    nvme_write.slba = 0;
+    nvme_write.slba = 1;
     nvme_write.nlb = 15;
     nvme_write.cmd_flags = 0;
     nvme_write.dsm = 0;
@@ -515,7 +492,6 @@ void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id)
         printf("Command sent succesfully\n");
     }
 
-    free(addr);
 }
 
 /* CMD to send NVME IO read command using metabuff through contig Queue */
@@ -531,7 +507,7 @@ void ioctl_send_nvme_read_using_metabuff(int file_desc, void* addr, uint32_t met
     nvme_read.control = 0;
     nvme_read.nsid = 0;
     nvme_read.metadata = 0;
-    nvme_read.slba = 0;
+    nvme_read.slba = 1;
     nvme_read.nlb = 15;
     nvme_read.cmd_flags = 0;
     nvme_read.dsm = 0;

@@ -177,7 +177,7 @@ void del_prps(struct nvme_device *nvme_device, struct nvme_prps *prps)
 void destroy_dma_pool(struct nvme_device *nvme_dev)
 {
     /* Destroy the DMA pool */
-    dma_pool_destroy(nvme_dev->prp_page_pool);
+    dma_pool_destroy(nvme_dev->private_dev.prp_page_pool);
 }
 
 /*
@@ -324,6 +324,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
 
     /* Map the pinned down pages in kernel memory */
     if (data_buf_type) {
+        /* Note : not suitable for pages with offsets */
         vir_kern_addr = vmap(pages, count, VM_MAP, PAGE_KERNEL);
         LOG_DBG("Virtual Kernel Address: %llx", (unsigned long long)
             vir_kern_addr);
@@ -352,7 +353,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
 #endif
 
     /* Mapping SG List to DMA */
-    err = dma_map_sg(&nvme_dev->pdev->dev, *sgp, count,
+    err = dma_map_sg(&nvme_dev->private_dev.pdev->dev, *sgp, count,
                 write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
     if (!err) {
         LOG_ERR("Mapping of SG List failed");
@@ -520,7 +521,7 @@ prp_list:
     LOG_NRM("No. of PRP Entries inside PRPList: %u", num_prps);
 
     prp_page = 0;
-    prp_page_pool = nvme_dev->prp_page_pool;
+    prp_page_pool = nvme_dev->private_dev.prp_page_pool;
 
     prp_list = dma_pool_alloc(prp_page_pool, GFP_ATOMIC, &prp_dma);
     if (NULL == prp_list) {
@@ -615,8 +616,9 @@ static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
     }
 
     if (prps->type != NO_PRP) {
-        dma_unmap_sg(&nvme_dev->pdev->dev, prps->sg, prps->dma_mapped_pgs,
-            prps->data_dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+        dma_unmap_sg(&nvme_dev->private_dev.pdev->dev, prps->sg,
+            prps->dma_mapped_pgs, prps->data_dir ? DMA_TO_DEVICE :
+                DMA_FROM_DEVICE);
 
         for (i = 0; i < prps->dma_mapped_pgs; i++) {
             pg = sg_page(&prps->sg[i]);
@@ -653,7 +655,8 @@ static void free_prp_pool(struct nvme_device *nvme_dev,
             if (i < (npages - 1)) {
                 next_prp_dma = le64_to_cpu(prp_vlist[last_prp]);
             }
-            dma_pool_free(nvme_dev->prp_page_pool, prp_vlist, prp_dma);
+            dma_pool_free(nvme_dev->private_dev.prp_page_pool, prp_vlist,
+                prp_dma);
             prp_dma = next_prp_dma;
         }
         kfree(prps->vir_prp_list);

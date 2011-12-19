@@ -431,7 +431,7 @@ int test_regression(int file_desc)
 
 
     printf("Calling Controller State to set to Disable state\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE);
+    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
     printf("\nPress any key to continue..");
     getchar();
 
@@ -756,7 +756,9 @@ int main()
     void *read_buffer;
     void *identify_buffer;
     void *discontg_sq_buf, *discontg_cq_buf;
+    void *write_buffer, *write_buffer_wo_meta;
     void *irq_dcq_buf, *irq_dsq_buf;
+
 
     uint8_t *kadr;
     uint32_t offset,meta_id;
@@ -774,10 +776,7 @@ int main()
     printf("Device File Successfully Opened = %d\n", file_desc);
 
     /* Allocating buffer for Read */
-    if (posix_memalign(&read_buffer, 4096, READ_BUFFER_SIZE)) {
-        printf("Memalign Failed");
-        return 0;
-    }
+    read_buffer = malloc(READ_BUFFER_SIZE);
     /* Allocating buffer for Identify command */
     identify_buffer = malloc(4096);
     if (identify_buffer == NULL) {
@@ -798,6 +797,25 @@ int main()
     }
     memset(discontg_cq_buf, 0, DISCONTIG_IO_CQ_SIZE);
 
+    /* Allocating buffer for write buffer wo merta data */
+    if (posix_memalign(&write_buffer_wo_meta, 16, READ_BUFFER_SIZE)) {
+        printf("Memalign Failed");
+        return 0;
+    }
+    memset(write_buffer_wo_meta, 1, READ_BUFFER_SIZE/2);
+    memset(write_buffer_wo_meta + 4096, 2, READ_BUFFER_SIZE/2);
+
+    write_buffer = malloc(READ_BUFFER_SIZE);
+    if (write_buffer == NULL) {
+        printf("Malloc Failed");
+        return 0;
+    }
+    /* Writing values's to first page */
+    for (i =0 ; i<READ_BUFFER_SIZE ; i++)
+    {
+        *(char *)(write_buffer + i) = i;
+    }
+
     /* Allocating buffer for Discontiguous IOCQ and setting to 0 */
     if (posix_memalign(&irq_dcq_buf, 4096, PAGE_SIZE_I * 16)) {
         printf("Memalign Failed");
@@ -813,7 +831,9 @@ int main()
     memset(irq_dsq_buf, 0, PAGE_SIZE_I * 64);
 
 
+
     test_drv_metrics(file_desc);
+    test_dev_metrics(file_desc);
 
     do {
         printf("\nEnter a valid test case number:");
@@ -917,7 +937,7 @@ int main()
             break;
         case 7: /* Send an IO write command through discontig IOQ*/
             printf("Test7: Sending IO Write Command through Discontig IOQ\n");
-            ioctl_send_nvme_write(file_desc);
+            ioctl_send_nvme_write(file_desc, write_buffer_wo_meta);
             printf("Ringing Doorbell for SQID 1\n");
             ioctl_tst_ring_dbl(file_desc, 1);
             printf("\nCalling Dump Metrics to tmpfile5\n");
@@ -998,6 +1018,8 @@ int main()
             set_irq_msix(file_desc);
             printf("\nCalling Dump Metrics to tmpfile17\n");
             ioctl_dump(file_desc, tmpfile17);
+            printf("Calling Device Metrics....");
+            test_dev_metrics(file_desc);
             break;
         case 18:
             printf("Setup interrupt scheme to INT_NONE.\n");
@@ -1049,7 +1071,7 @@ int main()
             test_meta_buf(file_desc, meta_id);
             /* Sending the write command through Contig SQ 2 using meta_buff */
             printf("\n Sending write IO through Contig SQ 2 using meta_buff \n");
-            ioctl_send_nvme_write_using_metabuff(file_desc, meta_id);
+            ioctl_send_nvme_write_using_metabuff(file_desc, meta_id, write_buffer);
             printf("Ringing Doorbell for SQID 2\n");
             ioctl_tst_ring_dbl(file_desc, 2);
 
@@ -1126,10 +1148,14 @@ int main()
             test_irq_delete(file_desc);
             ioctl_dump(file_desc, "/tmp/temp_irq33_2.txt");
             break;
+        case 34:
+            printf("Calling Device Metrics....");
+            test_dev_metrics(file_desc);
+            break;
         default:
             printf("\nUndefined case!\n");
         }
-    } while (test_case < 34);
+    } while (test_case < 35);
 
     printf("\nCalling Dump Metrics to closefile\n");
     ioctl_dump(file_desc, closefile);
@@ -1143,8 +1169,11 @@ int main()
     free(identify_buffer);
     free(discontg_sq_buf);
     free(discontg_cq_buf);
+    free(write_buffer);
+    free(write_buffer_wo_meta);
     free(irq_dcq_buf);
     free(irq_dsq_buf);
+
     printf("\n\n****** END OF DEMO ******\n\n");
     close(file_desc);
     return 0;

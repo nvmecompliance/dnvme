@@ -96,19 +96,21 @@ int driver_log(struct nvme_file *n_file)
             sprintf(data1, "metrics_device_list[%d]\n", dev++);
             vfs_write(file, data1, strlen(data1), &pos);
             sprintf(data1, "Minor Number = %d\n",
-                    pmetrics_device->metrics_device->minor_no);
+                    pmetrics_device->metrics_device->private_dev.minor_no);
             vfs_write(file, data1, strlen(data1), &pos);
             sprintf(data1, "open_flag = %d\n",
-                    pmetrics_device->metrics_device->open_flag);
+                    pmetrics_device->metrics_device->private_dev.open_flag);
             vfs_write(file, data1, strlen(data1), &pos);
             sprintf(data1, "pdev = 0X%llX\n",
-                    (u64)pmetrics_device->metrics_device->pdev);
+                    (u64)pmetrics_device->metrics_device->private_dev.pdev);
             vfs_write(file, data1, strlen(data1), &pos);
             sprintf(data1, "Interrupts:Active Scheme (S=0/M=1/X=2/N=3) = %d\n",
-                    pmetrics_device->metrics_device->irq_active.irq_type);
+                    pmetrics_device->metrics_device->public_dev.irq_active.
+                        irq_type);
             vfs_write(file, data1, strlen(data1), &pos);
             sprintf(data1, "Interrupts:num_irqs = %d\n",
-                    pmetrics_device->metrics_device->irq_active.num_irqs);
+                    pmetrics_device->metrics_device->public_dev.irq_active.
+                        num_irqs);
             vfs_write(file, data1, strlen(data1), &pos);
             /* Looping through the available CQ list */
             list_for_each_entry(pmetrics_cq_list, &pmetrics_device->

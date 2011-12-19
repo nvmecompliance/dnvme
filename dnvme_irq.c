@@ -79,8 +79,8 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
     mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
 
     /* disable the current IRQ scheme */
-    ret_val = disable_active_irq(pmetrics_device_elem, pnvme_dev->irq_active.
-            irq_type);
+    ret_val = disable_active_irq(pmetrics_device_elem, pnvme_dev->
+            public_dev.irq_active.irq_type);
     if (ret_val < 0) {
         LOG_ERR("Reset of IRQ to INT_NONE failed...");
         ret_val = -EINVAL;
@@ -114,8 +114,8 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
 
     /* set to the new irq scheme only if success */
     if (ret_val == SUCCESS) {
-        pnvme_dev->irq_active.irq_type = irq_new->irq_type;
-        pnvme_dev->irq_active.num_irqs = irq_new->num_irqs;
+        pnvme_dev->public_dev.irq_active.irq_type = irq_new->irq_type;
+        pnvme_dev->public_dev.irq_active.num_irqs = irq_new->num_irqs;
     }
 
 set_irq_out:
@@ -137,8 +137,8 @@ int init_irq_track(struct metrics_device_list
     /* locking on IRQ MUTEX here for irq track ll access */
     mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
     /* Initialize active irq to INT_NONE */
-    ret_val = disable_active_irq(pmetrics_device_elem,
-            pmetrics_device_elem->metrics_device->irq_active.irq_type);
+    ret_val = disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->
+            metrics_device->public_dev.irq_active.irq_type);
     /* Unlock IRQ MUTEX as we are done with updated irq track list */
     mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
 
@@ -155,7 +155,8 @@ static int disable_active_irq(struct metrics_device_list
         *pmetrics_device_elem, enum nvme_irq_type  irq_active)
 {
     /* pointer to the pci device */
-    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->pdev;
+    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
+            private_dev.pdev;
 
 #ifdef DEBUG
     /* If mutex is not locked then exit here */
@@ -189,8 +190,10 @@ static int disable_active_irq(struct metrics_device_list
         LOG_DBG("No Active IRQ scheme to disable...");
     }
     /* Now we can Set IRQ type to INT_NONE */
-    pmetrics_device_elem->metrics_device->irq_active.irq_type = INT_NONE;
-    pmetrics_device_elem->metrics_device->irq_active.num_irqs = 0;
+    pmetrics_device_elem->metrics_device->public_dev.irq_active.
+        irq_type = INT_NONE;
+    pmetrics_device_elem->metrics_device->public_dev.irq_active.
+        num_irqs = 0;
 
     /* Reinitialize irq linked list for this device. */
     INIT_LIST_HEAD(&(pmetrics_device_elem->irq_process.irq_track_list));
@@ -309,12 +312,13 @@ static int validate_irq_inputs(struct metrics_device_list
 {
     int ret_val = SUCCESS;
     struct nvme_device *pnvme_dev = pmetrics_device_elem->metrics_device;
-    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->pdev;
+    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
+        private_dev.pdev;
     u16 msi_offset;
     u16 mc_val;
 
     /* Check if the EN bit is set and return failure if set */
-    if (readl(&pnvme_dev->nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
+    if (readl(&pnvme_dev->private_dev.nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
         LOG_ERR("IRQ Scheme cannot change when CC.EN bit is set!!");
         LOG_ERR("Call Disable or Disable completely first...");
         return -EINVAL;
@@ -410,7 +414,8 @@ static int set_msix(struct metrics_device_list *pmetrics_device_elem,
     int ret_val = SUCCESS;
     int i;
     struct msix_entry msix_entries[num_irqs];
-    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->pdev;
+    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
+        private_dev.pdev;
 
     /* Assign irq entries from 0 to n-1 */
     for (i = 0; i < num_irqs; i++) {
@@ -459,7 +464,8 @@ free_msix:
  */
 static int set_msi_single(struct metrics_device_list *pmetrics_device_elem)
 {
-    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->pdev;
+    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
+            private_dev.pdev;
     int ret_val = SUCCESS;
 
     /* Allocate one interrupt to this device */
@@ -497,11 +503,12 @@ static int set_msi_single(struct metrics_device_list *pmetrics_device_elem)
 static void mask_interrupts(int irq_no, struct  nvme_device *metrics_device)
 {
     /* handle all masking here */
-    switch (metrics_device->irq_active.irq_type) {
+    switch (metrics_device->public_dev.irq_active.irq_type) {
     case INT_MSI_SINGLE:
     case INT_MSI_MULTI:
         /* Mask INTMS register for the int generated */
-        writel((0x1 << irq_no), &metrics_device->nvme_ctrl_space->intms);
+        writel((0x1 << irq_no), &metrics_device->private_dev.
+                nvme_ctrl_space->intms);
         break;
     case INT_MSIX:
         LOG_DBG("TODO: Mask for MSI-X to do in future.");
@@ -522,11 +529,12 @@ static void mask_interrupts(int irq_no, struct  nvme_device *metrics_device)
 static void ummask_interrupts(int irq_no, struct  nvme_device *metrics_device)
 {
     /* handle all unmasking here */
-    switch (metrics_device->irq_active.irq_type) {
+    switch (metrics_device->public_dev.irq_active.irq_type) {
     case INT_MSI_SINGLE:
     case INT_MSI_MULTI:
         /* unMask INTMC register for the int generated */
-        writel((0x1 << irq_no), &metrics_device->nvme_ctrl_space->intmc);
+        writel((0x1 << irq_no), &metrics_device->private_dev.
+                nvme_ctrl_space->intmc);
         break;
     case INT_MSIX:
         LOG_DBG("TODO: ummask for MSI-X to do in future.");
@@ -561,7 +569,7 @@ irqreturn_t tophalf_isr(int int_vec, void *dev_id)
     /* Mask the interrupts if required */
     mask_interrupts(irq_no, pmetrics_device_elem->metrics_device);
     /* Checking if the irq fired is not a spurious interrupt */
-    if (irq_no < pmetrics_device_elem->metrics_device->irq_active.
+    if (irq_no < pmetrics_device_elem->metrics_device->public_dev.irq_active.
             num_irqs) {
         /* Set the irq that was fired in its place in the array */
         pmetrics_device_elem->irq_process.wrk_sched.int_vec_ctx[irq_no] = 1;
@@ -768,7 +776,7 @@ int set_ivec_cq(struct  metrics_device_list *pmetrics_device_elem, u16 cq_id,
         u16 irq_no, u8 *irq_enabled, u16 *int_vec)
 {
     enum nvme_irq_type irq_type = pmetrics_device_elem->metrics_device->
-            irq_active.irq_type;
+            public_dev.irq_active.irq_type;
     int ret_val = SUCCESS;
     struct irq_track *pirq_node = NULL;
 
@@ -858,7 +866,7 @@ int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
     if (picq_node->isr_fired != 0) {
         /* process reap inquiry for isr fired case */
         *num_remaining = reap_inquiry(pmetrics_cq_node, &pmetrics_device_elem
-                ->metrics_device->pdev->dev);
+                ->metrics_device->private_dev.pdev->dev);
     } else {
         /* To deal with ISR's aggregation, not supposed to notify CE's yet */
         *num_remaining = 0;

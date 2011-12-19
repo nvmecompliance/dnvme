@@ -56,7 +56,7 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
     * and pass it to user.
     */
     ret_code = pci_read_config_word(pmetrics_device_element->
-        metrics_device->pdev, PCI_DEVICE_STATUS, &data);
+        metrics_device->private_dev.pdev, PCI_DEVICE_STATUS, &data);
     /*
     * Check the return code to know if pci read is success.
     */
@@ -78,7 +78,7 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
     }
 
     ker_status = (ker_status == SUCCESS) ? device_status_next
-        (pmetrics_device_element->metrics_device->pdev) : FAIL;
+        (pmetrics_device_element->metrics_device->private_dev.pdev) : FAIL;
 
     /* Print out to kernel log the device status */
     if (ker_status == SUCCESS) {
@@ -88,7 +88,7 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
     }
 
     ker_status = (ker_status == SUCCESS) ? nvme_controller_status
-        (pmetrics_device_element->metrics_device->pdev) : FAIL;
+        (pmetrics_device_element->metrics_device->private_dev.pdev) : FAIL;
 
     /* Print out to kernel log the device status */
     if (ker_status == SUCCESS) {
@@ -129,7 +129,7 @@ int driver_generic_read(struct rw_generic *nvme_data,
     }
 
     /* get the device from the list */
-    pdev = pmetrics_device_element->metrics_device->pdev;
+    pdev = pmetrics_device_element->metrics_device->private_dev.pdev;
     nvme_dev = pmetrics_device_element->metrics_device;
 
     /*
@@ -201,6 +201,8 @@ int driver_generic_read(struct rw_generic *nvme_data,
             /* Check if reading is successful */
             if (ret_code < 0) {
                 LOG_ERR("pci_read_config failed");
+                LOG_ERR("nbytes:off:acc= 0x%x:0x%x:0x%2x", nvme_data->nBytes,
+                        nvme_data->offset, nvme_data->acc_type);
                 goto err;
             }
         }
@@ -244,9 +246,9 @@ int driver_generic_read(struct rw_generic *nvme_data,
         }
 
         /* Read NVME register space. */
-        ret_code = read_nvme_reg_generic(
-                nvme_dev->nvme_ctrl_space, datap, nvme_data->nBytes,
-                         nvme_data->offset, nvme_data->acc_type);
+        ret_code = read_nvme_reg_generic(nvme_dev->private_dev.
+                nvme_ctrl_space, datap, nvme_data->nBytes, nvme_data->offset,
+                    nvme_data->acc_type);
 
         if (ret_code < 0) {
             LOG_ERR("Read NVME Space failed");
@@ -289,7 +291,7 @@ int driver_generic_write(struct rw_generic *nvme_data,
     LOG_DBG("Inside Generic write Funtion of the IOCTLs");
 
     /* get the device from the list */
-    pdev = pmetrics_device_element->metrics_device->pdev;
+    pdev = pmetrics_device_element->metrics_device->private_dev.pdev;
     nvme_dev = pmetrics_device_element->metrics_device;
 
     /* Allocating memory for the data in kernel space */
@@ -404,7 +406,8 @@ int driver_generic_write(struct rw_generic *nvme_data,
          * Write NVME register space with datap from offset until
          * nBytes are written.
          */
-        ret_code = write_nvme_reg_generic(nvme_dev->nvme_ctrl_space,
+        ret_code = write_nvme_reg_generic(
+                nvme_dev->private_dev.nvme_ctrl_space,
                 (u8 *)datap, nvme_data->nBytes, nvme_data->offset,
                 nvme_data->acc_type);
         if (ret_code < 0) {
@@ -439,7 +442,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     /* get the device from the list */
     pnvme_dev = pmetrics_device_element->metrics_device;
 
-    if (readl(&pnvme_dev->nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
+    if (readl(&pnvme_dev->private_dev.nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
         LOG_ERR("Device enable bit is set already!!");
         goto asq_exit; /* use invalid return code */
     }
@@ -508,7 +511,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     /* get the device from the list */
     pnvme_dev = pmetrics_device_element->metrics_device;
 
-    if (readl(&pnvme_dev->nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
+    if (readl(&pnvme_dev->private_dev.nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
         LOG_ERR("Device enable bit is set already!!");
         goto acq_exit;
     }
@@ -595,27 +598,29 @@ int driver_ioctl_init(struct pci_dev *pdev,
     INIT_LIST_HEAD(&(pmetrics_device_list->metrics_cq_list));
 
     /* Populate Metrics device list with this device */
-    pmetrics_device_list->metrics_device->pdev = pdev;
-    pmetrics_device_list->metrics_device->bar_0_mapped = ioremap(
+    pmetrics_device_list->metrics_device->private_dev.pdev = pdev;
+    pmetrics_device_list->metrics_device->private_dev.bar_0_mapped = ioremap(
             pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
     /* Check if remap was success */
-    if (!pmetrics_device_list->metrics_device->bar_0_mapped) {
+    if (!pmetrics_device_list->metrics_device->private_dev.bar_0_mapped) {
         LOG_ERR("IOCTL init failed");
         ret_val = -EINVAL;
         goto iocinit_out;
     }
 
-    pmetrics_device_list->metrics_device->nvme_ctrl_space =
-            (void __iomem *)pmetrics_device_list->metrics_device->bar_0_mapped;
-    pmetrics_device_list->metrics_device->dmadev =
-            &pmetrics_device_list->metrics_device->pdev->dev;
+    pmetrics_device_list->metrics_device->private_dev.nvme_ctrl_space =
+            (void __iomem *)pmetrics_device_list->metrics_device->
+                private_dev.bar_0_mapped;
+    pmetrics_device_list->metrics_device->private_dev.dmadev =
+            &pmetrics_device_list->metrics_device->private_dev.pdev->dev;
 
     /* Used to create Coherent DMA mapping for PRP List */
-    pmetrics_device_list->metrics_device->prp_page_pool =
+    pmetrics_device_list->metrics_device->private_dev.prp_page_pool =
         dma_pool_create("prp page",
-            &pmetrics_device_list->metrics_device->pdev->dev,
+            &pmetrics_device_list->metrics_device->private_dev.pdev->dev,
                 PAGE_SIZE, PAGE_SIZE, 0);
-    if (NULL == pmetrics_device_list->metrics_device->prp_page_pool) {
+    if (NULL == pmetrics_device_list->metrics_device->private_dev.
+            prp_page_pool) {
         LOG_ERR("Creation of DMA Pool failed");
         ret_val = -ENOMEM;
         goto iocinit_out;
@@ -644,13 +649,16 @@ int driver_ioctl_init(struct pci_dev *pdev,
     spin_lock_init(&pmetrics_device_list->irq_process.isr_spin_lock);
 
     LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
-        (uint64_t)pmetrics_device_list->metrics_device->nvme_ctrl_space);
+        (uint64_t)pmetrics_device_list->metrics_device->private_dev.
+            nvme_ctrl_space);
 
     return ret_val;
 
 iocinit_out:
-    if (pmetrics_device_list->metrics_device->prp_page_pool != NULL) {
-        dma_pool_destroy(pmetrics_device_list->metrics_device->prp_page_pool);
+    if (pmetrics_device_list->metrics_device->private_dev.
+            prp_page_pool != NULL) {
+        dma_pool_destroy(pmetrics_device_list->metrics_device->
+                private_dev.prp_page_pool);
     }
     if (pmetrics_device_list->metrics_device != NULL) {
         kfree(pmetrics_device_list->metrics_device);
@@ -681,8 +689,8 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
 
     /* To create coherent DMA mapping for meta data buffer creation */
     pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = dma_pool_create
-            ("meta buff", &pmetrics_device_elem->metrics_device->pdev->dev,
-                    sizeof(__u32), alloc_size, 0);
+            ("meta buff", &pmetrics_device_elem->metrics_device->
+                    private_dev.pdev->dev, sizeof(__u32), alloc_size, 0);
     if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr == NULL) {
         LOG_ERR("Creation of DMA Pool failed at meta-data");
         ret_val = -ENOMEM;
@@ -1152,8 +1160,8 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             (pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size)),
                 nvme_cmd_ker, cmd_buf_size);
 
-        dma_sync_sg_for_device(pmetrics_device->metrics_device->dmadev,
-            pmetrics_sq->private_sq.prp_persist.sg,
+        dma_sync_sg_for_device(pmetrics_device->metrics_device->
+            private_dev.dmadev, pmetrics_sq->private_sq.prp_persist.sg,
                 pmetrics_sq->private_sq.prp_persist.dma_mapped_pgs,
                     pmetrics_sq->private_sq.prp_persist.data_dir);
 

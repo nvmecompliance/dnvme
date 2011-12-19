@@ -26,8 +26,8 @@ void ioctl_create_contig_iosq(int file_desc);
 void ioctl_create_discontig_iosq(int file_desc, void *addr);
 void ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid);
 void ioctl_send_identify_cmd(int file_desc, void *addr);
-void ioctl_send_nvme_write(int file_desc);
-void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id);
+void ioctl_send_nvme_write(int file_desc, void *addr);
+void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id, void* addr);
 void ioctl_send_nvme_read(int file_desc, void *addr);
 void ioctl_send_nvme_read_using_metabuff(int file_desc, void* addr, uint32_t meta_id);
 
@@ -45,3 +45,4 @@ void display_cq_data(unsigned char *cq_buffer, int reap_ele);
 void test_admin(int file_desc);
 void ioctl_write_data(int file_desc);
 void test_irq_review568(int fd);
+void test_dev_metrics(int file_desc);
