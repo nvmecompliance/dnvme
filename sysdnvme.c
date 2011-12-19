@@ -561,7 +561,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct interrupts *irq_data;         /* IRQ type and IRQ vectors         */
     u16 test_number;
     struct metrics_driver *dnvme_metrics;/* Dnvme Metrics params             */
-    struct public_nvme_dev_metrics *dev_metrics;  /* public nvme dev metrics */
+    struct public_metrics_dev *dev_metrics;  /* public nvme dev metrics      */
     struct inode *inode = filp->f_dentry->d_inode;
 
     LOG_DBG("Minor No = %d", iminor(inode));
@@ -753,10 +753,9 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     case NVME_IOCTL_GET_DEVICE_METRICS:
         LOG_DBG("Return IRQ device metrics....");
-        dev_metrics = (struct public_nvme_dev_metrics *)ioctl_param;
+        dev_metrics = (struct public_metrics_dev *)ioctl_param;
         ret_val = copy_to_user(dev_metrics, &pmetrics_device_element->
-            metrics_device->public_dev, sizeof
-                (struct public_nvme_dev_metrics));
+            metrics_device->public_dev, sizeof(struct public_metrics_dev));
         break;
 
     case IOCTL_UNIT_TESTS:

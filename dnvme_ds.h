@@ -161,7 +161,7 @@ struct metrics_meta {
  * device specific and populated while the nvme device is being opened
  * or during probe.
  */
-struct private_nvme_dev_metrics {
+struct private_metrics_dev {
     struct pci_dev  *pdev;           /* Pointer to the device in PCI space  */
     struct nvme_ctrl_reg __iomem *nvme_ctrl_space;  /* Pointer to reg space */
     struct dma_pool *prp_page_pool;  /* Mem for PRP List */
@@ -175,8 +175,8 @@ struct private_nvme_dev_metrics {
  * Structure with nvme device related public and private parameters.
  */
 struct nvme_device {
-    struct private_nvme_dev_metrics private_dev; /* private parameters for nvme dev */
-    struct public_nvme_dev_metrics  public_dev;  /* public parameters for nvme dev  */
+    struct private_metrics_dev private_dev; /* private parameters for nvme dev */
+    struct public_metrics_dev  public_dev;  /* public parameters for nvme dev  */
 };
 
 /*

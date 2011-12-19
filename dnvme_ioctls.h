@@ -259,7 +259,7 @@ enum {
  * gives the structure where to copy data.
  */
 #define NVME_IOCTL_GET_DEVICE_METRICS _IOWR('A', NVME_GET_DEVICE_METRICS,\
-        struct public_nvme_dev_metrics)
+        struct public_metrics_dev)
 
 /**
  * @def IOCTL_UNIT_TESTS
