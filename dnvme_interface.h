@@ -317,7 +317,7 @@ struct interrupts {
  * copied to user on request through an IOCTL interface GET_DEVICE_METRICS.
  */
 struct public_metrics_dev {
-    struct interrupts irq_active;  /* Active IRQ state if the nvme device */
+    struct interrupts irq_active;  /* Active IRQ state of the nvme device */
 };
 
 #endif

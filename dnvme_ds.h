@@ -175,8 +175,8 @@ struct private_metrics_dev {
  * Structure with nvme device related public and private parameters.
  */
 struct nvme_device {
-    struct private_metrics_dev private_dev; /* private parameters for nvme dev */
-    struct public_metrics_dev  public_dev;  /* public parameters for nvme dev  */
+    struct private_metrics_dev private_dev; /* private params for nvme dev */
+    struct public_metrics_dev  public_dev;  /* public params for nvme dev  */
 };
 
 /*

@@ -201,8 +201,6 @@ int driver_generic_read(struct rw_generic *nvme_data,
             /* Check if reading is successful */
             if (ret_code < 0) {
                 LOG_ERR("pci_read_config failed");
-                LOG_ERR("nbytes:off:acc= 0x%x:0x%x:0x%2x", nvme_data->nBytes,
-                        nvme_data->offset, nvme_data->acc_type);
                 goto err;
             }
         }

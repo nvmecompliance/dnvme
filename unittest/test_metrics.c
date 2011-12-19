@@ -90,7 +90,7 @@ void test_drv_metrics(int file_desc)
 
 void test_dev_metrics(int file_desc)
 {
-    struct public_nvme_dev_metrics get_dev_metrics;
+    struct public_metrics_dev get_dev_metrics;
     int ret_val = -1;
 
     ret_val = ioctl(file_desc, NVME_IOCTL_GET_DEVICE_METRICS, &get_dev_metrics);
