@@ -31,7 +31,7 @@
  * if QEMU is defined then we do 64 bit write in two 32 bit writes using
  * writel's otherwise directly call writeq.
  */
-static inline __u64 READQ(const volatile void __iomem *addr)
+inline __u64 READQ(const volatile void __iomem *addr)
 {
     const volatile u32 __iomem *p = addr;
     u32 low, high;
@@ -50,17 +50,17 @@ static inline __u64 READQ(const volatile void __iomem *addr)
  * if QEMU is defined then we do 64 bit write in two 32 bit writes using
  * writel's otherwise directly call writeq.
  */
-static inline void WRITEQ(__u64 val, volatile void __iomem *addr)
+inline void WRITEQ(__u64 val, volatile void __iomem *addr)
 {
     writel(val, addr);
     writel(val >> 32, addr + 4);
 }
 #else
-static inline void WRITEQ(__u64 val, volatile void __iomem *addr)
+inline void WRITEQ(__u64 val, volatile void __iomem *addr)
 {
     writeq(val, addr);
 }
-static inline __u64 READQ(const volatile void __iomem *addr)
+inline __u64 READQ(const volatile void __iomem *addr)
 {
     return readq(addr);
 }

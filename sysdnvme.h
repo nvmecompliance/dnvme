@@ -42,6 +42,13 @@
  * make the driver work with QEMU. This can be commented when an actual NVME
  * hardware device is being tested.
  */
-#define QEMU
+
+#ifdef QEMU
+inline __u64 READQ(const volatile void __iomem *addr);
+inline void WRITEQ(__u64 val, volatile void __iomem *addr);
+#else
+inline void WRITEQ(__u64 val, volatile void __iomem *addr);
+inline __u64 READQ(const volatile void __iomem *addr);
+#endif
 
 #endif /* sysdnvme.h*/

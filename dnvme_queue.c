@@ -58,43 +58,6 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
         u16 comp_entry_size, u16 *num_reaped, u8 *buffer,
         struct  metrics_device_list *pmetrics_device);
 
-/* Conditional compilation for QEMU related modifications. */
-#ifdef QEMU
-/*
- * if QEMU is defined then we do 64 bit write in two 32 bit writes using
- * writel's otherwise directly call writeq.
- */
-static inline void WRITEQ(__u64 val, volatile void __iomem *addr)
-{
-    writel(val, addr);
-    writel(val >> 32, addr + 4);
-}
-static inline __u64 READQ(const volatile void __iomem *addr)
-{
-    const volatile u32 __iomem *p = addr;
-    u32 low, high;
-    u64 u64data;
-
-    LOG_DBG("ADDR=0x%llx:p=0x%llx", (u64)addr, (u64)p);
-    low = readl(p);
-    high = readl(p + 1);
-
-    u64data = high;
-    u64data = (u64data << 32) + low;
-    LOG_DBG("High:low:u64data = 0x%x:0x%x:0x%llx", high, low, u64data);
-    return u64data;
-}
-#else
-static inline void WRITEQ(__u64 val, volatile void __iomem *addr)
-{
-    writeq(val, addr);
-}
-static inline __u64 READQ(const volatile void __iomem *addr)
-{
-    return readq(addr);
-}
-#endif
-
 /*
  * nvme_ctrlrdy_capto - This function is used for checking if the controller
  * is ready to process commands after CC.EN is set to 1. This will wait a

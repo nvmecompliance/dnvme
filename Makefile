@@ -22,7 +22,7 @@ KDIR:=/lib/modules/$(DIST)/build/
 CDIR:=/usr/src/linux-source-2.6.35/scripts/
 SOURCE:=$(shell pwd)
 DRV_NAME:=dnvme
-FLAG=-DDEBUG
+FLAG=-DDEBUG -DQEMU
 EXTRA_CFLAGS+=$(FLAG) -I$(PWD)/
 
 

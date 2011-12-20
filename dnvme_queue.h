@@ -46,17 +46,6 @@
 #define MAX_AQ_ENTRIES   4096
 
 /*
- * This lines are commented to use inline functions.
- * if required at multiple places uncomment this.
- */
-#if 0
-#ifdef QEMU
-#define WRITEQ(a, b) { writel(a, b); writel(a >> 32, b + 4); }
-#else
-#define WRITEQ(a, b) { writeq(a, b); }
-#endif
-#endif
-/*
  * Enumerating the different NVME Controller Capabilities of the
  * PCI Express device as per NVME Spec 1.0b.
  */
