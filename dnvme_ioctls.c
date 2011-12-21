@@ -1140,12 +1140,12 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
                     PERSIST_QID_0, DATA_BUF, PRP_PRESENT);
+            if (ret_code < 0) {
+                LOG_ERR("Failure to prepare 64 byte command");
+                goto err;
+            }
         }
 
-        if (ret_code < 0) {
-            LOG_ERR("Failure to prepare 64 byte command");
-            goto err;
-        }
     } /* Different sceanrios of commands */
 
     /* Copying the command in to appropriate SQ and handling sync issues */
