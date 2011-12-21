@@ -309,11 +309,11 @@ void test_metrics(int file_desc)
     getchar();
 
     /* ASQ Metrics */
-/*    printf("Get ASQ Metrics:\n\n");
+    printf("Get ASQ Metrics:\n\n");
     ioctl_get_q_metrics(file_desc, 0, 1, sizeof(struct nvme_gen_sq));
     printf("\nPress any key to continue..");
     getchar();
-*/
+
     printf("Get IO_SQ = 2 (exists) Metrics: \n\n");
     ioctl_get_q_metrics(file_desc, 2, 1, sizeof(struct nvme_gen_sq) + 10);
     printf("\nPress any key to continue..");
@@ -1152,10 +1152,14 @@ int main()
             printf("Calling Device Metrics....");
             test_dev_metrics(file_desc);
             break;
+        case 35:
+            printf("Testing Public Q metrics...");
+            test_metrics(file_desc);
+            break;
         default:
             printf("\nUndefined case!\n");
         }
-    } while (test_case < 35);
+    } while (test_case < 36);
 
     printf("\nCalling Dump Metrics to closefile\n");
     ioctl_dump(file_desc, closefile);

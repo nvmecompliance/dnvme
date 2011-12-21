@@ -1184,122 +1184,60 @@ ret:
 }
 
 /*
- * nvme_get_q_metrics will return the q metrics from the global data
+ * get_public_qmetrics will return the q metrics from the global data
  * structures if the q_id send down matches any q_id for this device.
  * If the Q id does not exist in the list then it returns error.
  * This function also returns error when kernel cannot allocate for
  * at-least one element memory of public_sq or public_cq.
  */
-int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
+int get_public_qmetrics(struct  metrics_device_list *pmetrics_device,
         struct nvme_get_q_metrics *get_q_metrics)
 {
-    int ret_code = SUCCESS;
-    u16 q_id;               /* tmp variable for q id          */
-    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
-    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
-    void *datap, *temp_ptr = NULL;
-
-    /* Allocating memory for the data in kernel space */
-    datap = kmalloc(get_q_metrics->nBytes, GFP_KERNEL | __GFP_ZERO);
-
-    /*
-    * Check if allocation of memory is not null else return
-    * no memory.
-    */
-    if (!datap) {
-        LOG_ERR("Unable to allocate kernel memory");
-        return -ENOMEM;
-    }
-
-
-    /* Get the q_id to lcl var */
-    q_id = get_q_metrics->q_id;
+    struct  metrics_sq  *pmetrics_sq_node;
+    struct  metrics_cq  *pmetrics_cq_node;
 
     /* Determine the type of Q for which the metrics was needed */
     if (get_q_metrics->type == METRICS_SQ) {
-        /* Determine the SQ Metrics */
-        LOG_DBG("SQ Metrics requested.");
-        /* Check if Q was admin Q? */
-        if (get_q_metrics->q_id == 0) {
-            LOG_DBG("Admin SQ Metrics...");
-         } else {
-            LOG_DBG("IO SQ Metrics...");
+        if (get_q_metrics->nBytes < sizeof(struct nvme_gen_sq)) {
+            LOG_ERR("Not sufficient buffer size to copy SQ metrics");
+            return -EINVAL;
         }
-        /* Get the device from the linked list */
-        list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
-                metrics_sq_list, sq_list_hd) {
-            /* Check if the Q Id matches */
-            if (q_id == pmetrics_sq_list->public_sq.sq_id) {
-                LOG_NRM("SQ_ID = %d is found in the list...",
-                    pmetrics_sq_list->public_sq.sq_id);
-                LOG_DBG("SQ Elements = %d",
-                              pmetrics_sq_list->public_sq.elements);
-                if (get_q_metrics->nBytes < sizeof(struct nvme_gen_sq)) {
-                    LOG_ERR("Not sufficient buffer size to copy SQ metrics");
-                    ret_code = -EINVAL;
-                    goto err;
-                }
-                /* Copy to user space linked pointer buffer */
-                memcpy((u8 *)datap, (u8 *)&pmetrics_sq_list->public_sq,
-                    get_q_metrics->nBytes);
-                temp_ptr = datap;
-                break;
-            }
+        pmetrics_sq_node = find_sq(pmetrics_device, get_q_metrics->q_id);
+        if (pmetrics_sq_node == NULL) {
+            LOG_ERR("SQ ID = %d does not exist", get_q_metrics->q_id);
+            return -EBADSLT; /* Invalid slot */
+        }
+        /* Copy sq public metrics to user space */
+        if (copy_to_user((void __user *) get_q_metrics->buffer,
+                &pmetrics_sq_node->public_sq, get_q_metrics->nBytes)) {
+            LOG_ERR("Invalid copy to user space");
+            return -EFAULT;
         }
     } else if (get_q_metrics->type == METRICS_CQ) {
-        /* Determine the CQ Metrics */
-        LOG_DBG("CQ Metrics requested.");
-        /* Check if Q was admin Q? */
-        if (get_q_metrics->q_id == 0) {
-            LOG_DBG("Admin CQ Metrics..");
-        } else {
-            LOG_DBG("IO CQ Metrics...");
+        if (get_q_metrics->nBytes < sizeof(struct nvme_gen_cq)) {
+            LOG_ERR("Not sufficient buffer size to copy CQ metrics");
+            return -EINVAL;
         }
-        /* Get the device from the linked list */
-        list_for_each_entry(pmetrics_cq_list, &pmetrics_device_element->
-                metrics_cq_list, cq_list_hd) {
-            /* check if a q id matches in the list */
-            if (q_id == pmetrics_cq_list->public_cq.q_id) {
-                LOG_DBG("CQ_ID = %d is found in the list...",
-                    pmetrics_cq_list->public_cq.q_id);
-                LOG_DBG("CQ Elements = %d",
-                              pmetrics_cq_list->public_cq.elements);
-                if (get_q_metrics->nBytes < sizeof(struct nvme_gen_cq)) {
-                    LOG_ERR("Not sufficient buffer size to copy CQ metrics");
-                    ret_code = -EINVAL;
-                    goto err;
-                }
-                /* Copy to user space linked pointer buffer */
-                memcpy((u8 *)datap, (u8 *)&pmetrics_cq_list->public_cq,
-                    get_q_metrics->nBytes);
-                temp_ptr = datap;
-                break;
-            }
+        /* Find given CQ in list */
+        pmetrics_cq_node = find_cq(pmetrics_device, get_q_metrics->q_id);
+        if (pmetrics_cq_node == NULL) {
+            /* if the control comes here it implies q id not in list */
+            LOG_ERR("CQ ID = %d is not in list", get_q_metrics->q_id);
+            return -ENODEV;
+        }
+        /* Copy public cq metrics to user space */
+        if (copy_to_user((void __user *) get_q_metrics->buffer,
+                &pmetrics_cq_node->public_cq, get_q_metrics->nBytes)) {
+            LOG_ERR("Invalid copy to user space");
+            return -EFAULT;
         }
     } else {
         /* The Q type is not SQ or CQ, so error out */
-        LOG_ERR("Error in metrics Type...");
         LOG_ERR("Metrics Type: METRICS_SQ/METRICS_CQ only");
-        ret_code = -EINVAL;
-        goto err;
+        return -EINVAL;
     }
 
-    if (temp_ptr == NULL) {
-        LOG_ERR("Required QID not found in the list");
-        ret_code = -EINVAL;
-        goto err;
-    }
-
-    /* Copy data to user space */
-    if (copy_to_user((void __user *) get_q_metrics->buffer, datap,
-        get_q_metrics->nBytes)) {
-        LOG_ERR("Invalid copy to user space");
-        ret_code = -EFAULT;
-    }
-
-err:
-    kfree(datap);
-    return ret_code;
+    return SUCCESS;
 }
 
 /*

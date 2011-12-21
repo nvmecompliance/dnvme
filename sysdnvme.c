@@ -647,7 +647,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         /* Assign user passed parameters to q metrics structure. */
         get_q_metrics = (struct nvme_get_q_metrics *)ioctl_param;
         /* Call the Q metrics function and return the data to user. */
-        ret_val = nvme_get_q_metrics(pmetrics_device_element, get_q_metrics);
+        ret_val = get_public_qmetrics(pmetrics_device_element, get_q_metrics);
         break;
 
     case NVME_IOCTL_PREPARE_SQ_CREATION:
