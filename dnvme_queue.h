@@ -202,10 +202,10 @@ struct metrics_meta *find_meta_node(struct metrics_device_list
  * routine works with Add Q's including Admin and IO.
  * Assumes user allocated buffer memory to copy accordingly.
  * @param get_q_metrics
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @return success or failure.
  */
-int nvme_get_q_metrics(struct  metrics_device_list *pmetrics_device_element,
+int get_public_qmetrics(struct  metrics_device_list *pmetrics_device,
         struct nvme_get_q_metrics *get_q_metrics);
 
 /**
