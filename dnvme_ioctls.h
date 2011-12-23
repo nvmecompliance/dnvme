@@ -19,9 +19,6 @@
 #ifndef _DNVME_IOCTLS_H_
 #define _DNVME_IOCTLS_H_
 
-/* 0.1.17 */
-#define    API_VERSION          0x00000117
-
 /**
  * Enumeration types which provide common interface between
  * kernel driver and user app layer ioctl functions.

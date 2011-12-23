@@ -20,6 +20,22 @@
 #define _DNVME_INTERFACE_H_
 
 /**
+ * API version coordinates the tnvme binary to the dnvme binary. If the dnvme
+ * interface changes at all, then this file will be modified and thus this
+ * revision will be bumped up. Only when this file changes does this version
+ * change. The dnvme driver version is registered by the contents of file
+ * version.h. Although version.h will change whenever API_VERSION changes, the
+ * API_VERSION won't necessarily change each time version.h changes. Rather
+ * version.h changes whenever a new release of the driver logic has changed.
+ *
+ * Thus when this API changes, then tnvme will have to be recompiled against
+ * this file to adhere to the new modification and requirements of the API.
+ * tnvme refuses to execute when it detects a API version mismatch to dnvme.
+ */
+#define    API_VERSION          0x00010000          /* 1.0.0 */
+
+
+/**
  * These are the enum types used for branching to
  * required offset as specified by either PCI space
  * or a NVME space enum value defined here.
