@@ -39,6 +39,8 @@ struct nvme_ctrl_reg {
     __u64    acq;    /* Admin CQ Base Address */
 };
 
+#define REGMASK_CAP_CQR     (1 << 16)
+
 /**
  * nvme_dev_entry shows a device entry in the global
  * linked list which has one pci_dev and its corresponding

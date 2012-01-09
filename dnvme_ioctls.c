@@ -1288,10 +1288,19 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     pnvme_dev = pmetrics_device_element->metrics_device;
 
     ret_code = identify_unique(prep_sq->sq_id, METRICS_SQ,
-            pmetrics_device_element);
+        pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("SQ ID is not unique.");
         goto exit_prep_sq;
+    }
+
+    // Does the ctrl'r allow discontig mem to back an IOQ? if not then fail
+    // because it isn't valid and will place the system in an unknown state
+    if (READQ(&pnvme_dev->private_dev.nvme_ctrl_space->cap) & REGMASK_CAP_CQR) {
+        if (prep_sq->contig == 0) {
+            LOG_DBG("Device doesn't support discontig Q memory");
+            goto exit_prep_sq;
+        }
     }
 
     LOG_DBG("Allocating SQ node in linked list.");
@@ -1356,6 +1365,15 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     if (ret_code != SUCCESS) {
         LOG_ERR("CQ ID is not unique.");
         goto exit_prep_cq;
+    }
+
+    // Does the ctrl'r allow discontig mem to back an IOQ? if not then fail
+    // because it isn't valid and will place the system in an unknown state
+    if (READQ(&pnvme_dev->private_dev.nvme_ctrl_space->cap) & REGMASK_CAP_CQR) {
+        if (prep_cq->contig == 0) {
+            LOG_DBG("Device doesn't support discontig Q memory");
+            goto exit_prep_cq;
+        }
     }
 
     LOG_DBG("Allocating CQ node in linked list.");
