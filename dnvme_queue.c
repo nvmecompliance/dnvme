@@ -283,6 +283,7 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
     u32 aqa;                /* Admin Q attributes in 32 bits size          */
     u32 tmp_aqa;            /* local var to hold admin q attributes        */
     u32 acq_depth = 0;      /* local var to cal nbytes based on elements   */
+    u8  cap_dstrd;          /* local var to cal the doorbell stride.       */
 
     LOG_NRM("Creating Admin Completion Queue...");
 
@@ -350,10 +351,14 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
     pmetrics_cq_list->private_cq.size = acq_depth;
     pmetrics_cq_list->private_cq.contig = 1;
 
-    /* Set the door bell of ACQ to 0x1000 as per spec 1.0b */
+    /* Get the door bell stride from CAP register */
+    cap_dstrd = (READQ(&pnvme_dev->private_dev.nvme_ctrl_space->cap) >> 32)
+        & 0xF;
+
+    /* CQ 0 Head DoorBell admin computed used doorbell stride. */
     pmetrics_cq_list->private_cq.dbs =
         ((void __iomem *)pnvme_dev->private_dev.nvme_ctrl_space)
-            + NVME_CQ0TBDL;
+            + NVME_SQ0TBDL + (4 << cap_dstrd);
 
     /* returns success */
     return ret_code;

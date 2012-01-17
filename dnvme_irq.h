@@ -53,6 +53,20 @@
 /* Mask for MSI Multi message enable bits */
 #define     MSI_MME                 0x70
 
+/* Mask for MSIX table BIR identification */
+#define     MSIX_TBIR_MASK           0x7
+
+/* Entry size in bytes for each entry in MSIX table */
+#define     MSIX_ENTRY_SIZE         16
+
+/* MSIX Table vector control offset in the entry */
+#define     MSIX_VEC_CTRL           12
+
+/* Interrupt vector mask set(IVMS) register offset */
+#define     INTMS_OFFSET            0x0C
+
+/* Interrupt vector mask clear(IVMC) register offset */
+#define     INTMC_OFFSET            0x10
 /*
  * nvme_set_irq will set the new interrupt scheme for this device regardless
  * of the current irq scheme that is present.
