@@ -66,8 +66,6 @@ void set_irq_none(int fd)
     else {
         printf("\nSet IRQ NONE success!!\n");
     }
-    printf("Press any key to continue...\n");
-    getchar();
 }
 
 void set_irq_msix(int fd)
