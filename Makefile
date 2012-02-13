@@ -53,7 +53,7 @@ SRCDIR?=./src
 obj-m := dnvme.o
 dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o dnvme_sts_chk.o dnvme_queue.o dnvme_cmds.o dnvme_ds.o dnvme_irq.o ut_reap_inq.o
 
-all: doc
+all:
 	make -C $(KDIR) M=$(PWD) modules
 
 rpm: rpmzipsrc rpmbuild
@@ -71,7 +71,7 @@ clobber: clean
 	rm -rf Doc/HTML
 	rm -f $(DRV_NAME)
 
-doc:
+doc: all
 	doxygen doxygen.conf > doxygen.log
 
 # Specify a custom source c:ompile dir: "make src SRCDIR=../compile/dir"
