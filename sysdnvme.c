@@ -381,16 +381,16 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
 
     /* Set the device open flag to false */
     pmetrics_device_element->metrics_device->private_dev.open_flag = 0;
-    /* Clean the SQ and CQ linked list nodes */
-    deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
-    /* Meta data allocation clean up */
-    deallocate_mb(pmetrics_device_element);
     /* IRQ clean up and set active scheme to INT_NONE */
     ret_val = init_irq_track(pmetrics_device_element, pmetrics_device_element->
             metrics_device->public_dev.irq_active.irq_type);
     if (ret_val < 0) {
         LOG_ERR("IRQ cleanup failed...");
     }
+    /* Clean the SQ and CQ linked list nodes */
+    deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
+    /* Meta data allocation clean up */
+    deallocate_mb(pmetrics_device_element);
 
 rel_exit:
     LOG_DBG("Device Closed. Releasing Mutex...");
@@ -626,16 +626,28 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
             /* Waiting for the controller to go idle. */
             ret_val = nvme_ctrl_disable(pmetrics_device_element);
             if (ret_val == SUCCESS) {
+                /*
+                 * Acquire spin lock and start cleaning up the metrics.
+                 * As we do not want to clean up the metrics while still
+                 * an IRQ being fired. After the device being successfully
+                 * disabled is there any chance of IRQ being fired? Anyways
+                 * locking will ensure we do not clean up metrics under the
+                 * feet when isr is about to get serviced, within that small
+                 * uncertain window...
+                 */
+                spin_lock(&pmetrics_device_element->irq_process.isr_spin_lock);
+                /* Initialize irq track from current irq to INT_NONE */
+                ret_val = init_irq_track(pmetrics_device_element,
+                    pmetrics_device_element->metrics_device->public_dev.
+                        irq_active.irq_type);
                 /* Clean Up the Data Structures. */
                 deallocate_all_queues(pmetrics_device_element,
                         *ctrl_new_state);
                 /* Clean up meta buff in both disable cases */
                 deallocate_mb(pmetrics_device_element);
-
-                /* Initialize irq track from current irq to INT_NONE */
-                ret_val = init_irq_track(pmetrics_device_element,
-                    pmetrics_device_element->metrics_device->public_dev.
-                        irq_active.irq_type);
+                /* unlock as we are done with irq list and metrics clean up */
+                spin_unlock(&pmetrics_device_element->
+                        irq_process.isr_spin_lock);
             }
          } else {
             LOG_ERR("Device State not correctly specified.");
@@ -809,15 +821,19 @@ static void __exit dnvme_exit(void)
     list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
             metrics_device_hd) {
         pdev = pmetrics_device_element->metrics_device->private_dev.pdev;
+        /* Grab the Mutex for this device in the linked list */
+        mutex_lock(&pmetrics_device_element->metrics_mtx);
         /* Free up the DMA pool */
         destroy_dma_pool(pmetrics_device_element->metrics_device);
+        /* Clean up IRQ and free_irq */
+        init_irq_track(pmetrics_device_element, pmetrics_device_element->
+                metrics_device->public_dev.irq_active.irq_type);
         /* Clean Up the Data Structures. */
         deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
         /* Clean up the Meta data structure and destroy meta buff dma pool */
         deallocate_mb(pmetrics_device_element);
-        /* Clean up IRQ and free_irq */
-        init_irq_track(pmetrics_device_element, pmetrics_device_element->
-                metrics_device->public_dev.irq_active.irq_type);
+        /* unlock the device mutex before destroying */
+        mutex_unlock(&pmetrics_device_element->metrics_mtx);
         /* destroy all mutexes */
         mutex_destroy(pmetrics_device_element->metrics_mtx);
         mutex_destroy(pmetrics_device_element->irq_process->irq_track_mtx);

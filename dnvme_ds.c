@@ -419,27 +419,37 @@ static loff_t irq_nodes_log(struct file *file, loff_t pos,
     /* locking on IRQ MUTEX here for irq track ll access */
     mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
 
+    sprintf(data1, "\nirq_process.intms_ptr = 0x%llX",
+                (u64)pmetrics_device_elem->irq_process.intms_ptr);
+    vfs_write(file, data1, strlen(data1), &pos);
+    sprintf(data1, "\nirq_process.intmc_ptr = 0x%llX",
+            (u64)pmetrics_device_elem->irq_process.intmc_ptr);
+    vfs_write(file, data1, strlen(data1), &pos);
+    sprintf(data1, "\nirq_process.msix_ptr  = 0x%llX",
+                (u64)pmetrics_device_elem->irq_process.msixptr);
+    vfs_write(file, data1, strlen(data1), &pos);
+
     /* Loop for the first irq node in irq track list */
     list_for_each_entry(pirq_node, &pmetrics_device_elem->
             irq_process.irq_track_list, irq_list_hd) {
-        sprintf(data1, "\npirq_node[%d]", i++);
+        sprintf(data1, IDNT_L1"pirq_node[%d]", i++);
         vfs_write(file, data1, strlen(data1), &pos);
-        sprintf(data1, IDNT_L1"pirq_node->irq_no = %d",
+        sprintf(data1, IDNT_L2"pirq_node->irq_no = %d",
                 pirq_node->irq_no);
         vfs_write(file, data1, strlen(data1), &pos);
-        sprintf(data1, IDNT_L1"pirq_node->int_vec = %d",
+        sprintf(data1, IDNT_L2"pirq_node->int_vec = %d",
                 pirq_node->int_vec);
         vfs_write(file, data1, strlen(data1), &pos);
         /* Loop for each cq node within this irq node */
         list_for_each_entry(pirq_cq_node, &pirq_node->irq_cq_track,
                 irq_cq_head) {
-            sprintf(data1, IDNT_L2"pirq_cq_node->cq_id = %d",
+            sprintf(data1, IDNT_L3"pirq_cq_node->cq_id = %d",
                     pirq_cq_node->cq_id);
             vfs_write(file, data1, strlen(data1), &pos);
-            sprintf(data1, IDNT_L2"pirq_cq_node->isr_fired = %d",
+            sprintf(data1, IDNT_L3"pirq_cq_node->isr_fired = %d",
                     pirq_cq_node->isr_fired);
             vfs_write(file, data1, strlen(data1), &pos);
-            sprintf(data1, IDNT_L2"pirq_cq_node->isr_count = %d",
+            sprintf(data1, IDNT_L3"pirq_cq_node->isr_count = %d",
                     pirq_cq_node->isr_count);
             vfs_write(file, data1, strlen(data1), &pos);
         }

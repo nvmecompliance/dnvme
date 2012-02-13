@@ -34,6 +34,8 @@ static int validate_irq_inputs(struct metrics_device_list
 static int set_msix(struct metrics_device_list *pmetrics_device_elem,
         u16 num_irqs);
 static int set_msi_single(struct metrics_device_list *pmetrics_device_elem);
+static int set_msi_multi(struct metrics_device_list *pmetrics_device_elem,
+        u16 num_irqs);
 static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
         u16 int_vec, u16 irq_no);
 static void bh_callback(struct work_struct *work);
@@ -44,16 +46,22 @@ static int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
         u16 *offset);
 static void set_irq_cq_nodes(struct metrics_device_list *pmetrics_device_elem,
         u16 int_vec);
-static u16 get_irq_enabled(u16 int_vec[]);
+static u16 get_irq_enabled(u8 int_vec[]);
 static struct irq_track *find_irq_node(
         struct  metrics_device_list *pmetrics_device_elem, u16 irq_no);
 static struct irq_cq_track *find_icq_node(struct  irq_track *pirq_node,
         u16 cq_id);
 static u16 get_ivec_index(struct  metrics_device_list *pmetrics_device_elem,
         u16 int_vec);
-static void mask_interrupts(int irq_no, struct nvme_device *metrics_device);
-static void ummask_interrupts(int irq_no, struct nvme_device *metrics_device);
+static void mask_interrupts(u16 irq_no, struct  metrics_device_list
+        *pmetrics_device_elem);
+static void ummask_interrupts(u16 irq_no, struct  metrics_device_list
+        *pmetrics_device_elem);
 static void nvme_disable_pin(struct pci_dev *dev);
+static int update_msixptr(struct  metrics_device_list
+        *pmetrics_device_elem, u16 offset);
+static void set_msix_mask_bit(u8 *irq_msixptr, u16 irq_no, u32 flag);
+
 
 /*
  * nvme_set_irq will set the new interrupt scheme for this device regardless
@@ -68,22 +76,21 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
     /* pointer to the metrics device */
     struct nvme_device *pnvme_dev = pmetrics_device_elem->metrics_device;
 
+    /* lock onto IRQ linked list mutex as we would access the IRQ list */
+    mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
+
     /* First validate if the inputs given are correct */
     ret_val = validate_irq_inputs(pmetrics_device_elem, irq_new);
     if (ret_val < 0) {
         LOG_ERR("Invalid inputs set or device is not disabled..");
-        return ret_val;
+        goto set_irq_out;
     }
-
-    /* lock onto IRQ linked list mutex as we would access the IRQ list */
-    mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
 
     /* disable the current IRQ scheme */
     ret_val = disable_active_irq(pmetrics_device_elem, pnvme_dev->
             public_dev.irq_active.irq_type);
     if (ret_val < 0) {
         LOG_ERR("Reset of IRQ to INT_NONE failed...");
-        ret_val = -EINVAL;
         goto set_irq_out;
     }
 
@@ -93,11 +100,10 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
     /* Switch based on new irq type desired */
     switch (irq_new->irq_type) {
     case INT_MSI_SINGLE: /* MSI Single interrupt settings */
-        /* Call to set msi single interrupt scheme to get int vec */
         ret_val = set_msi_single(pmetrics_device_elem);
         break;
     case INT_MSI_MULTI: /* MSI Multi interrupt settings */
-        /*TODO: Add multi MSI interrupt functions */
+        ret_val = set_msi_multi(pmetrics_device_elem, irq_new->num_irqs);
         break;
     case INT_MSIX: /* MSI-X interrupt settings */
         ret_val = set_msix(pmetrics_device_elem, irq_new->num_irqs);
@@ -116,6 +122,11 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
     if (ret_val == SUCCESS) {
         pnvme_dev->public_dev.irq_active.irq_type = irq_new->irq_type;
         pnvme_dev->public_dev.irq_active.num_irqs = irq_new->num_irqs;
+        /* Update interrupt vector Mask Set and Mask Clear offsets */
+        pmetrics_device_elem->irq_process.intms_ptr = pmetrics_device_elem->
+                metrics_device->private_dev.bar_0_mapped + INTMS_OFFSET;
+        pmetrics_device_elem->irq_process.intmc_ptr = pmetrics_device_elem->
+                metrics_device->private_dev.bar_0_mapped + INTMC_OFFSET;
     }
 
 set_irq_out:
@@ -179,8 +190,9 @@ static int disable_active_irq(struct metrics_device_list
         pci_disable_msi(pdev);
         LOG_DBG("INT_MSI SINGLE Disabled");
     } else if (irq_active == INT_MSI_MULTI) {
-        /* TODO loop and disable multiple times..*/
-        LOG_DBG("INT_MSI-Multiple Disabled (not done yet!!)");
+        /* Only main interrupt should be disabled so call disable on device */
+        pci_disable_msi(pdev);
+        LOG_DBG("INT_MSI-Multiple Disabled");
     } else if (irq_active == INT_MSIX) {
         /* disable OS to generate MISX */
         pci_disable_msix(pdev);
@@ -373,6 +385,10 @@ static int validate_irq_inputs(struct metrics_device_list
             LOG_ERR("Controller does not support for MSI-X capability!!");
             return -EINVAL;
         } else {
+            /* if msix exists then update the msix pointer for this device */
+            if (update_msixptr(pmetrics_device_elem, msi_offset) < 0) {
+                return -EINVAL;
+            }
             /* compute MSI-X MXC offset if MSI-X is supported */
             msi_offset += 2;
             /* Read MSIX-MXC value */
@@ -460,7 +476,13 @@ free_msix:
 }
 
 /*
- * set the irq to MSI Single interrupt scheme.
+ * Set up the active irq scheme to MSI Single interrupt scheme. The interrupt
+ * vector is assigned by the pci_enable_msi call and pdev->irq is updated with
+ * new interrupt vector for this device and same is added in the irq linked
+ * list for 0 irq number. If irq request and memory for the irq node is
+ * successful, only then the irq track list is updated otherwise fails and
+ * returns invalid return code. Finally clear all the interrupts using INTMC
+ * register by writing all 1's to this register.
  */
 static int set_msi_single(struct metrics_device_list *pmetrics_device_elem)
 {
@@ -468,50 +490,171 @@ static int set_msi_single(struct metrics_device_list *pmetrics_device_elem)
             private_dev.pdev;
     int ret_val = SUCCESS;
 
-    /* Allocate one interrupt to this device */
+    /*
+     * Allocate one interrupt to this device. A successful call will switch the
+     * device to msi single mode and pdev->irq is changed to a new number which
+     * represents msi interrupt vector consequently.
+     */
     ret_val = pci_enable_msi(pdev);
     if (ret_val) {
-        LOG_ERR("MSI-SINGLE : Error = %d can't enable msi!!", ret_val);
+        LOG_ERR("MSI-S-Err = %d can't enable msi!!", ret_val);
         return ret_val; /* exit from here */
     }
-
-    /* request irq with top half handler and int vec. */
-    ret_val = request_irq(pdev->irq, tophalf_isr, 0,
-            "dnvme-msi-s", pmetrics_device_elem);
+    /* request irq with top half handler and int vec stored in pdev->irq. */
+    ret_val = request_irq(pdev->irq, tophalf_isr, IRQF_DISABLED
+            | IRQF_SHARED, "msi-single", pmetrics_device_elem);
     if (ret_val < 0) {
-        LOG_ERR("MSI-SINGLE : Error can't get assigned irq = %i", pdev->irq);
+        LOG_ERR("MSI-S-Err: request irq failed for ivec= %i", pdev->irq);
         return ret_val; /* exit from here */
     }
-
-    LOG_DBG("Req Irq = %d", pdev->irq);
-
+    LOG_DBG("MSI-Single Interrupt Vector = %d", pdev->irq);
     /* Add node after determining interrupt vector is successful */
     ret_val = add_irq_node(pmetrics_device_elem, pdev->irq, 0);
     if (ret_val != SUCCESS) {
-        LOG_ERR("MSI-SINGLE: can't add irq node!!");
-        return ret_val; /* exit from here */
+        LOG_ERR("MSI-S-Err: can't add irq node!!");
+        goto free_msis;
     }
 
+    /* Clear all the interrupts for MSI Multi */
+     writel(UINT_MAX, &pmetrics_device_elem->irq_process.intmc_ptr);
+
     return ret_val;
+free_msis:
+    /* clean up all nodes even if one irq request fails */
+    deallocate_irq_trk(pmetrics_device_elem);
+    return ret_val;
+}
+
+/*
+ * Sets up the active IRQ scheme to MSI-Multi. Number of irqs to be allocated
+ * is passed as a parameter and After successfully enabling the msi block, this
+ * loops from pdev->irq to (pdev->irq + num_irqs -1) and calls request_irq for
+ * each irq no. This function appends each of this irq node in the irq track
+ * linked list with int_vec and irq no. At any point if the adding of node
+ * fails it cleans up and exits with invalid return code. Finally clear all
+ * the interrupts using INTMC register by writing all 1's to this register.
+ */
+static int set_msi_multi(struct metrics_device_list *pmetrics_device_elem,
+        u16 num_irqs)
+{
+    int ret_val = SUCCESS;
+    int i;
+    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
+        private_dev.pdev;
+    /* Enable msi-block interrupts for this device. The pdev->irq will
+     * be the lowest of the new interrupts assigned to this device. */
+    ret_val = pci_enable_msi_block(pdev, num_irqs);
+    if (ret_val) {
+        LOG_ERR("MSI-M-Err = %d can't enable MSI-Multi!!", ret_val);
+        return ret_val;
+    }
+    /* Request irq on each interrupt vector */
+    for (i = 0; i < num_irqs; i++) {
+        /* If request fails on any interrupt vector then fail here */
+        if (request_irq((pdev->irq + i), tophalf_isr, IRQF_DISABLED
+                | IRQF_SHARED, "msi-multi", pmetrics_device_elem) < 0) {
+            LOG_ERR("MSI-M-Err: Request IRQ failed ivec = %d", pdev->irq + i);
+            ret_val = -EINVAL;
+            /* As we are allocating memory for one node at a time
+             * failing here needs freeing up memory previously allocated */
+            goto free_msim;
+        } else {
+            /* Add node after determining interrupt vector req is successful */
+            LOG_DBG("Add Node for Vector = %d", pdev->irq + i);
+            if (add_irq_node(pmetrics_device_elem, (pdev->irq + i), i) < 0) {
+                LOG_ERR("MSI-M-Err: can't add irq node!!");
+                ret_val = -ENOMEM;
+                goto free_msim;
+            } /* end of if add_irq_node */
+        } /* end of if request_irq */
+    } /* end of for num_irqs */
+
+    /* Clear all the interrupts for MSI Multi */
+    writel(UINT_MAX, &pmetrics_device_elem->irq_process.intmc_ptr);
+
+    return ret_val;
+free_msim:
+    /* clean up all nodes even if one irq request fails */
+    deallocate_irq_trk(pmetrics_device_elem);
+    return ret_val;
+}
+
+/*
+ * Update MSIX pointer in the irq process structure.
+ */
+static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
+        u16 offset)
+{
+    u8 *msixptr;    /* msix pointer for this device   */
+    u32 msi_x_to;   /* msix table offset in pci space */
+    u32 msix_tbir;  /* msix table BIR BAR indicator   */
+    struct nvme_device *metrics_device = pmetrics_device_elem->metrics_device;
+    struct pci_dev *pdev = metrics_device->private_dev.pdev;
+
+    /* compute MSI-X Table offset using given MSI-X offset */
+    offset += 0x4;
+    /* Read the MTAB Table offset and TBIR from pci space */
+    pci_read_config_dword(pdev, offset, &msi_x_to);
+    /* Compute TBIR using data located in NMVE space at the offset */
+    msix_tbir = readl(&offset) & MSIX_TBIR_MASK;
+    /* Check which BAR locations are used for Table offset */
+    if (msix_tbir == 0x0) {
+        /* if BIR is 0 it indicates BAR 0 offset is used. */
+        msixptr = metrics_device->private_dev.bar_0_mapped +
+                (msi_x_to & ~MSIX_TBIR_MASK);
+    } else if (msix_tbir == 0x4) {
+        LOG_DBG("BAR 4 Location not supported yet...");
+        return -EINVAL;
+    } else if (msix_tbir == 0x5) {
+        LOG_DBG("BAR 5 locations not supported yet...");
+        return -EINVAL;
+    } else {
+        LOG_ERR("Trying to access TBIR reserved bits");
+        return -EINVAL;
+    }
+    /* Update the msix pointer in the device metrics */
+    pmetrics_device_elem->irq_process.msixptr = msixptr;
+    return SUCCESS;
+}
+
+/*
+ * set_msix_mask_bit - This function will mask or unmask the vector
+ * control bit inside the MSIX table for the corresponding irq_no.
+ * When the mask is set, the controller will not generate the interrupts
+ * for this interrupt vector. To unmask, flag value is passed with value
+ * 0x0 and the corresponding interrupt vector is unmasked and controller
+ * will start generating the interrupts.
+ */
+static void set_msix_mask_bit(u8 *irq_msixptr, u16 irq_no, u32 flag)
+{
+    u8 *msixptr;
+    /* Get the MSI-X pointer offset */
+    msixptr = irq_msixptr;
+    /* Compute vector control offset for this irq no. */
+    msixptr += MSIX_VEC_CTRL + irq_no * MSIX_ENTRY_SIZE;
+    /* Mask or unmask the the MSIX vector by writing flag bit */
+    writel(flag, msixptr);
 }
 
 /*
  * mask_interrupts - Determine the type of masking required based
  * on the interrupt scheme active. Mask interrupts for MSI-Single,
- * MSI- Multi.
+ * MSI- Multi and MSIX
  */
-static void mask_interrupts(int irq_no, struct  nvme_device *metrics_device)
+static void mask_interrupts(u16 irq_no, struct  metrics_device_list
+        *pmetrics_device_elem)
 {
+    struct  nvme_device *metrics_device = pmetrics_device_elem->metrics_device;
     /* handle all masking here */
     switch (metrics_device->public_dev.irq_active.irq_type) {
-    case INT_MSI_SINGLE:
-    case INT_MSI_MULTI:
+    case INT_MSI_SINGLE: /* Same as MSI MULTI */
+    case INT_MSI_MULTI: /* Masking MSI interrupt in INTMS register */
         /* Mask INTMS register for the int generated */
-        writel((0x1 << irq_no), &metrics_device->private_dev.
-                nvme_ctrl_space->intms);
+        writel((0x1 << irq_no), &pmetrics_device_elem->irq_process.intms_ptr);
         break;
-    case INT_MSIX:
-        LOG_DBG("TODO: Mask for MSI-X to do in future.");
+    case INT_MSIX: /* Masking for MSI-X using vector control */
+        set_msix_mask_bit(pmetrics_device_elem->irq_process.msixptr,
+                irq_no, 0x1);
         break;
     case INT_NONE:
         LOG_DBG("INT_NONE should not be fired...");
@@ -524,20 +667,22 @@ static void mask_interrupts(int irq_no, struct  nvme_device *metrics_device)
 
 /*
  * ummask_interrupts - Determine the type of interrupt scheme and
- * unmask interrupts for MSI-Single, MSI- Multi.
+ * unmask interrupts for MSI-Single, MSI- Multi and MSIX.
  */
-static void ummask_interrupts(int irq_no, struct  nvme_device *metrics_device)
+static void ummask_interrupts(u16 irq_no, struct  metrics_device_list
+        *pmetrics_device_elem)
 {
+    struct  nvme_device *metrics_device = pmetrics_device_elem->metrics_device;
     /* handle all unmasking here */
     switch (metrics_device->public_dev.irq_active.irq_type) {
     case INT_MSI_SINGLE:
     case INT_MSI_MULTI:
         /* unMask INTMC register for the int generated */
-        writel((0x1 << irq_no), &metrics_device->private_dev.
-                nvme_ctrl_space->intmc);
+        writel((0x1 << irq_no), &pmetrics_device_elem->irq_process.intmc_ptr);
         break;
-    case INT_MSIX:
-        LOG_DBG("TODO: ummask for MSI-X to do in future.");
+    case INT_MSIX: /* ummask for MSI-X */
+        set_msix_mask_bit(pmetrics_device_elem->irq_process.msixptr,
+                irq_no, 0x0);
         break;
     case INT_NONE:
         LOG_DBG("INT_NONE should not be fired...");
@@ -550,7 +695,7 @@ static void ummask_interrupts(int irq_no, struct  nvme_device *metrics_device)
 
 /*
  * Top half isr responds to the interrupt by masking the corresponding irq
- * vector if required and scheduling the bottom half processing. Initilally
+ * vector if required and scheduling the bottom half processing. Initially
  * it grabs the spin_lock to avoid multi-core systems from kernel preemption.
  */
 irqreturn_t tophalf_isr(int int_vec, void *dev_id)
@@ -558,32 +703,47 @@ irqreturn_t tophalf_isr(int int_vec, void *dev_id)
     /* Point to the right hardware item using this dev_id */
     struct  metrics_device_list *pmetrics_device_elem = dev_id;
     int irq_no;
+    irqreturn_t ret_val = IRQ_HANDLED;
 
     /* Acquire spin lock and enter into critical section */
     spin_lock(&pmetrics_device_elem->irq_process.isr_spin_lock);
+
+    if (!pmetrics_device_elem->metrics_device->private_dev.open_flag) {
+        spin_unlock(&pmetrics_device_elem->irq_process.isr_spin_lock);
+        LOG_DBG("Ignoring IVEC %d due to the device being closed", int_vec);
+        return IRQ_HANDLED;
+    }
     /* Compute the index for the int vector fired. */
     irq_no = get_ivec_index(pmetrics_device_elem, int_vec);
 
-    /* TODO: Remove this debug, before releasing */
-    LOG_DBG("Int_vec:Irq_no = %d:%d", int_vec, irq_no);
-    /* Mask the interrupts if required */
-    mask_interrupts(irq_no, pmetrics_device_elem->metrics_device);
     /* Checking if the irq fired is not a spurious interrupt */
-    if (irq_no < pmetrics_device_elem->metrics_device->public_dev.irq_active.
-            num_irqs) {
+    if (irq_no < (sizeof(pmetrics_device_elem->irq_process.wrk_sched.
+            int_vec_ctx)/sizeof(pmetrics_device_elem->irq_process.wrk_sched.
+                int_vec_ctx[0]))) {
+        /* Mask the interrupts if required */
+        mask_interrupts(irq_no, pmetrics_device_elem);
         /* Set the irq that was fired in its place in the array */
+        if (pmetrics_device_elem->irq_process.wrk_sched.
+                int_vec_ctx[irq_no] != 0) {
+            LOG_ERR("Device not recognizing masking of Int_vec:Irq_no = %d:%d",
+                    int_vec, irq_no);
+        }
         pmetrics_device_elem->irq_process.wrk_sched.int_vec_ctx[irq_no] = 1;
-    }
-    /* Queue the bh. Don't worry about multiple en-queuing as bottom half
-     * will handle for every int fired. */
-    if (schedule_work(&pmetrics_device_elem->irq_process.wrk_sched.sched_wq)
-            == 0) {
-        LOG_DBG("Work item already scheduled...");
+
+        /* Queue the bh. Don't worry about multiple en-queuing as bottom half
+         * will handle for every int fired. */
+        if (schedule_work(&pmetrics_device_elem->irq_process.wrk_sched.sched_wq)
+                == 0) {
+            LOG_DBG("Work item already scheduled...");
+        }
+    } else {
+        LOG_ERR("Spurious or Latent Irq_no = %d", irq_no);
+        ret_val = IRQ_NONE;
     }
     /* unlock as we are done with critical section */
     spin_unlock(&pmetrics_device_elem->irq_process.isr_spin_lock);
 
-    return IRQ_HANDLED;
+    return ret_val;
 }
 
 /*
@@ -593,7 +753,7 @@ irqreturn_t tophalf_isr(int int_vec, void *dev_id)
  * If no slot is set in the array, returns MAX + 1 to indicate invalid
  * index.
  */
-static u16 get_irq_enabled(u16 int_vec[])
+static u16 get_irq_enabled(u8 int_vec[])
 {
     int i;
     for (i = 0; i < (sizeof(int_vec)/sizeof(int_vec[0])); i++) {
@@ -614,8 +774,9 @@ static u16 get_irq_enabled(u16 int_vec[])
 static void set_irq_cq_nodes(struct metrics_device_list *pmetrics_device_elem,
         u16 int_vec)
 {
-    struct  irq_track     *pirq_node;  /* Pointer to irq node */
-    struct  irq_cq_track  *picq_node;  /* Pointer to cq node  */
+    struct  irq_track     *pirq_node;  /* Pointer to irq node     */
+    struct  irq_cq_track  *picq_node;  /* Pointer to cq node      */
+    u8 found_once = 0;  /* flag to indicate if int_vec node exits */
 
     /* Loop for each irq node */
     list_for_each_entry(pirq_node, &pmetrics_device_elem->irq_process.
@@ -627,9 +788,14 @@ static void set_irq_cq_nodes(struct metrics_device_list *pmetrics_device_elem,
                 picq_node->isr_count++;
                 LOG_DBG("ISR Count = %d for CQ ID = %d",
                         picq_node->isr_count, picq_node->cq_id);
+                found_once = 1;
             } /* end of list for icq */
         } /* end of if ivec */
     } /* end of list for irq */
+
+    if (!found_once) {
+        LOG_ERR("Unable to find any isr node for int_vec %d", int_vec);
+    }
 }
 
 /*
@@ -650,26 +816,36 @@ static void bh_callback(struct work_struct *work)
     u16 irq_no = 0;
     u16 int_vec = 0;
 
+    /* lock irq mutex as we will access the irq nodes */
+    mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
+
+    /* Check if the device is being closed before bh got scheduled */
+    if (!pmetrics_device_elem->metrics_device->private_dev.open_flag) {
+        /* unlock as we are exiting from here without processing bh */
+        mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
+        LOG_DBG("Ignoring bottom half due to the device being closed...");
+        return;
+    }
     /* Check if irq is enabled */
     irq_no = get_irq_enabled(pmetrics_device_elem->irq_process.
             wrk_sched.int_vec_ctx);
+
     /* Process for any irq that would have been set in the Array by Top Half */
     while (irq_no < MAX_IRQ_VEC_MSI_X) {
         /* lookup for int_vec using irq_no */
         int_vec = get_int_vec(pmetrics_device_elem, irq_no);
-        /* lock irq mutex as we will access the irq nodes */
-        mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
         /* Set the values in the node */
         set_irq_cq_nodes(pmetrics_device_elem, int_vec);
-        /* unlock as we are done wiht updating the irq nodes */
-        mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
         /* unmask the irq for which it was masked in Top Half */
-        ummask_interrupts(irq_no, pmetrics_device_elem->metrics_device);
+        ummask_interrupts(irq_no, pmetrics_device_elem);
         LOG_DBG("ISR = %d is serviced in Bottom Half", int_vec);
         /* Get the irq_no that was set in sync/asynchronously */
         irq_no = get_irq_enabled(pmetrics_device_elem->irq_process.
                 wrk_sched.int_vec_ctx);
     }
+    /* unlock as we are done with updating the irq nodes */
+     mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
+
 }
 
 /*

@@ -802,8 +802,6 @@ int main()
         printf("Memalign Failed");
         return 0;
     }
-    memset(write_buffer_wo_meta, 1, READ_BUFFER_SIZE/2);
-    memset(write_buffer_wo_meta + 4096, 2, READ_BUFFER_SIZE/2);
 
     write_buffer = malloc(READ_BUFFER_SIZE);
     if (write_buffer == NULL) {
@@ -814,6 +812,7 @@ int main()
     for (i =0 ; i<READ_BUFFER_SIZE ; i++)
     {
         *(char *)(write_buffer + i) = i;
+        *(char *)(write_buffer_wo_meta + i) = i;
     }
 
     /* Allocating buffer for Discontiguous IOCQ and setting to 0 */
@@ -1170,13 +1169,13 @@ int main()
     set_irq_none(file_desc);
 
     free(read_buffer);
-    free(identify_buffer);
     free(discontg_sq_buf);
     free(discontg_cq_buf);
     free(write_buffer);
     free(write_buffer_wo_meta);
     free(irq_dcq_buf);
     free(irq_dsq_buf);
+    free(identify_buffer);
 
     printf("\n\n****** END OF DEMO ******\n\n");
     close(file_desc);

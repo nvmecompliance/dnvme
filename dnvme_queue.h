@@ -25,9 +25,6 @@
 /* Admin SQ tail Door bell offset */
 #define NVME_SQ0TBDL    0x1000
 
-/* Admin SQ tail Door bell offset */
-#define NVME_CQ0TBDL    0x1004
-
 /* Admin SQ size Mask bits 0-11 in AQA */
 #define ASQS_MASK       0xFFF
 

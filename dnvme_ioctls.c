@@ -1294,8 +1294,10 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
         goto exit_prep_sq;
     }
 
-    // Does the ctrl'r allow discontig mem to back an IOQ? if not then fail
-    // because it isn't valid and will place the system in an unknown state
+    /*
+     * Does the ctrl'r allow discontig mem to back an IOQ? if not then fail
+     * because it isn't valid and will place the system in an unknown state
+     */
     if (READQ(&pnvme_dev->private_dev.nvme_ctrl_space->cap) & REGMASK_CAP_CQR) {
         if (prep_sq->contig == 0) {
             LOG_DBG("Device doesn't support discontig Q memory");
@@ -1367,8 +1369,10 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
         goto exit_prep_cq;
     }
 
-    // Does the ctrl'r allow discontig mem to back an IOQ? if not then fail
-    // because it isn't valid and will place the system in an unknown state
+    /*
+     *  Does the ctrl'r allow discontig mem to back an IOQ? if not then fail
+     *  because it isn't valid and will place the system in an unknown state
+     */
     if (READQ(&pnvme_dev->private_dev.nvme_ctrl_space->cap) & REGMASK_CAP_CQR) {
         if (prep_cq->contig == 0) {
             LOG_DBG("Device doesn't support discontig Q memory");

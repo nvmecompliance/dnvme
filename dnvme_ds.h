@@ -184,17 +184,20 @@ struct nvme_device {
  */
 struct work_container {
     struct  work_struct sched_wq;     /* Work Struct item used in bh */
-    u16     int_vec_ctx[MAX_VEC_SLT]; /* Array to indicate irq fired */
+    u8     int_vec_ctx[MAX_VEC_SLT];  /* Array to indicate irq fired */
 };
 
 /*
  * Irq Processing structure to hold all the irq parameters per device.
  */
 struct irq_processing {
-    struct  mutex       irq_track_mtx;     /* Mutex for locking irq list    */
-    struct  work_container wrk_sched;      /* work struct container for bh  */
-    spinlock_t isr_spin_lock;              /* isr spin lock per device      */
-    struct  list_head   irq_track_list;    /* IRQ list; sorted by irq_no    */
+    struct  work_container wrk_sched;  /* work struct container for bh       */
+    spinlock_t isr_spin_lock;          /* eliminates Top half concurrency    */
+    struct  mutex     irq_track_mtx;   /* Mutex for access to irq_track_list */
+    struct  list_head irq_track_list;  /* IRQ list; sorted by irq_no         */
+    u8 *intms_ptr;                     /* int vec mask set register offset   */
+    u8 *intmc_ptr;                     /* int vec mask clear register offset */
+    u8 *msixptr;                       /* Pointer to MSI-X table offset      */
 };
 
 /*
