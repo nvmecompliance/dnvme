@@ -119,12 +119,11 @@ struct metrics_sq {
 
 /*
  * Structure with cq track parameters for interrupt related functionality.
+ * Note:- Struct used for u16 for future additions
  */
 struct irq_cq_track {
     struct  list_head   irq_cq_head;    /* linked list head for irq CQ trk   */
     u16     cq_id;                      /* Completion Q id                   */
-    u8      isr_fired;                  /* flag to indicate if irq has fired */
-    u32     isr_count;                  /* total no. of times irq fired      */
 };
 
 /*
@@ -132,9 +131,11 @@ struct irq_cq_track {
  */
 struct irq_track {
     struct  list_head   irq_list_hd;    /* list head for irq track list   */
-    u16     irq_no;                     /* idx in list; always 0 based    */
-    u16     int_vec;                    /* vec number; assigned by OS     */
     struct  list_head   irq_cq_track;   /* linked list of IRQ CQ nodes    */
+    u16     irq_no;                     /* idx in list; always 0 based    */
+    u32     int_vec;                    /* vec number; assigned by OS     */
+    u8      isr_fired;                  /* flag to indicate if irq has fired */
+    u32     isr_count;                  /* total no. of times irq fired      */
 };
 
 /*
@@ -183,21 +184,40 @@ struct nvme_device {
  * Work container which holds vectors and scheduled work queue item
  */
 struct work_container {
-    struct  work_struct sched_wq;     /* Work Struct item used in bh */
-    u8     int_vec_ctx[MAX_VEC_SLT];  /* Array to indicate irq fired */
+    struct list_head wrk_list_hd;
+    struct work_struct sched_wq; /* Work Struct item used in bh */
+    u16 irq_no; /* 0 based irq_no */
+    u32 int_vec; /* Interrupt vectors assigned by the kernel */
+    /* Pointer to the IRQ_processing strucutre of the device */
+    struct irq_processing *pirq_process;
 };
 
 /*
  * Irq Processing structure to hold all the irq parameters per device.
  */
 struct irq_processing {
-    struct  work_container wrk_sched;  /* work struct container for bh       */
-    spinlock_t isr_spin_lock;          /* eliminates Top half concurrency    */
-    struct  mutex     irq_track_mtx;   /* Mutex for access to irq_track_list */
-    struct  list_head irq_track_list;  /* IRQ list; sorted by irq_no         */
-    u8 *intms_ptr;                     /* int vec mask set register offset   */
-    u8 *intmc_ptr;                     /* int vec mask clear register offset */
-    u8 *msixptr;                       /* Pointer to MSI-X table offset      */
+    /* irq_track_mtx is used only while traversing/editing/deleting the
+     * irq_track_list
+     */
+    struct list_head irq_track_list; /* IRQ list; sorted by irq_no */
+    struct mutex irq_track_mtx; /* Mutex for access to irq_track_list */
+
+    /* To resolve contention for ISR's getting scheduled on different cores */
+    spinlock_t isr_spin_lock;
+
+    /* Mask pointer for ISR (read both in ISR and BH) */
+    /* Pointer to MSI-X table offset or INTMS register */
+    u8 *mask_ptr;
+    /* Will only be read by ISR and set once per SET/DISABLE of IRQ scheme */
+    u8 irq_type; /* Type of IRQ set */
+
+    /* Used by ISR to enqueue work to BH */
+    struct workqueue_struct *wq; /* Wq per device */
+
+    /* Used by BH to dequeue work and process on it */
+    /* Head of work_container's list */
+    /* Remains static throughout the lifetime of the interrupts */
+    struct list_head wrk_item_list;
 };
 
 /*

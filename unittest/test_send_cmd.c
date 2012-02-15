@@ -339,8 +339,10 @@ void ioctl_send_identify_cmd(int file_desc, void* addr)
     memset(addr, 0, READ_BUFFER_SIZE/2);
 
     printf("\nEnter NSID:\n");
+    fflush(stdout);
     scanf ("%u", &nsid);
     printf("\nController:Namespace (1:0)\n");
+    fflush(stdout);
     scanf ("%u", &cns);
 
     /* Fill the command for create discontig IOSQ*/
@@ -378,8 +380,10 @@ void ioctl_send_nvme_write(int file_desc, void *addr)
     uint64_t slba;
 
     printf("\nEnter NSID:\n");
+    fflush(stdout);
     scanf ("%u", &nsid);
     printf("\nEnter SLBA:\n");
+    fflush(stdout);
     scanf ("%lu", &slba);
 
     /* Fill the command for create discontig IOSQ*/
@@ -431,8 +435,10 @@ void ioctl_send_nvme_read(int file_desc, void* addr)
     uint64_t slba;
 
     printf("\nEnter NSID:\n");
+    fflush(stdout);
     scanf ("%u", &nsid);
     printf("\nEnter SLBA:\n");
+    fflush(stdout);
     scanf ("%lu", &slba);
 
     /* Fill the command for create discontig IOSQ*/
@@ -481,8 +487,10 @@ void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id, void*
     uint64_t slba;
 
     printf("\nEnter NSID:\n");
+    fflush(stdout);
     scanf ("%u", &nsid);
     printf("\nEnter SLBA:\n");
+    fflush(stdout);
     scanf ("%lu", &slba);
     /* Fill the command for create discontig IOSQ*/
     nvme_write.opcode = 0x01;
@@ -533,8 +541,10 @@ void ioctl_send_nvme_read_using_metabuff(int file_desc, void* addr, uint32_t met
     uint64_t slba;
 
     printf("\nEnter NSID:\n");
+    fflush(stdout);
     scanf ("%u", &nsid);
     printf("\nEnter SLBA:\n");
+    fflush(stdout);
     scanf ("%lu", &slba);
     /* Fill the command for create discontig IOSQ*/
     nvme_read.opcode = 0x02;

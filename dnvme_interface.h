@@ -32,7 +32,7 @@
  * this file to adhere to the new modification and requirements of the API.
  * tnvme refuses to execute when it detects a API version mismatch to dnvme.
  */
-#define    API_VERSION          0x00010000          /* 1.0.0 */
+#define    API_VERSION          0x00010001          /* 1.0.1 */
 
 
 /**
@@ -159,7 +159,6 @@ struct nvme_gen_cq {
     uint16_t    elements;    /* pass the actual elements in this q           */
     uint8_t     irq_enabled; /* sets when the irq scheme is active           */
     uint16_t    irq_no;      /* idx in list; always 0 based                  */
-    uint16_t    int_vec;     /* vec number; assigned by OS                   */
     uint8_t     pbit_new_entry; /* Indicates if a new entry is in CQ         */
 };
 
@@ -244,6 +243,8 @@ struct nvme_file {
 struct nvme_reap_inquiry {
     uint16_t    q_id;           /* CQ ID to reap commands for             */
     uint16_t    num_remaining;  /* return no of cmds waiting to be reaped */
+    /* no of times isr was fired which is associated with cq reaped on    */
+    uint32_t   isr_count;
 };
 
 /**
@@ -254,8 +255,10 @@ struct nvme_reap {
     uint16_t elements;      /* Get the no. of elements to be reaped   */
     uint16_t num_remaining; /* return no. of cmds waiting for this cq */
     uint16_t num_reaped;    /* Return no. of elements reaped          */
-    uint16_t size;          /* Size of buffer to fill data to         */
     uint8_t  *buffer;       /* Buffer to copy reaped data             */
+    /* no of times isr was fired which is associated with cq reaped on    */
+    uint32_t   isr_count;
+    uint16_t size;          /* Size of buffer to fill data to         */
 };
 
 /**

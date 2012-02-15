@@ -90,8 +90,9 @@ int ioctl_reap_inquiry(int file_desc, int cq_id)
         exit(-1);
     }
     else {
-        printf("\t\tReaped on CQ ID = %d, Num_Remaining = %d\n",
-                rp_inq.q_id, rp_inq.num_remaining);
+        printf("\tReap Inquiry on CQ ID = %d, Num_Remaining = %d,"
+            " ISR_count = %d\n", rp_inq.q_id, rp_inq.num_remaining,
+                rp_inq.isr_count);
     }
     return rp_inq.num_remaining;
 }
@@ -119,7 +120,7 @@ void ioctl_reap_cq(int file_desc, int cq_id, int elements, int size, int display
 
     rp_cq.q_id = cq_id;
     rp_cq.elements = elements;
-    rp_cq.size = size; //CE entry size is 16 on CQ
+    rp_cq.size = (size * elements);
     rp_cq.buffer = malloc(sizeof(char) * rp_cq.size);
     if (rp_cq.buffer == NULL) {
         printf("Malloc Failed");
@@ -131,9 +132,10 @@ void ioctl_reap_cq(int file_desc, int cq_id, int elements, int size, int display
     }
     else {
 
-        printf("\n\tCQ ID = %d, No Request = %d, No Reaped = %d No Rem = %d",
-                rp_cq.q_id, rp_cq.elements, rp_cq.num_reaped,
-                rp_cq.num_remaining);
+        printf("\tReaped on CQ ID = %d, No Request = %d, No Reaped = %d,"
+            " No Rem = %d, ISR_count = %d\n", rp_cq.q_id, rp_cq.elements,
+                rp_cq.num_reaped, rp_cq.num_remaining, rp_cq.isr_count);
+
         if (display)
             display_cq_data(rp_cq.buffer, rp_cq.num_reaped);
     }

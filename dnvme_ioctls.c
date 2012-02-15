@@ -535,6 +535,9 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     /* Set Admin CQ Id. */
     pmetrics_cq_list->public_cq.q_id = admn_id;
     pmetrics_cq_list->public_cq.elements = create_admn_q->elements;
+    pmetrics_cq_list->public_cq.irq_no = 0;
+    pmetrics_cq_list->public_cq.irq_enabled = 1;
+
     LOG_NRM("Adding node for Admin CQ to the list.");
 
     /* Call dma allocation, creation of contiguous memory for ACQ */
@@ -552,16 +555,6 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     list_add_tail(&pmetrics_cq_list->cq_list_hd,
             &pmetrics_device_element->metrics_cq_list);
 
-    /* After the CQ Node is added in the list, set interrupts to ACQ */
-    ret_code = set_ivec_cq(pmetrics_device_element, admn_id, 0,
-            &pmetrics_cq_list->public_cq.irq_enabled, &pmetrics_cq_list->
-                public_cq.int_vec);
-    if (ret_code != SUCCESS) {
-        LOG_ERR("Adding IRQ node for Admin CQ failed!!");
-        goto acq_exit;
-    }
-    LOG_DBG("Admn irq_no:int_vec = %d:%d", pmetrics_cq_list->public_cq.irq_no,
-            pmetrics_cq_list->public_cq.int_vec);
     LOG_DBG("Admin CQ successfully created and added to linked list...");
     return ret_code;
 
@@ -635,9 +628,11 @@ int driver_ioctl_init(struct pci_dev *pdev,
 
     /* Initialize irq linked list for this device. */
     INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.irq_track_list));
+    /* Initialize irq linked list for the work items*/
+    INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.wrk_item_list));
 
-    /* Initialize irq scheme to INT_NONE and perform cleanup */
-    ret_val = init_irq_track(pmetrics_device_list, INT_NONE);
+    /* Initialize irq scheme to INT_NONE and perform cleanup of all lists */
+    ret_val = init_irq_lists(pmetrics_device_list, INT_NONE);
     if (ret_val < 0) {
         LOG_ERR("IRQ track initialization failed...");
         goto iocinit_out;
@@ -1043,25 +1038,25 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
         /* Check if interrupts should be enabled for IO CQ */
         if (nvme_create_cq->cq_flags & CDW11_IEN) {
-            /* Assign irq_no for IO_CQ in public CQ metrics node */
-            p_cmd_cq->public_cq.irq_no = nvme_create_cq->irq_no;
-            /* Call set_ivec_cq which sets the IO CQ for the irq_no */
-            ret_code = set_ivec_cq(pmetrics_device, p_cmd_cq->public_cq.q_id,
-                p_cmd_cq->public_cq.irq_no, &p_cmd_cq->public_cq.irq_enabled,
-                    &p_cmd_cq->public_cq.int_vec);
-            if (ret_code < 0) {
-                LOG_ERR("Setting Irq No = %d failed for IO CQ = %d!",
-                        nvme_create_cq->irq_no, p_cmd_cq->public_cq.q_id);
-                goto err;
-            }
-            /* consistency b/w cmd and set_irq checking. If set_irq is set to
-             * INT_NONE and Create IO cmds has IEN set then error out */
-            if (p_cmd_cq->public_cq.irq_enabled == 0) {
-                LOG_ERR("CQ %d's CMD is to set IRQ, but IRQ is INT_NONE",
-                        p_cmd_cq->public_cq.q_id);
+            /* Check the Interrupt scheme set up */
+            if (pmetrics_device->metrics_device->public_dev.irq_active.irq_type
+                == INT_NONE) {
+                LOG_ERR("Interrupt scheme and Create IOCQ cmd out of sync");
                 ret_code = -EINVAL;
                 goto err;
             }
+
+            /* Setting the IO CQ for the irq_no */
+            ret_code = update_cq_irqtrack(pmetrics_device,
+                p_cmd_cq->public_cq.q_id, nvme_create_cq->irq_no,
+                    &p_cmd_cq->public_cq.irq_enabled);
+            if (ret_code < 0) {
+                LOG_ERR("Setting Irq No = %d failed for IO CQ = %d",
+                    nvme_create_cq->irq_no, p_cmd_cq->public_cq.q_id);
+                goto err;
+            }
+            /* Assign irq_no for IO_CQ in public CQ metrics node */
+            p_cmd_cq->public_cq.irq_no = nvme_create_cq->irq_no;
         } /* end of irq setting for IO CQs */
 
         if (p_cmd_cq->private_cq.contig == 0) {
@@ -1394,6 +1389,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     pmetrics_cq_node->public_cq.q_id = prep_cq->cq_id;
     pmetrics_cq_node->public_cq.elements = prep_cq->elements;
     pmetrics_cq_node->private_cq.contig = prep_cq->contig;
+    pmetrics_cq_node->public_cq.irq_enabled = 0;
 
     ret_code = nvme_prepare_cq(pmetrics_cq_node, pnvme_dev);
     if (ret_code < 0) {
