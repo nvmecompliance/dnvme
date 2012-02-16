@@ -1,0 +1,10 @@
+nvmecompliance_release=1.1.0 Added interrupt support; MSI, MSI-X, no pin based
+    1) MSI-single and MSI-multi are coded along side of MSI-X, however no 
+       hardware is available, and QEMU does not support MSI based interrupts,
+       and thus this support has not be verified bug free.
+    2) MSI-X is verified bug free to the ability of tnvme and unit tests
+       which reside within this repo.
+    3) Pin-based interrupts need to be supported in dnvme on an as needed basis.
+nvmecompliance_release=1.0.1 Enhancements and bugfixes; added read/write cmds
+    1) Planning on supporting interrupts in the future.
+nvmecompliance_release=1.0.0 First official release of the NVME compliance suite

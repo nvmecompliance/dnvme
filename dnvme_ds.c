@@ -133,9 +133,6 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L2"irq enabled = %d", pmetrics_cq_list->
                         public_cq.irq_enabled);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L2"int_vec = %d", pmetrics_cq_list->
-                        public_cq.int_vec);
-                vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L2"irq_no = %d", pmetrics_cq_list->
                         public_cq.irq_no);
                 vfs_write(file, data1, strlen(data1), &pos);
@@ -415,35 +412,63 @@ static loff_t irq_nodes_log(struct file *file, loff_t pos,
     int i = 0;
     struct  irq_track     *pirq_node;
     struct  irq_cq_track  *pirq_cq_node;
+    struct work_container *pwk_item_curr;  /* Current wk item in the list */
 
     /* locking on IRQ MUTEX here for irq track ll access */
     mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
 
+    sprintf(data1, "\nirq_process.mask_ptr = 0x%llX",
+        (u64)pmetrics_device_elem->irq_process.mask_ptr);
+    vfs_write(file, data1, strlen(data1), &pos);
+    sprintf(data1, "\nirq_process.irq_type = %d",
+        pmetrics_device_elem->irq_process.irq_type);
+    vfs_write(file, data1, strlen(data1), &pos);
+
     /* Loop for the first irq node in irq track list */
     list_for_each_entry(pirq_node, &pmetrics_device_elem->
             irq_process.irq_track_list, irq_list_hd) {
-        sprintf(data1, "\npirq_node[%d]", i++);
+        sprintf(data1, IDNT_L1"pirq_node[%d]", i++);
         vfs_write(file, data1, strlen(data1), &pos);
-        sprintf(data1, IDNT_L1"pirq_node->irq_no = %d",
+        sprintf(data1, IDNT_L2"pirq_node->irq_no = %d",
                 pirq_node->irq_no);
         vfs_write(file, data1, strlen(data1), &pos);
-        sprintf(data1, IDNT_L1"pirq_node->int_vec = %d",
+        sprintf(data1, IDNT_L2"pirq_node->int_vec = %d",
                 pirq_node->int_vec);
         vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L2"pirq_node->isr_fired = %d",
+            pirq_node->isr_fired);
+        vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L2"pirq_node->isr_count = %d",
+            pirq_node->isr_count);
+        vfs_write(file, data1, strlen(data1), &pos);
+
         /* Loop for each cq node within this irq node */
         list_for_each_entry(pirq_cq_node, &pirq_node->irq_cq_track,
                 irq_cq_head) {
-            sprintf(data1, IDNT_L2"pirq_cq_node->cq_id = %d",
+            sprintf(data1, IDNT_L3"pirq_cq_node->cq_id = %d",
                     pirq_cq_node->cq_id);
             vfs_write(file, data1, strlen(data1), &pos);
-            sprintf(data1, IDNT_L2"pirq_cq_node->isr_fired = %d",
-                    pirq_cq_node->isr_fired);
-            vfs_write(file, data1, strlen(data1), &pos);
-            sprintf(data1, IDNT_L2"pirq_cq_node->isr_count = %d",
-                    pirq_cq_node->isr_count);
-            vfs_write(file, data1, strlen(data1), &pos);
         }
+
     }
+
+    i = 0;
+    /* Loop for the work nodes */
+    list_for_each_entry(pwk_item_curr, &pmetrics_device_elem->
+            irq_process.wrk_item_list, wrk_list_hd) {
+        sprintf(data1, IDNT_L1"wk_node[%d]", i++);
+        vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L2"wk_node->irq_no = %d",
+            pwk_item_curr->irq_no);
+        vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L2"wk_node->int_vec = %d",
+            pwk_item_curr->int_vec);
+        vfs_write(file, data1, strlen(data1), &pos);
+        sprintf(data1, IDNT_L2"wk_node->pirq_process = 0x%llX",
+            (u64)pwk_item_curr->pirq_process);
+        vfs_write(file, data1, strlen(data1), &pos);
+    }
+
     /* unlock IRQ MUTEX here */
     mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
     return pos;

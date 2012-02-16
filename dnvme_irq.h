@@ -25,6 +25,14 @@
 #include "dnvme_interface.h"
 #include "dnvme_sts_chk.h"
 #include "definitions.h"
+/*
+ * MSI-X specific info
+ */
+struct msix_info {
+    u16 ts;
+    u8 *pba_tbl;
+    u8 *msix_tbl;
+};
 
 /* Max IRQ vectors for MSI SINGLE IRQ scheme */
 #define     MAX_IRQ_VEC_MSI_SIN     1
@@ -53,6 +61,20 @@
 /* Mask for MSI Multi message enable bits */
 #define     MSI_MME                 0x70
 
+/* Mask for MSIX table BIR identification */
+#define     MSIX_TBIR_MASK           0x7
+
+/* Entry size in bytes for each entry in MSIX table */
+#define     MSIX_ENTRY_SIZE         16
+
+/* MSIX Table vector control offset in bytes */
+#define     MSIX_VEC_CTRL           12
+
+/* Interrupt vector mask set(IVMS) register offset */
+#define     INTMS_OFFSET            0x0C
+
+/* Interrupt vector mask clear(IVMC) register offset */
+#define     INTMC_OFFSET            0x10
 /*
  * nvme_set_irq will set the new interrupt scheme for this device regardless
  * of the current irq scheme that is present.
@@ -61,29 +83,55 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
         struct interrupts *irq_new);
 
 /*
- * Lock on to the mutex and remove all the irq and cq track nodes.
+ * Lock on to the mutex and remove all lists used by IRQ module
+ * (the irq ,cq and work item track nodes)
  * set the current active scheme to INT_NONE.
  */
-int init_irq_track(struct metrics_device_list
+int init_irq_lists(struct metrics_device_list
         *pmetrics_device_elem, enum nvme_irq_type  irq_active);
 
+/*
+ * Determine the type of masking required based
+ * on the interrupt scheme active. Mask interrupts for MSI-Single,
+ * MSI- Multi and MSIX
+ */
+void mask_interrupts(u16 irq_no, struct irq_processing
+    *pirq_process);
+
+/*
+ * Determine the type of interrupt scheme and
+ * unmask interrupts for MSI-Single, MSI- Multi and MSIX.
+ */
+void unmask_interrupts(u16 irq_no, struct irq_processing
+    *pirq_process);
+/*
+ * Used for releasing the IRQ lists after any scheme is run
+ * Also removes all the enqueued wk items
+ * set the current active scheme to INT_NONE.
+ */
+void release_irq(struct metrics_device_list *pmetrics_device_elem);
+/*
+ * Disable and free IRQ's which were requested earlier
+ */
+void irq_disable(struct  metrics_device_list
+    *pmetrics_device_elem);
 /*
  * deallocate irq trak, will delete the cq nodes of each irq node, deallocates
  * memory allocated to each of this node. Reinitalize the linked list to
  * contain no elements.
  */
-void deallocate_irq_trk(struct  metrics_device_list *pmetrics_device_elem);
+void deallocate_irq_trk(struct  metrics_device_list
+    *pmetrics_device_elem);
+/*
+ * Deallocate all the work item nodes within the work items list
+ */
+void dealloc_wk_list(struct irq_processing *pirq_process);
 
 /*
  * add_icq_node : This function will add a Completion Q node into the
  * interrupt linked list with the given cq id.
  */
 int add_icq_node(struct irq_track *pirq_trk_node, u16 cq_id);
-
-/*
- * Initialization work for isr is done in this function.
- */
-void isr_init(struct  metrics_device_list *pmetrics_device_elem);
 
 /*
  * ISR callback routine - When any irq is fired the driver invokes the
@@ -99,18 +147,11 @@ int remove_icq_node(struct  metrics_device_list
         *pmetrics_device, u16 cq_id, u16 irq_no);
 
 /*
- * Get the corresponding interrupt vector for the given irq_no in the
- * irq track list.
- */
-u16 get_int_vec(struct  metrics_device_list *pmetrics_device_elem,
-                    u16 irq_no);
-
-/*
  * Set the IO CQ interrupt vector for the given cq_id. Add a node in the
  * IRQ tracklist with this CQ entry.
  */
-int set_ivec_cq(struct  metrics_device_list *pmetrics_device_elem, u16 cq_id,
-        u16 irq_vector, u8 *irq_enabled, u16 *int_vec);
+int update_cq_irqtrack(struct  metrics_device_list *pmetrics_device_elem,
+    u16 cq_id, u16 irq_no, u8 *irq_enabled);
 
 /*
  * reap_inquiry_isr will process reap inquiry for the given cq using irq_vec
@@ -120,13 +161,14 @@ int set_ivec_cq(struct  metrics_device_list *pmetrics_device_elem, u16 cq_id,
  * limit is not reached.
  */
 int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
-        struct  metrics_device_list *pmetrics_device_elem, u16 *num_remaining);
+    struct  metrics_device_list *pmetrics_device_elem,
+        u16 *num_remaining, u32 *isr_count);
 
-/*
- * Reset ISR will reset the ISR fired and ISR count to 0 when called for
- * the given cq node.
+/* Loop through all CQ's associated with irq_no and check whehter
+ * they are empty and if empty reset the isr_flag for that particular
+ * irq_no
  */
-int reset_isr_reap(struct metrics_cq  *pmetrics_cq_node,
-        struct  metrics_device_list *pmetrics_device_elem);
+int reset_isr_flag(struct metrics_device_list *pmetrics_device,
+    u16 irq_no);
 
 #endif

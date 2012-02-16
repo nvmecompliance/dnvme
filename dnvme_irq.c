@@ -30,30 +30,36 @@
 
 /* Static function declarations used for setting interrupt schemes. */
 static int validate_irq_inputs(struct metrics_device_list
-        *pmetrics_device_elem, struct interrupts *irq_new);
+    *pmetrics_device_elem, struct interrupts *irq_new,
+        struct msix_info *pmsix_tbl_info);
 static int set_msix(struct metrics_device_list *pmetrics_device_elem,
-        u16 num_irqs);
+    u16 num_irqs, struct msix_info *pmsix_tbl_info);
 static int set_msi_single(struct metrics_device_list *pmetrics_device_elem);
+static int set_msi_multi(struct metrics_device_list *pmetrics_device_elem,
+    u16 num_irqs);
 static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
-        u16 int_vec, u16 irq_no);
+    u32 int_vec, u16 irq_no);
 static void bh_callback(struct work_struct *work);
 static void dealloc_all_icqs(struct  irq_track *pirq_trk_list);
 static int disable_active_irq(struct metrics_device_list
-        *pmetrics_device_elem, enum nvme_irq_type  irq_active);
+    *pmetrics_device_elem, enum nvme_irq_type  irq_active);
 static int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
-        u16 *offset);
-static void set_irq_cq_nodes(struct metrics_device_list *pmetrics_device_elem,
-        u16 int_vec);
-static u16 get_irq_enabled(u16 int_vec[]);
+    u16 *offset);
+static void inc_isr_count(struct irq_processing *pirq_process,
+    u16 irq_no);
 static struct irq_track *find_irq_node(
-        struct  metrics_device_list *pmetrics_device_elem, u16 irq_no);
+    struct  metrics_device_list *pmetrics_device_elem, u16 irq_no);
 static struct irq_cq_track *find_icq_node(struct  irq_track *pirq_node,
-        u16 cq_id);
-static u16 get_ivec_index(struct  metrics_device_list *pmetrics_device_elem,
-        u16 int_vec);
-static void mask_interrupts(int irq_no, struct nvme_device *metrics_device);
-static void ummask_interrupts(int irq_no, struct nvme_device *metrics_device);
+    u16 cq_id);
+static struct work_container *get_work_item(struct  irq_processing
+    *pirq_process, u32 int_vec);
 static void nvme_disable_pin(struct pci_dev *dev);
+static int update_msixptr(struct  metrics_device_list
+    *pmetrics_device_elem, u16 offset, struct msix_info *pmsix_tbl_info);
+static void set_msix_mask_bit(u8 *irq_msixptr, u16 irq_no, u32 flag);
+static int work_queue_init(struct irq_processing *pirq_process);
+static int add_wk_item(struct irq_processing *pirq_process,
+    u32 int_vec, u16 irq_no);
 
 /*
  * nvme_set_irq will set the new interrupt scheme for this device regardless
@@ -62,14 +68,16 @@ static void nvme_disable_pin(struct pci_dev *dev);
  * NOTE: The controller should be disabled before setting up new scheme.
  */
 int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
-        struct interrupts *irq_new)
+    struct interrupts *irq_new)
 {
     int ret_val = SUCCESS;
     /* pointer to the metrics device */
     struct nvme_device *pnvme_dev = pmetrics_device_elem->metrics_device;
+    struct msix_info msix_tbl_info; /* Info for MSI-X tables */
 
     /* First validate if the inputs given are correct */
-    ret_val = validate_irq_inputs(pmetrics_device_elem, irq_new);
+    ret_val = validate_irq_inputs(pmetrics_device_elem, irq_new,
+        &msix_tbl_info);
     if (ret_val < 0) {
         LOG_ERR("Invalid inputs set or device is not disabled..");
         return ret_val;
@@ -83,24 +91,26 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
             public_dev.irq_active.irq_type);
     if (ret_val < 0) {
         LOG_ERR("Reset of IRQ to INT_NONE failed...");
-        ret_val = -EINVAL;
-        goto set_irq_out;
+        goto mutex_unlck;
     }
-
-    /* initialize parameters required for setting callbacks */
-    isr_init(pmetrics_device_elem);
+    /* initialize work queue */
+    ret_val = work_queue_init(&pmetrics_device_elem->irq_process);
+    if (ret_val < 0) {
+        LOG_ERR("Failed to initialize resources for work queue/items");
+        goto mutex_unlck;
+    }
 
     /* Switch based on new irq type desired */
     switch (irq_new->irq_type) {
     case INT_MSI_SINGLE: /* MSI Single interrupt settings */
-        /* Call to set msi single interrupt scheme to get int vec */
         ret_val = set_msi_single(pmetrics_device_elem);
         break;
     case INT_MSI_MULTI: /* MSI Multi interrupt settings */
-        /*TODO: Add multi MSI interrupt functions */
+        ret_val = set_msi_multi(pmetrics_device_elem, irq_new->num_irqs);
         break;
     case INT_MSIX: /* MSI-X interrupt settings */
-        ret_val = set_msix(pmetrics_device_elem, irq_new->num_irqs);
+        ret_val = set_msix(pmetrics_device_elem, irq_new->num_irqs,
+            &msix_tbl_info);
         break;
     case INT_NONE: /* Set IRQ type to NONE */
         /* if here then already the IRQ scheme is none */
@@ -112,25 +122,29 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
         break;
     }
 
-    /* set to the new irq scheme only if success */
+    /* Return value can be +ve,0 or -ve. 0:SUCCESS */
     if (ret_val == SUCCESS) {
+        /* set to the new irq scheme only if success */
         pnvme_dev->public_dev.irq_active.irq_type = irq_new->irq_type;
         pnvme_dev->public_dev.irq_active.num_irqs = irq_new->num_irqs;
+        /* Will only be read by ISR */
+        pmetrics_device_elem->irq_process.irq_type = irq_new->irq_type;
     }
 
-set_irq_out:
+mutex_unlck:
     /* mutex is locked so release it here.. */
     mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
-
     return ret_val;
 }
 
 /*
+ * Used for Initializing the IRQ lists before any scheme is run
  * Lock on to the mutex and remove all the irq and cq track nodes.
+ * Also removes all the enqueued wk items
  * set the current active scheme to INT_NONE.
  * NOTE: This will grab the irq mutex and releases.
  */
-int init_irq_track(struct metrics_device_list
+int init_irq_lists(struct metrics_device_list
         *pmetrics_device_elem, enum nvme_irq_type  irq_active)
 {
     int ret_val;
@@ -146,6 +160,42 @@ int init_irq_track(struct metrics_device_list
 }
 
 /*
+ * Used for releasing the IRQ lists after any scheme is run
+ * Also removes all the enqueued wk items
+ * set the current active scheme to INT_NONE.
+ */
+void release_irq(struct metrics_device_list *pmetrics_device_elem)
+{
+    /* Disable the IRQ */
+    irq_disable(pmetrics_device_elem);
+
+    if (pmetrics_device_elem->irq_process.wq) {
+        LOG_DBG("Wait for the WQ to get flushed");
+        /* Flush the WQ and wait till all BH's are executed */
+        flush_workqueue(pmetrics_device_elem->irq_process.wq);
+        LOG_DBG("Destroy the recently flushed WQ");
+        /* Destroy the WQ */
+        destroy_workqueue(pmetrics_device_elem->irq_process.wq);
+        pmetrics_device_elem->irq_process.wq = NULL;
+    }
+    /* Note Mutex lock and unlock not required
+     * even though we are editing the IRQ track list
+     * since no more ISR's and BH's are pending
+     */
+    /* clean up and free all IRQ linked list nodes */
+    deallocate_irq_trk(pmetrics_device_elem);
+    /*Dealloc the work list if it exists */
+    dealloc_wk_list(&pmetrics_device_elem->irq_process);
+
+    /* Now we can Set IRQ type to INT_NONE */
+    pmetrics_device_elem->metrics_device->public_dev.irq_active.
+      irq_type = INT_NONE;
+    pmetrics_device_elem->metrics_device->public_dev.irq_active.
+      num_irqs = 0;
+    /* Will only be read by ISR */
+    pmetrics_device_elem->irq_process.irq_type = INT_NONE;
+}
+/*
  * The function first deallocates the IRQ linked list, then disables IRQ
  * scheme sent in irq_active, finally resets active irq scheme to INT_NONE.
  * Also re-initializes the irq track linked list.
@@ -154,9 +204,6 @@ int init_irq_track(struct metrics_device_list
 static int disable_active_irq(struct metrics_device_list
         *pmetrics_device_elem, enum nvme_irq_type  irq_active)
 {
-    /* pointer to the pci device */
-    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
-            private_dev.pdev;
 
 #ifdef DEBUG
     /* If mutex is not locked then exit here */
@@ -167,37 +214,22 @@ static int disable_active_irq(struct metrics_device_list
     }
 #endif
 
+    /* Disable the IRQ */
+    irq_disable(pmetrics_device_elem);
+
     /* clean up and free all IRQ linked list nodes */
     deallocate_irq_trk(pmetrics_device_elem);
 
-    /* disable the PIN interrupts*/
-    nvme_disable_pin(pdev);
+    /*Dealloc the work list if it exists */
+    dealloc_wk_list(&pmetrics_device_elem->irq_process);
 
-    /* Perform setting of IRQ to none based on active scheme of IRQ */
-    if (irq_active == INT_MSI_SINGLE) {
-        /* Only one interrupt so call disable once */
-        pci_disable_msi(pdev);
-        LOG_DBG("INT_MSI SINGLE Disabled");
-    } else if (irq_active == INT_MSI_MULTI) {
-        /* TODO loop and disable multiple times..*/
-        LOG_DBG("INT_MSI-Multiple Disabled (not done yet!!)");
-    } else if (irq_active == INT_MSIX) {
-        /* disable OS to generate MISX */
-        pci_disable_msix(pdev);
-        LOG_DBG("INT_MSIX Disabled");
-    } else {
-        /* Calling the interrupt disable functions */
-        LOG_DBG("No Active IRQ scheme to disable...");
-    }
     /* Now we can Set IRQ type to INT_NONE */
     pmetrics_device_elem->metrics_device->public_dev.irq_active.
         irq_type = INT_NONE;
     pmetrics_device_elem->metrics_device->public_dev.irq_active.
         num_irqs = 0;
-
-    /* Reinitialize irq linked list for this device. */
-    INIT_LIST_HEAD(&(pmetrics_device_elem->irq_process.irq_track_list));
-
+    /* Will only be read by ISR */
+    pmetrics_device_elem->irq_process.irq_type = INT_NONE;
     return SUCCESS;
 }
 
@@ -308,7 +340,8 @@ static int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
  * return failure otherwise success.
  */
 static int validate_irq_inputs(struct metrics_device_list
-        *pmetrics_device_elem, struct interrupts *irq_new)
+    *pmetrics_device_elem, struct interrupts *irq_new,
+        struct msix_info *pmsix_tbl_info)
 {
     int ret_val = SUCCESS;
     struct nvme_device *pnvme_dev = pmetrics_device_elem->metrics_device;
@@ -327,9 +360,9 @@ static int validate_irq_inputs(struct metrics_device_list
     /* Switch based on new irq type desired */
     switch (irq_new->irq_type) {
     case INT_MSI_SINGLE: /* MSI Single interrupt settings */
-        if (irq_new->num_irqs > MAX_IRQ_VEC_MSI_SIN) {
-            LOG_ERR("IRQ vectors cannot be > %d in MSI Single IRQ!!",
-                      MAX_IRQ_VEC_MSI_SIN);
+        if (irq_new->num_irqs != MAX_IRQ_VEC_MSI_SIN) {
+            LOG_ERR("IRQ vectors cannot be greater/equal %d in MSI Single IRQ",
+                MAX_IRQ_VEC_MSI_SIN);
             return -EINVAL;
         }
         /* Check if the card Supports MSI capability */
@@ -337,55 +370,67 @@ static int validate_irq_inputs(struct metrics_device_list
             LOG_ERR("Controller does not support for MSI capability!!");
             return -EINVAL;
         }
+        /* Update interrupt vector Mask Set and Mask Clear offsets */
+        pmetrics_device_elem->irq_process.mask_ptr = pmetrics_device_elem->
+            metrics_device->private_dev.bar_0_mapped + INTMS_OFFSET;
         break;
     case INT_MSI_MULTI: /* MSI Multi interrupt settings */
-        if (irq_new->num_irqs > MAX_IRQ_VEC_MSI_MUL) {
-            LOG_ERR("IRQ vectors cannot be > %d in MSI Multi IRQ!!",
-                    MAX_IRQ_VEC_MSI_MUL);
+        if (irq_new->num_irqs > MAX_IRQ_VEC_MSI_MUL ||
+            irq_new->num_irqs == 0) {
+            LOG_ERR("IRQ vectors cannot be greater/equal %d in MSI Multi IRQ",
+                MAX_IRQ_VEC_MSI_MUL);
             return -EINVAL;
         }
         /* Check if the card Supports MSI capability */
         if (check_cntlr_cap(pdev, INT_MSI_MULTI, &msi_offset) < 0) {
             LOG_ERR("Controller does not support for MSI capability!!");
             return -EINVAL;
-        } else {
-            /* compute MSI MC offset if MSI is supported */
-            msi_offset += 2;
-            /* Read MSI-MC value */
-            pci_read_config_word(pdev, msi_offset, &mc_val);
-            if (irq_new->num_irqs > ((mc_val & MSI_MME) >> 4)) {
-                LOG_ERR("IRQs = %d exceed MSI MME = %d", irq_new->num_irqs,
-                        ((mc_val & MSI_MME) >> 4));
-                /* does not support the requested irq's*/
-                return -EINVAL;
-            }
         }
+        /* compute MSI MC offset if MSI is supported */
+        msi_offset += 2;
+        /* Read MSI-MC value */
+        pci_read_config_word(pdev, msi_offset, &mc_val);
+        if (irq_new->num_irqs > ((mc_val & MSI_MME) >> 4)) {
+            LOG_ERR("IRQs = %d exceed MSI MME = %d", irq_new->num_irqs,
+                ((mc_val & MSI_MME) >> 4));
+            /* does not support the requested irq's*/
+            return -EINVAL;
+        }
+        /* Update interrupt vector Mask Set and Mask Clear offsets */
+        pmetrics_device_elem->irq_process.mask_ptr = pmetrics_device_elem->
+            metrics_device->private_dev.bar_0_mapped + INTMS_OFFSET;
         break;
     case INT_MSIX: /* MSI-X interrupt settings */
         /* First check if num irqs req are greater than MAX MSIX SUPPORTED */
-        if (irq_new->num_irqs > MAX_IRQ_VEC_MSI_X) {
-            LOG_ERR("IRQ vectors cannot be > %d in MSI-X IRQ!!",
-                    MAX_IRQ_VEC_MSI_X);
+        if (irq_new->num_irqs > MAX_IRQ_VEC_MSI_X ||
+            irq_new->num_irqs == 0) {
+            LOG_ERR("IRQ vectors cannot be greater/equal %d in MSI-X IRQ",
+                MAX_IRQ_VEC_MSI_X);
             return -EINVAL;
         }
         /* Check if the card Supports MSIX capability */
         if (check_cntlr_cap(pdev, INT_MSIX, &msi_offset) < 0) {
             LOG_ERR("Controller does not support for MSI-X capability!!");
             return -EINVAL;
-        } else {
-            /* compute MSI-X MXC offset if MSI-X is supported */
-            msi_offset += 2;
-            /* Read MSIX-MXC value */
-            pci_read_config_word(pdev, msi_offset, &mc_val);
-            /* check if Table size of MSIXCAP supports requested irqs.
-             * as TS is 0 based and num_irq is 1 based, so we add 1 */
-            if (irq_new->num_irqs > ((mc_val & MSIX_TS) + 1)) {
-                LOG_ERR("IRQs = %d exceed MSI-X table size = %d", irq_new->
-                        num_irqs, mc_val & MSIX_TS);
-                /* does not support the requested irq's*/
-                return -EINVAL;
-            } /* if table size */
-        } /* if msix cap */
+        }
+        /* if msix exists then update the msix pointer for this device */
+        if (update_msixptr(pmetrics_device_elem, msi_offset, pmsix_tbl_info)
+            < 0) {
+            return -EINVAL;
+        }
+        /* compute MSI-X MXC offset if MSI-X is supported */
+        msi_offset += 2;
+        /* Read MSIX-MXC value */
+        pci_read_config_word(pdev, msi_offset, &mc_val);
+        pmsix_tbl_info->ts = (mc_val & MSIX_TS);
+        /* check if Table size of MSIXCAP supports requested irqs.
+         * as TS is 0 based and num_irq is 1 based, so we add 1 */
+        if (irq_new->num_irqs > (pmsix_tbl_info->ts + 1)) {
+            LOG_ERR("IRQs = %d exceed MSI-X table size = %d", irq_new->
+                num_irqs, pmsix_tbl_info->ts);
+            /* does not support the requested irq's*/
+            return -EINVAL;
+        } /* if table size */
         break;
     case INT_NONE: /* INT_NONE validation always returns success */
         /* no validation for INT_NONE schemes return success. */
@@ -407,114 +452,351 @@ static int validate_irq_inputs(struct metrics_device_list
  * in the irq track linked list with int_vec and irq no. At any point
  * if the adding of node fails it cleans up and exits with invalid return
  * code.
+ * Return 0 on sucess and -ve or +ve values on error
  */
 static int set_msix(struct metrics_device_list *pmetrics_device_elem,
-        u16 num_irqs)
+    u16 num_irqs, struct msix_info *pmsix_tbl_info)
 {
-    int ret_val = SUCCESS;
-    int i;
+    int ret_val, i;
     struct msix_entry msix_entries[num_irqs];
     struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
         private_dev.pdev;
+    struct irq_track *pirq_node;
 
+    /* Unmask MSI-x and initialize PBA table */
+
+    for (i = 0; i <= pmsix_tbl_info->ts; i++) {
+        if (!(i % 32)) {
+            writel(0, (pmsix_tbl_info->pba_tbl + (i / 32)));
+        }
+        set_msix_mask_bit(pmsix_tbl_info->msix_tbl, i, 0x0);
+    }
     /* Assign irq entries from 0 to n-1 */
     for (i = 0; i < num_irqs; i++) {
         msix_entries[i].entry = i;
     }
 
+
+
     /* Allocate msix interrupts to this device */
     ret_val = pci_enable_msix(pdev, msix_entries, num_irqs);
     if (ret_val) {
-        LOG_ERR("MSI-X: Error = %d can't enable MSI-X!!", ret_val);
-        return -EINVAL;
+        LOG_ERR("Can't enable MSI-X");
+        return ret_val;
     }
 
     /* Request irq on each interrupt vector */
     for (i = 0; i < num_irqs; i++) {
         /* If request fails on any interrupt vector then fail here */
-        if (request_irq(msix_entries[i].vector, tophalf_isr, IRQF_DISABLED
-                | IRQF_SHARED, "msi-x", pmetrics_device_elem) < 0) {
-            LOG_ERR("Request IRQ failed...");
-            ret_val = -EINVAL;
+        ret_val = request_irq(msix_entries[i].vector, tophalf_isr, IRQF_DISABLED
+            | IRQF_SHARED, "msi-x", &pmetrics_device_elem->irq_process);
+        if (ret_val < 0) {
+            LOG_ERR("MSI-X-Err: request irq failed for ivec= %u",
+                msix_entries[i].vector);
             /* As we are allocating memory for one node at a time
              * failing here needs freeing up memory previously allocated */
             goto free_msix;
-        } else {
-            /* Add node after determining interrupt vector req is successful */
-            LOG_DBG("Add Node for Vector = %d", msix_entries[i].vector);
-            if (add_irq_node(pmetrics_device_elem, msix_entries[i].vector,
-                    msix_entries[i].entry) < 0) {
-                LOG_ERR("MSI-X: can't add irq node!!");
-                ret_val = -ENOMEM;
-                goto free_msix;
-            } /* end of if add_irq_node */
-        } /* end of if request_irq */
+        }
+        /* Add node after determining interrupt vector req is successful */
+        LOG_DBG("Add Node for Vector = %d", msix_entries[i].vector);
+        ret_val = add_irq_node(pmetrics_device_elem, msix_entries[i].vector,
+            msix_entries[i].entry);
+        if (ret_val < 0) {
+            LOG_ERR("MSI-X-Err: can't add irq node");
+            goto free_msix;
+        } /* end of if add_irq_node */
+
+        /* Add node after determining interrupt vector req is successful */
+        LOG_DBG("Add Wk item node for Vector = %d", msix_entries[i].vector);
+        ret_val = add_wk_item(&pmetrics_device_elem->irq_process,
+            msix_entries[i].vector, msix_entries[i].entry);
+        if (ret_val < 0) {
+            LOG_ERR("MSI-X-Err: can't add work item node");
+            goto free_msix;
+        } /* end of if add_wk_item */
     } /* end of for num_irqs */
+
+    /* fetch the Irq node 0 */
+    pirq_node = find_irq_node(pmetrics_device_elem, 0);
+    if (pirq_node == NULL) {
+        LOG_ERR("Can't find CQ 0 node inside irq_track list");
+        ret_val = -EINVAL;
+        goto free_msix;
+    }
+    /* Add the default ACQ node into the default irq node */
+    ret_val = add_icq_node(pirq_node, 0);
+    if (ret_val < 0) {
+        LOG_ERR("Can't add CQ 0 node inside irq_track list");
+        goto free_msix;
+    }
 
     return ret_val;
 
 free_msix:
-    /* clean up all nodes even if one irq request fails */
-    deallocate_irq_trk(pmetrics_device_elem);
+    disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->
+        metrics_device->public_dev.irq_active.irq_type);
     return ret_val;
 }
 
 /*
- * set the irq to MSI Single interrupt scheme.
+ * Set up the active irq scheme to MSI Single interrupt scheme. The interrupt
+ * vector is assigned by the pci_enable_msi call and pdev->irq is updated with
+ * new interrupt vector for this device and same is added in the irq linked
+ * list for 0 irq number. If irq request and memory for the irq node is
+ * successful, only then the irq track list is updated otherwise fails and
+ * returns invalid return code. Finally clear all the interrupts using INTMC
+ * register by writing all 1's to this register.
+ * Return 0 on sucess and -ve or +ve values on error
  */
 static int set_msi_single(struct metrics_device_list *pmetrics_device_elem)
 {
     struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
             private_dev.pdev;
-    int ret_val = SUCCESS;
+    int ret_val;
+    struct irq_track *pirq_node;
 
-    /* Allocate one interrupt to this device */
+    /* Clear all the interrupts for MSI Single by writing to INTMC */
+     writel(UINT_MAX, (pmetrics_device_elem->irq_process.mask_ptr + 0x04));
+
+    /*
+     * Allocate one interrupt to this device. A successful call will switch the
+     * device to msi single mode and pdev->irq is changed to a new number which
+     * represents msi interrupt vector consequently.
+     */
     ret_val = pci_enable_msi(pdev);
     if (ret_val) {
-        LOG_ERR("MSI-SINGLE : Error = %d can't enable msi!!", ret_val);
+        LOG_ERR("Can't enable msi ");
         return ret_val; /* exit from here */
     }
-
-    /* request irq with top half handler and int vec. */
-    ret_val = request_irq(pdev->irq, tophalf_isr, 0,
-            "dnvme-msi-s", pmetrics_device_elem);
+    /* request irq with top half handler and int vec stored in pdev->irq. */
+    ret_val = request_irq(pdev->irq, tophalf_isr, IRQF_DISABLED
+            | IRQF_SHARED, "msi-single", &pmetrics_device_elem->irq_process);
     if (ret_val < 0) {
-        LOG_ERR("MSI-SINGLE : Error can't get assigned irq = %i", pdev->irq);
+        LOG_ERR("Request irq failed for ivec= %i", pdev->irq);
         return ret_val; /* exit from here */
     }
-
-    LOG_DBG("Req Irq = %d", pdev->irq);
-
+    LOG_DBG("MSI-Single Interrupt Vector = %d", pdev->irq);
     /* Add node after determining interrupt vector is successful */
     ret_val = add_irq_node(pmetrics_device_elem, pdev->irq, 0);
-    if (ret_val != SUCCESS) {
-        LOG_ERR("MSI-SINGLE: can't add irq node!!");
-        return ret_val; /* exit from here */
+    if (ret_val < 0) {
+        LOG_ERR("Can't add irq node");
+        goto free_msis;
+    }
+
+    ret_val = add_wk_item(&pmetrics_device_elem->irq_process, pdev->irq, 0);
+    if (ret_val < 0) {
+        LOG_ERR("Can't add work item node");
+        goto free_msis;
+    }
+
+    /* fetch the Irq node 0 */
+    pirq_node = find_irq_node(pmetrics_device_elem, 0);
+    if (pirq_node == NULL) {
+        LOG_ERR("Can't find CQ 0 node inside irq_track list");
+        ret_val = -EINVAL;
+        goto free_msis;
+    }
+    /* Add the default ACQ node into the default irq node */
+    ret_val = add_icq_node(pirq_node, 0);
+    if (ret_val < 0) {
+        LOG_ERR("Can't add CQ 0 node inside irq_track list");
+        goto free_msis;
     }
 
     return ret_val;
+free_msis:
+    disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->
+        metrics_device->public_dev.irq_active.irq_type);
+    return ret_val;
+}
+
+/*
+ * Sets up the active IRQ scheme to MSI-Multi. Number of irqs to be allocated
+ * is passed as a parameter and After successfully enabling the msi block, this
+ * loops from pdev->irq to (pdev->irq + num_irqs -1) and calls request_irq for
+ * each irq no. This function appends each of this irq node in the irq track
+ * linked list with int_vec and irq no. At any point if the adding of node
+ * fails it cleans up and exits with invalid return code. Finally clear all
+ * the interrupts using INTMC register by writing all 1's to this register.
+ * Return 0 on sucess and -ve or +ve values on error
+ */
+static int set_msi_multi(struct metrics_device_list *pmetrics_device_elem,
+        u16 num_irqs)
+{
+    int ret_val, i;
+    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
+        private_dev.pdev;
+    struct irq_track *pirq_node;
+
+    /* Clear all the interrupts for MSI Single by writing to INTMC */
+    writel(UINT_MAX, (pmetrics_device_elem->irq_process.mask_ptr + 0x04));
+
+    /* Enable msi-block interrupts for this device. The pdev->irq will
+     * be the lowest of the new interrupts assigned to this device. */
+    ret_val = pci_enable_msi_block(pdev, num_irqs);
+    if (ret_val) {
+        LOG_ERR("Can't enable MSI-Multi");
+        return ret_val;
+    }
+    /* Request irq on each interrupt vector */
+    for (i = 0; i < num_irqs; i++) {
+        /* If request fails on any interrupt vector then fail here */
+        ret_val = request_irq((pdev->irq + i), tophalf_isr, IRQF_DISABLED
+            | IRQF_SHARED, "msi-multi", &pmetrics_device_elem->irq_process);
+        if (ret_val < 0) {
+            LOG_ERR("Request IRQ failed ivec = %d", pdev->irq + i);
+            /* As we are allocating memory for one node at a time
+             * failing here needs freeing up memory previously allocated */
+            goto free_msim;
+        }
+
+        /* Add node after determining interrupt vector req is successful */
+        LOG_DBG("Add Node for Vector = %d", pdev->irq + i);
+        ret_val = add_irq_node(pmetrics_device_elem, (pdev->irq + i), i);
+        if (ret_val < 0) {
+            LOG_ERR("Can't add irq node");
+            goto free_msim;
+        } /* end of if add_irq_node */
+
+        /* Add node after determining interrupt vector req is successful */
+        LOG_DBG("Add Wk item node for Vector = %d", pdev->irq + i);
+        ret_val = add_wk_item(&pmetrics_device_elem->irq_process,
+            (pdev->irq + i), i);
+        if (ret_val < 0) {
+            LOG_ERR("Can't add work item node");
+            goto free_msim;
+        } /* end of if add_wk_item */
+    } /* end of for num_irqs */
+
+    /* fetch the Irq node 0 */
+    pirq_node = find_irq_node(pmetrics_device_elem, 0);
+    if (pirq_node == NULL) {
+        LOG_ERR("Can't find CQ 0 node inside irq_track list");
+        ret_val = -EINVAL;
+        goto free_msim;
+    }
+    /* Add the default ACQ node into the default irq node */
+    ret_val = add_icq_node(pirq_node, 0);
+    if (ret_val < 0) {
+        LOG_ERR("Can't add CQ 0 node inside irq_track list");
+        goto free_msim;
+    }
+
+    return ret_val;
+free_msim:
+    disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->
+        metrics_device->public_dev.irq_active.irq_type);
+    return ret_val;
+}
+
+/*
+ * Update MSIX pointer in the irq process structure.
+ */
+static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
+    u16 offset, struct msix_info *pmsix_tbl_info)
+{
+    u8 *msixptr;    /* msix pointer for this device   */
+    u32 msi_x_to;   /* msix table offset in pci space */
+    u32 msix_tbir;  /* msix table BIR BAR indicator   */
+    u32 msix_mpba;  /* msix pba offset and pba BIR */
+    u32 msix_pbir;  /* msix table PBIR BAR indicator   */
+    struct nvme_device *metrics_device = pmetrics_device_elem->metrics_device;
+    struct pci_dev *pdev = metrics_device->private_dev.pdev;
+
+    /* compute MSI-X Table offset using given MSI-X offset */
+    offset += 0x4;
+    /* Read the MTAB Table offset and TBIR from pci space */
+    pci_read_config_dword(pdev, offset, &msi_x_to);
+    /* Compute TBIR using data located in NMVE space at the offset */
+    msix_tbir = msi_x_to & MSIX_TBIR_MASK;
+    /* compute MSI-X PBA offset using given MSI-X offset */
+    offset += 0x4;
+    /* Read the MPBA Table offset and PBIR from pci space */
+    pci_read_config_dword(pdev, offset, &msix_mpba);
+    /* Compute PBIR using data located in NMVE space at the offset */
+    msix_pbir = msix_mpba & MSIX_TBIR_MASK;
+
+    /* Check which BAR locations are used for MSI-X Table offset */
+    /* TODO: Support for all BAR's */
+    if (msix_tbir == 0x0) {
+        /* if BIR is 0 it indicates BAR 0 offset is used. */
+        msixptr = metrics_device->private_dev.bar_0_mapped +
+            (msi_x_to & ~MSIX_TBIR_MASK);
+    } else if (msix_tbir == 0x4) {
+        LOG_DBG("BAR 4 Location not supported yet...");
+        return -EINVAL;
+    } else if (msix_tbir == 0x5) {
+        LOG_DBG("BAR 5 locations not supported yet...");
+        return -EINVAL;
+    } else {
+        LOG_ERR("Trying to access TBIR reserved bits");
+        return -EINVAL;
+    }
+
+    /* Check which BAR locations are used for PBA Table offset */
+    /* TODO: Support for all BAR's */
+    if (msix_pbir == 0x0) {
+        pmsix_tbl_info->pba_tbl = metrics_device->private_dev.bar_0_mapped +
+            (msix_mpba & ~MSIX_TBIR_MASK);
+    } else if (msix_pbir == 0x4) {
+        LOG_DBG("BAR 4 Location not supported yet...");
+        return -EINVAL;
+    } else if (msix_pbir == 0x5) {
+        LOG_DBG("BAR 5 locations not supported yet...");
+        return -EINVAL;
+    } else {
+        LOG_ERR("Trying to access PBIR reserved bits");
+        return -EINVAL;
+    }
+    /* Update the msix pointer in the device metrics */
+    pmetrics_device_elem->irq_process.mask_ptr = msixptr;
+    pmsix_tbl_info->msix_tbl = msixptr;
+    return SUCCESS;
+}
+
+/*
+ * set_msix_mask_bit - This function will mask or unmask the vector
+ * control bit inside the MSIX table for the corresponding irq_no.
+ * When the mask is set, the controller will not generate the interrupts
+ * for this interrupt vector. To unmask, flag value is passed with value
+ * 0x0 and the corresponding interrupt vector is unmasked and controller
+ * will start generating the interrupts.
+ */
+static void set_msix_mask_bit(u8 *irq_msixptr, u16 irq_no, u32 flag)
+{
+    u8 *msixptr;
+    /* Get the MSI-X pointer offset */
+    msixptr = irq_msixptr;
+    /* Compute vector control offset for this irq no. */
+    msixptr += MSIX_VEC_CTRL + irq_no * MSIX_ENTRY_SIZE;
+    /* Mask or unmask the the MSIX vector by writing flag bit */
+    writel(flag, (u32 *) msixptr);
+    /* Flush the write */
+    readl((u32 *) msixptr);
 }
 
 /*
  * mask_interrupts - Determine the type of masking required based
  * on the interrupt scheme active. Mask interrupts for MSI-Single,
- * MSI- Multi.
+ * MSI- Multi and MSIX
  */
-static void mask_interrupts(int irq_no, struct  nvme_device *metrics_device)
+void mask_interrupts(u16 irq_no, struct irq_processing
+    *pirq_process)
 {
     /* handle all masking here */
-    switch (metrics_device->public_dev.irq_active.irq_type) {
-    case INT_MSI_SINGLE:
-    case INT_MSI_MULTI:
+    switch (pirq_process->irq_type) {
+    case INT_MSI_SINGLE: /* Same as MSI MULTI */
+    case INT_MSI_MULTI: /* Masking MSI interrupt in INTMS register */
         /* Mask INTMS register for the int generated */
-        writel((0x1 << irq_no), &metrics_device->private_dev.
-                nvme_ctrl_space->intms);
+        writel((0x1 << irq_no), (u32 *) pirq_process->mask_ptr);
+        /* Flush the wrte */
+        readl((u32 *) pirq_process->mask_ptr);
         break;
-    case INT_MSIX:
-        LOG_DBG("TODO: Mask for MSI-X to do in future.");
+    case INT_MSIX: /* Masking for MSI-X using vector control */
+        set_msix_mask_bit(pirq_process->mask_ptr,
+            irq_no, 0x1);
         break;
     case INT_NONE:
-        LOG_DBG("INT_NONE should not be fired...");
         break;
     default:
         LOG_ERR("Unknown interrupt type to Mask...");
@@ -523,24 +805,26 @@ static void mask_interrupts(int irq_no, struct  nvme_device *metrics_device)
 }
 
 /*
- * ummask_interrupts - Determine the type of interrupt scheme and
- * unmask interrupts for MSI-Single, MSI- Multi.
+ * unmask_interrupts - Determine the type of interrupt scheme and
+ * unmask interrupts for MSI-Single, MSI- Multi and MSIX.
  */
-static void ummask_interrupts(int irq_no, struct  nvme_device *metrics_device)
+void unmask_interrupts(u16 irq_no, struct irq_processing
+    *pirq_process)
 {
     /* handle all unmasking here */
-    switch (metrics_device->public_dev.irq_active.irq_type) {
+    switch (pirq_process->irq_type) {
     case INT_MSI_SINGLE:
     case INT_MSI_MULTI:
         /* unMask INTMC register for the int generated */
-        writel((0x1 << irq_no), &metrics_device->private_dev.
-                nvme_ctrl_space->intmc);
+        writel((0x1 << irq_no), (u32 *) (pirq_process->mask_ptr + 0x04));
+        /* Flush the wrte */
+        readl((u32 *) pirq_process->mask_ptr + 0x04);
         break;
-    case INT_MSIX:
-        LOG_DBG("TODO: ummask for MSI-X to do in future.");
+    case INT_MSIX: /* ummask for MSI-X */
+        set_msix_mask_bit(pirq_process->mask_ptr,
+                irq_no, 0x0);
         break;
     case INT_NONE:
-        LOG_DBG("INT_NONE should not be fired...");
         break;
     default:
         LOG_ERR("Unknown interrupt type to Mask...");
@@ -550,84 +834,55 @@ static void ummask_interrupts(int irq_no, struct  nvme_device *metrics_device)
 
 /*
  * Top half isr responds to the interrupt by masking the corresponding irq
- * vector if required and scheduling the bottom half processing. Initilally
- * it grabs the spin_lock to avoid multi-core systems from kernel preemption.
+ * vector if required and scheduling the bottom half processing.
  */
 irqreturn_t tophalf_isr(int int_vec, void *dev_id)
 {
     /* Point to the right hardware item using this dev_id */
-    struct  metrics_device_list *pmetrics_device_elem = dev_id;
-    int irq_no;
+    struct  irq_processing *pirq_process =
+        (struct  irq_processing *) dev_id;
+    struct work_container *pwk;
+    irqreturn_t ret_val = IRQ_HANDLED;
 
-    /* Acquire spin lock and enter into critical section */
-    spin_lock(&pmetrics_device_elem->irq_process.isr_spin_lock);
-    /* Compute the index for the int vector fired. */
-    irq_no = get_ivec_index(pmetrics_device_elem, int_vec);
-
-    /* TODO: Remove this debug, before releasing */
-    LOG_DBG("Int_vec:Irq_no = %d:%d", int_vec, irq_no);
-    /* Mask the interrupts if required */
-    mask_interrupts(irq_no, pmetrics_device_elem->metrics_device);
-    /* Checking if the irq fired is not a spurious interrupt */
-    if (irq_no < pmetrics_device_elem->metrics_device->public_dev.irq_active.
-            num_irqs) {
-        /* Set the irq that was fired in its place in the array */
-        pmetrics_device_elem->irq_process.wrk_sched.int_vec_ctx[irq_no] = 1;
+    /* Look for the required work_struct */
+    pwk = get_work_item(pirq_process, int_vec);
+    if (pwk == NULL) {
+        LOG_ERR("spurious irq with int_vec = %d", int_vec);
+        return IRQ_NONE;
     }
-    /* Queue the bh. Don't worry about multiple en-queuing as bottom half
-     * will handle for every int fired. */
-    if (schedule_work(&pmetrics_device_elem->irq_process.wrk_sched.sched_wq)
-            == 0) {
-        LOG_DBG("Work item already scheduled...");
+    /* To resolve contention between ISR's getting fired on different cores */
+    spin_lock(&pirq_process->isr_spin_lock);
+    LOG_DBG("TH:IRQNO = %d is serviced", pwk->irq_no);
+    /* Mask the interrupts which was fired till BH */
+    mask_interrupts(pwk->irq_no, pirq_process);
+
+    if (queue_work(pirq_process->wq, &pwk->sched_wq)
+        == 0) {
+        LOG_ERR("Work item already in Queue");
     }
     /* unlock as we are done with critical section */
-    spin_unlock(&pmetrics_device_elem->irq_process.isr_spin_lock);
-
-    return IRQ_HANDLED;
+    spin_unlock(&pirq_process->isr_spin_lock);
+    return ret_val;
 }
 
 /*
- * Seek the slot for which the top half has triggered the interrupt.
- * Returns the interrupt vector which got set in the Top Half when
- * IRQ was fired. Before returning, it resets this position in the array.
- * If no slot is set in the array, returns MAX + 1 to indicate invalid
- * index.
- */
-static u16 get_irq_enabled(u16 int_vec[])
-{
-    int i;
-    for (i = 0; i < (sizeof(int_vec)/sizeof(int_vec[0])); i++) {
-        if (int_vec[i] != 0) {
-            int_vec[i] = 0;
-            return i;
-        }
-    }
-    /* If nothing is set then return MAX for identification */
-    return MAX_IRQ_VEC_MSI_X;
-}
-
-/*
- * set_irq_node is the bottom half processing for the interrupt that got fired.
- * Search the CQ node for which the IRQ is fired and set this flag. Increment
+ * inc_isr_count:
+ * Search the CQ node for which the IRQ is fired and set flag. Increment
  * count by one.
  */
-static void set_irq_cq_nodes(struct metrics_device_list *pmetrics_device_elem,
-        u16 int_vec)
+static void inc_isr_count(struct irq_processing *pirq_process,
+    u16 irq_no)
 {
-    struct  irq_track     *pirq_node;  /* Pointer to irq node */
-    struct  irq_cq_track  *picq_node;  /* Pointer to cq node  */
+    struct  irq_track     *pirq_node;  /* Pointer to irq node     */
 
     /* Loop for each irq node */
-    list_for_each_entry(pirq_node, &pmetrics_device_elem->irq_process.
-            irq_track_list, irq_list_hd) {
-        if (int_vec == pirq_node->int_vec) {
-            list_for_each_entry(picq_node, &pirq_node->irq_cq_track,
-                    irq_cq_head) {
-                picq_node->isr_fired = 1;
-                picq_node->isr_count++;
-                LOG_DBG("ISR Count = %d for CQ ID = %d",
-                        picq_node->isr_count, picq_node->cq_id);
-            } /* end of list for icq */
+    list_for_each_entry(pirq_node, &pirq_process->irq_track_list,
+        irq_list_hd) {
+        if (irq_no == pirq_node->irq_no) {
+            pirq_node->isr_fired = 1;
+            pirq_node->isr_count++;
+            LOG_DBG("BH:isr count = %d for irq no = %d",
+                pirq_node->isr_count, pirq_node->irq_no);
         } /* end of if ivec */
     } /* end of list for irq */
 }
@@ -638,66 +893,42 @@ static void set_irq_cq_nodes(struct metrics_device_list *pmetrics_device_elem,
  * interrupts getting fired up as we store them in the array as a lookup
  * table.
  */
-static void bh_callback(struct work_struct *work)
+static void bh_callback(struct work_struct *work_element)
 {
-    /* Point to the metrics device using container_of mutiple times */
-    struct work_container *pwork_cnt =
-            container_of(work, struct work_container, sched_wq);
-    struct irq_processing *pirq_process =
-            container_of(pwork_cnt, struct irq_processing, wrk_sched);
-    struct metrics_device_list *pmetrics_device_elem =
-            container_of(pirq_process, struct metrics_device_list, irq_process);
-    u16 irq_no = 0;
-    u16 int_vec = 0;
+    /* Getting the work item from work_struct */
+    struct work_container *pwork =
+        container_of(work_element, struct work_container, sched_wq);
 
-    /* Check if irq is enabled */
-    irq_no = get_irq_enabled(pmetrics_device_elem->irq_process.
-            wrk_sched.int_vec_ctx);
-    /* Process for any irq that would have been set in the Array by Top Half */
-    while (irq_no < MAX_IRQ_VEC_MSI_X) {
-        /* lookup for int_vec using irq_no */
-        int_vec = get_int_vec(pmetrics_device_elem, irq_no);
-        /* lock irq mutex as we will access the irq nodes */
-        mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
-        /* Set the values in the node */
-        set_irq_cq_nodes(pmetrics_device_elem, int_vec);
-        /* unlock as we are done wiht updating the irq nodes */
-        mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
-        /* unmask the irq for which it was masked in Top Half */
-        ummask_interrupts(irq_no, pmetrics_device_elem->metrics_device);
-        LOG_DBG("ISR = %d is serviced in Bottom Half", int_vec);
-        /* Get the irq_no that was set in sync/asynchronously */
-        irq_no = get_irq_enabled(pmetrics_device_elem->irq_process.
-                wrk_sched.int_vec_ctx);
-    }
+    /* lock irq mutex as we will access the irq nodes */
+    mutex_lock(&pwork->pirq_process->irq_track_mtx);
+
+    /* Set the values in the node */
+    inc_isr_count(pwork->pirq_process, pwork->irq_no);
+
+    /* unlock as we are done with updating the irq nodes */
+    mutex_unlock(&pwork->pirq_process->irq_track_mtx);
+
+    LOG_DBG("BH:IRQNO = %d is serviced in Bottom Half", pwork->irq_no);
 }
 
 /*
- * ISR Initialization routine for resetting IRQ parameters.
- * Initialize spin_lock, bottom half and irq array.
+ * work_queue_init:
+ * Is used for setting up memory for work queue
  */
-void isr_init(struct  metrics_device_list *pmetrics_device_elem)
+int work_queue_init(struct  irq_processing *pirq_process)
 {
-    int i;
-
-#ifdef DEBUG
-    /* If mutex is not locked then exit here */
-    if (!mutex_is_locked(&pmetrics_device_elem->irq_process.irq_track_mtx)) {
-        /* Mutex is not locked so exiting */
-        LOG_ERR("Mutex should have been locked before this...");
-        return;
+    if (pirq_process->wq == NULL) {
+        /* If work Queue does not exist from previous run of the IOCTL
+         * then create a new work queue.
+         */
+        pirq_process->wq = create_workqueue("work_queue");
+        if (pirq_process->wq == NULL) {
+            LOG_ERR("Failed work queue creation");
+            return -ENOMEM;
+        }
     }
-#endif
 
-    /* initialize the bottom half call back with the work struct */
-    INIT_WORK(&pmetrics_device_elem->irq_process.wrk_sched.sched_wq,
-            bh_callback);
-    /* Initialize the array of all the irq set to 0 */
-    for (i = 0; i < (sizeof(pmetrics_device_elem->irq_process.wrk_sched.
-            int_vec_ctx)/sizeof(pmetrics_device_elem->irq_process.wrk_sched.
-                int_vec_ctx[0])); i++) {
-        pmetrics_device_elem->irq_process.wrk_sched.int_vec_ctx[i] = 0;
-    }
+    return SUCCESS;
 }
 
 /*
@@ -706,7 +937,7 @@ void isr_init(struct  metrics_device_list *pmetrics_device_elem)
  * node for this irq_node then add the irq_node to the itq_track linked list.
  */
 static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
-        u16 int_vec, u16 irq_no)
+        u32 int_vec, u16 irq_no)
 {
     struct irq_track *irq_trk_node;
 
@@ -729,6 +960,8 @@ static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
     /* Fill the irq track node */
     irq_trk_node->int_vec = int_vec; /* int vector number   */
     irq_trk_node->irq_no = irq_no;   /* irq number assigned */
+    irq_trk_node->isr_fired = 0;
+    irq_trk_node->isr_count = 0;
 
     /* Init irq cq linked list */
     INIT_LIST_HEAD(&irq_trk_node->irq_cq_track);
@@ -736,6 +969,33 @@ static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
     /* Add this irq node element to the end of the list */
     list_add_tail(&irq_trk_node->irq_list_hd, &pmetrics_device_elem->
             irq_process.irq_track_list);
+
+    return SUCCESS;
+}
+
+/*
+ * Add a wk item node in work item's linked list. Allocates memory for one
+ * wk item  node, sets up the values for this node.
+ */
+static int add_wk_item(struct irq_processing *pirq_process,
+        u32 int_vec, u16 irq_no)
+{
+    struct work_container *pwork;
+
+    pwork = kmalloc(sizeof(struct work_container), GFP_KERNEL);
+    if (pwork == NULL) {
+        LOG_ERR("Failed mem alloc in work_container creation");
+        return -ENOMEM;
+    }
+    /* Initialize the bottom half call back with the work struct */
+    INIT_WORK(&pwork->sched_wq, bh_callback);
+    /* Update the values */
+    pwork->pirq_process = pirq_process;
+    pwork->int_vec = int_vec;
+    pwork->irq_no = irq_no;
+    /* Add work item to work items list */
+    list_add_tail(&pwork->wrk_list_hd,
+        &pirq_process->wrk_item_list);
 
     return SUCCESS;
 }
@@ -757,8 +1017,6 @@ int add_icq_node(struct irq_track *pirq_trk_node, u16 cq_id)
     }
     /* Fill the node with init data */
     irq_cq_node->cq_id = cq_id;
-    irq_cq_node->isr_count = 0;
-    irq_cq_node->isr_fired = 0;
 
     /* Add this cq node to the end of the list */
     list_add_tail(&irq_cq_node->irq_cq_head,
@@ -767,63 +1025,38 @@ int add_icq_node(struct irq_track *pirq_trk_node, u16 cq_id)
 }
 
 /*
- * Additions to both IOCTL_CREATE_ADMIN_Q and IOCTL_SEND_64B_CMD for CQs.
- * This will set the interrupt vector X to CQ only when the IRQ scheme
- * is not INT_NONE. If the IRQ Scheme is NONE return success.
- * NOTE: This function will set or reset the irq_enabled flag.
+ * Additions to IOCTL_SEND_64B_CMD for IOCQs.
+ * Updates the CQ list inside the specific IRQ node in irq_track list
+ * NOTE:
+ * This function will set irq_enabled flag if SUCCESS.
  */
-int set_ivec_cq(struct  metrics_device_list *pmetrics_device_elem, u16 cq_id,
-        u16 irq_no, u8 *irq_enabled, u16 *int_vec)
+int update_cq_irqtrack(struct  metrics_device_list *pmetrics_device_elem,
+    u16 cq_id, u16 irq_no, u8 *irq_enabled)
 {
-    enum nvme_irq_type irq_type = pmetrics_device_elem->metrics_device->
-            public_dev.irq_active.irq_type;
-    int ret_val = SUCCESS;
-    struct irq_track *pirq_node = NULL;
+    int ret_val;
+    struct irq_track *pirq_node;
 
     /* lock onto IRQ linked list mutex as we would access the IRQ list */
     mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
-    /* Set irq to disabled as we will return success when irq is INT_NONE */
-    *irq_enabled = 0;
-    *int_vec = 0xFFFF;
 
-    /* branch on active irq scheme */
-    switch (irq_type) {
-    case INT_NONE:
-        /* If the IRQ scheme is NONE simply return success
-         * with irq enabled flag set to 0 */
-        ret_val = SUCCESS;
-        break;
-    case INT_MSI_SINGLE: /* Same as MSI-X */
-    case INT_MSI_MULTI:  /* Same as MSI-X */
-    case INT_MSIX:
-        /* fetch the Irq node for given irq no */
-        pirq_node = find_irq_node(pmetrics_device_elem, irq_no);
-        if (pirq_node == NULL) {
-            ret_val = -EINVAL;
-            break;
-        }
-        /* Add the CQ node into this irq node */
-        ret_val = add_icq_node(pirq_node, cq_id);
-        if (ret_val == SUCCESS) {
-            /* After successfully adding the cq node then enable the irq in
-             * metrics cq linked list */
-            *irq_enabled = 1;
-        }
-        break;
-    default:
+    /* fetch the Irq node for given irq no */
+    pirq_node = find_irq_node(pmetrics_device_elem, irq_no);
+    if (pirq_node == NULL) {
         ret_val = -EINVAL;
-        break;
+        goto exit;
     }
 
-    /* Only when the irq is set and irq_enabled flag is true then
-     * populate the int_vec in the metrics cq node for given irq_no */
-    if ((ret_val == SUCCESS) && (*irq_enabled != 0)) {
-        *int_vec = get_int_vec(pmetrics_device_elem, irq_no);
+    /* Add the CQ node into this irq node */
+    ret_val = add_icq_node(pirq_node, cq_id);
+    if (ret_val == SUCCESS) {
+        /* After successfully adding the cq node then enable the irq in
+         * metrics cq linked list */
+        *irq_enabled = 1;
     }
 
+exit:
     /* unlock IRQ linked list mutex */
     mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
-
     return ret_val;
 }
 
@@ -834,12 +1067,11 @@ int set_ivec_cq(struct  metrics_device_list *pmetrics_device_elem, u16 cq_id,
  * will error out.
  */
 int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
-        struct  metrics_device_list *pmetrics_device_elem, u16 *num_remaining)
+    struct  metrics_device_list *pmetrics_device_elem,
+        u16 *num_remaining, u32 *isr_count)
 {
     u16 irq_no = pmetrics_cq_node->public_cq.irq_no; /* irq_no for CQ   */
-    u16 cq_id = pmetrics_cq_node->public_cq.q_id; /* CQ ID for reap inq */
-    struct irq_track *pirq_node = NULL;
-    struct irq_cq_track *picq_node = NULL;
+    struct irq_track *pirq_node;
 
 #ifdef DEBUG
     /* If mutex is not locked then exit here */
@@ -856,93 +1088,37 @@ int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
         LOG_ERR("Node for IRQ No = %d does not exist in IRQ list!", irq_no);
         return -EINVAL;
     }
-    /* Get the CQ node in the irq node found */
-    picq_node = find_icq_node(pirq_node, cq_id);
-    if (picq_node == NULL) {
-        LOG_ERR("CQ node does not exist in the IRQ Tracked node!");
-        return -EINVAL;
-    }
+
     /* Check if ISR is really fired for this CQ */
-    if (picq_node->isr_fired != 0) {
+    if (pirq_node->isr_fired != 0) {
         /* process reap inquiry for isr fired case */
         *num_remaining = reap_inquiry(pmetrics_cq_node, &pmetrics_device_elem
-                ->metrics_device->private_dev.pdev->dev);
+            ->metrics_device->private_dev.pdev->dev);
     } else {
         /* To deal with ISR's aggregation, not supposed to notify CE's yet */
         *num_remaining = 0;
     }
+    /* return the isr_count flag */
+    *isr_count = pirq_node->isr_count;
     return SUCCESS;
 }
 
 /*
- * Reset ISR will reset the ISR fired and ISR count to 0 when called for
- * the given cq node.
+ * Gets the required work_container from the list of work items based
+ * upon int_vec number else NULL
  */
-int reset_isr_reap(struct metrics_cq  *pmetrics_cq_node,
-        struct  metrics_device_list *pmetrics_device_elem)
+static struct work_container *get_work_item(struct  irq_processing
+    *pirq_process, u32 int_vec)
 {
-    u16 irq_no = pmetrics_cq_node->public_cq.irq_no; /* irq_no for CQ    */
-    u16 cq_id = pmetrics_cq_node->public_cq.q_id; /* CQ ID for reap inq  */
-    struct irq_track *pirq_node = NULL;
-    struct irq_cq_track *picq_node = NULL;
-
-    /* Get the Irq node for given irq no */
-    pirq_node = find_irq_node(pmetrics_device_elem, irq_no);
-    if (pirq_node == NULL) {
-        LOG_ERR("Node for Irq_no = %d does not exist in IRQ list!", irq_no);
-        return -EINVAL;
+    struct work_container *pwk_item;  /* wk item in the list */
+    /* Loop for each wk item */
+    list_for_each_entry(pwk_item,
+        &pirq_process->wrk_item_list, wrk_list_hd) {
+        if (int_vec == pwk_item->int_vec) {
+            return pwk_item;
+        }
     }
-    /* Get the CQ node in the irq node found */
-    picq_node = find_icq_node(pirq_node, cq_id);
-    if (picq_node == NULL) {
-        LOG_ERR("CQ node does not exist in the IRQ Tracked node!");
-        return -EINVAL;
-    }
-    picq_node->isr_fired = 0;
-    return SUCCESS;
-}
-
-/*
- * Get the index into the list for the given int vector in the irq linked list.
- * Search the irq_track linked list, if the int_vec matches then return the
- * irq_no for this int_vector. If search fails then return MAX_MSIX + 1 to
- * indicate called that this search failed.
- */
-static u16 get_ivec_index(struct  metrics_device_list *pmetrics_device_elem,
-        u16 int_vec)
-{
-    struct  irq_track     *pirq_node;     /* Pointer to irq node */
-    /* Loop for the irq node in irq track list */
-    list_for_each_entry(pirq_node, &pmetrics_device_elem->irq_process.
-            irq_track_list, irq_list_hd) {
-            /* if the interrupt vector matches return the irq no */
-            if (int_vec == pirq_node->int_vec) {
-                return pirq_node->irq_no;
-            }
-    }
-    return MAX_IRQ_VEC_MSI_X;
-}
-
-/*
- * Get the corresponding interrupt vector for the given irq_no in the
- * irq track list. Search the irq_track nodes and match the irq no,
- * if found return the interrupt vector. If search does not find the
- * corresponding irq_no node, then return MAX_IRQ_VEC_MSI_X + 1 to
- * indicate invalid value to the caller
- */
-u16 get_int_vec(struct  metrics_device_list *pmetrics_device_elem,
-                    u16 irq_no)
-{
-    struct  irq_track     *pirq_node;     /* Pointer to irq node */
-    /* Loop for the irq node in irq track list */
-    list_for_each_entry(pirq_node, &pmetrics_device_elem->irq_process.
-            irq_track_list, irq_list_hd) {
-            /* if the irq no matches then return this irq vector */
-            if (irq_no == pirq_node->irq_no) {
-                return pirq_node->int_vec;
-            }
-    }
-    return MAX_IRQ_VEC_MSI_X;
+    return NULL;
 }
 
 /*
@@ -995,8 +1171,8 @@ static struct irq_cq_track *find_icq_node(struct  irq_track *pirq_node,
 int remove_icq_node(struct  metrics_device_list
         *pmetrics_device, u16 cq_id, u16 irq_no)
 {
-    struct irq_track *pirq_node = NULL;
-    struct irq_cq_track *picq_node = NULL;
+    struct irq_track *pirq_node;
+    struct irq_cq_track *picq_node;
 
     LOG_DBG("Call to remove the ICQ = %d for irq_no = %d",
             cq_id, irq_no);
@@ -1017,6 +1193,25 @@ int remove_icq_node(struct  metrics_device_list
     kfree(picq_node);
 
     return SUCCESS;
+}
+
+/*
+ * Deallocate all the work item nodes within the work items list
+ */
+void dealloc_wk_list(struct  irq_processing *pirq_process)
+{
+    struct work_container *pwk_item_next;  /* Next wk item in the list */
+    struct work_container *pwk_item_curr;  /* Current wk item in the list */
+
+    LOG_DBG("Deallocate wk Nodes...");
+    /* Loop for each cq node within this irq node */
+    list_for_each_entry_safe(pwk_item_curr, pwk_item_next,
+        &pirq_process->wrk_item_list, wrk_list_hd) {
+        /* remove the wk node from the linked list */
+        list_del(&pwk_item_curr->wrk_list_hd);
+        /* free up the memory allocated for wk node in irq list */
+        kfree(pwk_item_curr);
+    }
 }
 
 /*
@@ -1043,8 +1238,10 @@ static void dealloc_all_icqs(struct  irq_track *pirq_trk_list)
 /*
  * deallocate all IRQ track nodes from the linked list. Calls free_irq on
  * the interrupt vector that was reserved using request_irq.
+ * Also reinitializes the irq_track list
  */
-void deallocate_irq_trk(struct  metrics_device_list *pmetrics_device_elem)
+void deallocate_irq_trk(struct  metrics_device_list
+    *pmetrics_device_elem)
 {
     struct  irq_track   *pirq_trk_list; /* Type to use as loop cursor       */
     struct  irq_track   *pirq_trk_next; /* Same type to use as temp storage */
@@ -1057,8 +1254,92 @@ void deallocate_irq_trk(struct  metrics_device_list *pmetrics_device_elem)
                 pirq_trk_list->irq_no);
         /* remove all the cq nodes for this irq node */
         dealloc_all_icqs(pirq_trk_list);
-        list_del(&pirq_trk_list->irq_cq_track);
-        free_irq(pirq_trk_list->int_vec, pmetrics_device_elem);
+        list_del(&pirq_trk_list->irq_list_hd);
         kfree(pirq_trk_list);
     }
 }
+
+/*
+ * Disable and free IRQ's which were requested earlier
+ */
+void irq_disable(struct  metrics_device_list
+    *pmetrics_device_elem)
+{
+    struct  irq_track   *pirq_trk_node; /* Node iside IRQ track list */
+    /* pointer to the pci device */
+    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
+            private_dev.pdev;
+    enum nvme_irq_type  irq_active = pmetrics_device_elem->
+        metrics_device->public_dev.irq_active.irq_type;
+
+    /* disable the PIN interrupts*/
+    nvme_disable_pin(pdev);
+
+    list_for_each_entry(pirq_trk_node,
+        &pmetrics_device_elem->irq_process.irq_track_list,
+            irq_list_hd) {
+        free_irq(pirq_trk_node->int_vec, &pmetrics_device_elem->irq_process);
+    }
+
+    /* Perform setting of IRQ to none based on active scheme of IRQ */
+    if (irq_active == INT_MSI_SINGLE) {
+        /* Only one interrupt so call disable once */
+        pci_disable_msi(pdev);
+        LOG_DBG("INT_MSI SINGLE Disabled");
+    } else if (irq_active == INT_MSI_MULTI) {
+        /* Only main interrupt should be disabled so call disable on device */
+        pci_disable_msi(pdev);
+        LOG_DBG("INT_MSI-Multiple Disabled");
+    } else if (irq_active == INT_MSIX) {
+        /* disable OS to generate MISX */
+        pci_disable_msix(pdev);
+        LOG_DBG("INT_MSIX Disabled");
+    } else {
+        /* Calling the interrupt disable functions */
+        LOG_DBG("No Active IRQ scheme to disable...");
+    }
+}
+
+/* Loop through all CQ's associated with irq_no and check whehter
+ * they are empty and if empty reset the isr_flag for that particular
+ * irq_no
+ */
+int reset_isr_flag(struct metrics_device_list *pmetrics_device,
+    u16 irq_no)
+{
+    struct irq_track *pirq_node; /* IRQ node inside irq track list */
+    struct irq_cq_track *picq_node; /* CQ node inside irq node */
+    struct metrics_cq  *pmetrics_cq_node; /* CQ node in metrics_cq_list */
+    u16 num_rem = 0;
+
+    /* Get the Irq node for given irq vector */
+    pirq_node = find_irq_node(pmetrics_device, irq_no);
+    if (pirq_node == NULL) {
+        LOG_ERR("Irq node not found for irq_no: %d", irq_no);
+        return -EINVAL;
+    }
+
+    /* Loop through each CQ for the given irq_no */
+    list_for_each_entry(picq_node, &pirq_node->irq_cq_track,
+        irq_cq_head) {
+        /* Find CQ metrics */
+        pmetrics_cq_node = find_cq(pmetrics_device, picq_node->cq_id);
+        if (pmetrics_cq_node == NULL) {
+            LOG_ERR("CQ ID = %d not found", picq_node->cq_id);
+            return -EBADSLT;
+        }
+        /* Reap on all CQ's */
+        num_rem = reap_inquiry(pmetrics_cq_node, &pmetrics_device
+            ->metrics_device->private_dev.pdev->dev);
+        if (num_rem != 0) {
+            break;
+        }
+    }
+
+    /* reset the isr flag */
+    if (num_rem == 0) {
+        pirq_node->isr_fired = 0;
+    }
+    return 0;
+}
+

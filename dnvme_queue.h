@@ -21,12 +21,10 @@
 
 #include "dnvme_reg.h"
 #include "dnvme_ds.h"
+#include "sysfuncproto.h"
 
 /* Admin SQ tail Door bell offset */
 #define NVME_SQ0TBDL    0x1000
-
-/* Admin SQ tail Door bell offset */
-#define NVME_CQ0TBDL    0x1004
 
 /* Admin SQ size Mask bits 0-11 in AQA */
 #define ASQS_MASK       0xFFF
@@ -121,6 +119,14 @@ int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element);
  */
 int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element);
 
+/**
+ * nvme_disable - NVME controller disable function. This will clean up all the
+ * existing datastructures used by the driver
+ * @param pmetrics_device
+ * @param new_state
+ */
+void nvme_disable(struct  metrics_device_list *pmetrics_device,
+    enum nvme_state new_state);
 /**
  * identify_unique - verify if the q_id specified is unique. If not unique then
  * return fail.

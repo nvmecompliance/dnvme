@@ -241,7 +241,7 @@ int __devinit dnvme_pci_probe(struct pci_dev *pdev,
 
     /* Allocate mem fo nvme device with kernel memory */
     pmetrics_device_element = kmalloc(sizeof(struct metrics_device_list),
-            GFP_KERNEL);
+            GFP_KERNEL | __GFP_ZERO);
     if (pmetrics_device_element == NULL) {
         LOG_ERR("failed mem allocation for device in device list.");
         return -ENOMEM;
@@ -381,16 +381,8 @@ int dnvme_device_release(struct inode *inode, struct file *filp)
 
     /* Set the device open flag to false */
     pmetrics_device_element->metrics_device->private_dev.open_flag = 0;
-    /* Clean the SQ and CQ linked list nodes */
-    deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
-    /* Meta data allocation clean up */
-    deallocate_mb(pmetrics_device_element);
-    /* IRQ clean up and set active scheme to INT_NONE */
-    ret_val = init_irq_track(pmetrics_device_element, pmetrics_device_element->
-            metrics_device->public_dev.irq_active.irq_type);
-    if (ret_val < 0) {
-        LOG_ERR("IRQ cleanup failed...");
-    }
+    /* Disable the NVME controller */
+    nvme_disable(pmetrics_device_element, ST_DISABLE_COMPLETELY);
 
 rel_exit:
     LOG_DBG("Device Closed. Releasing Mutex...");
@@ -626,16 +618,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
             /* Waiting for the controller to go idle. */
             ret_val = nvme_ctrl_disable(pmetrics_device_element);
             if (ret_val == SUCCESS) {
-                /* Clean Up the Data Structures. */
-                deallocate_all_queues(pmetrics_device_element,
-                        *ctrl_new_state);
-                /* Clean up meta buff in both disable cases */
-                deallocate_mb(pmetrics_device_element);
-
-                /* Initialize irq track from current irq to INT_NONE */
-                ret_val = init_irq_track(pmetrics_device_element,
-                    pmetrics_device_element->metrics_device->public_dev.
-                        irq_active.irq_type);
+                nvme_disable(pmetrics_device_element, *ctrl_new_state);
             }
          } else {
             LOG_ERR("Device State not correctly specified.");
@@ -809,15 +792,14 @@ static void __exit dnvme_exit(void)
     list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
             metrics_device_hd) {
         pdev = pmetrics_device_element->metrics_device->private_dev.pdev;
+        /* Grab the Mutex for this device in the linked list */
+        mutex_lock(&pmetrics_device_element->metrics_mtx);
         /* Free up the DMA pool */
         destroy_dma_pool(pmetrics_device_element->metrics_device);
-        /* Clean Up the Data Structures. */
-        deallocate_all_queues(pmetrics_device_element, ST_DISABLE_COMPLETELY);
-        /* Clean up the Meta data structure and destroy meta buff dma pool */
-        deallocate_mb(pmetrics_device_element);
-        /* Clean up IRQ and free_irq */
-        init_irq_track(pmetrics_device_element, pmetrics_device_element->
-                metrics_device->public_dev.irq_active.irq_type);
+        /* Disable the NVME controller */
+        nvme_disable(pmetrics_device_element, ST_DISABLE_COMPLETELY);
+        /* unlock the device mutex before destroying */
+        mutex_unlock(&pmetrics_device_element->metrics_mtx);
         /* destroy all mutexes */
         mutex_destroy(pmetrics_device_element->metrics_mtx);
         mutex_destroy(pmetrics_device_element->irq_process->irq_track_mtx);

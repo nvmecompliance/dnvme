@@ -187,11 +187,11 @@ void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
  * This is only function apart from initializations, that will modify tail_ptr
  * for the corresponding CQ.
  * @param pmetrics_device
- * @param reap_inq
+ * @param usr_reap_inq
  * @return success or failure based on reap_inquiry
  */
 int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
-        struct nvme_reap_inquiry *reap_inq);
+    struct nvme_reap_inquiry *usr_reap_inq);
 
 /**
  * dnvme_device_open - This operation is always the first operation performed
@@ -226,11 +226,11 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma);
  * driver_reap_cq - Reap the number of elements specified for the given CQ id.
  * Return the CQ entry data in the buffer specified.
  * @param pmetrics_device
- * @param reap_data
+ * @param usr_reap_data
  * @return Success of Failure based on Reap Success or failure.
  */
 int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
-        struct nvme_reap *reap_data);
+    struct nvme_reap *usr_reap_data);
 
 /**
  * Create a dma pool for the requested size. Initialize the DMA pool pointer
