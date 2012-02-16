@@ -22,23 +22,23 @@ KDIR:=/lib/modules/$(DIST)/build/
 CDIR:=/usr/src/linux-source-2.6.35/scripts/
 SOURCE:=$(shell pwd)
 DRV_NAME:=dnvme
-FLAG= -g -DQEMU
-# -DQEMU: should be used when running the driver on Qemu emulated hardware which
-# converts 8 byte writes from driver into two 4 byte writes for the hardware.
-# -DDEBUG: should be used to turn on the driver debug log.
+# QEMU_ON should be used when running the driver within QEMU, which forces
+# dnvme to convert 8B writes to 2 4B writes patchin a QEMU deficiency
+QEMU_ON:=-DQEMU
+#DBG_ON:=-g -DDEBUG
 
-EXTRA_CFLAGS+=$(FLAG) -I$(PWD)/
+EXTRA_CFLAGS+=$(DBG_ON) $(QEMU_ON) -I$(PWD)/
 
 
-SOURCES := \
-	dnvme_reg.c \
-	sysdnvme.c \
-	dnvme_ioctls.c \
-	dnvme_sts_chk.c \
-	dnvme_queue.c \
-	dnvme_cmds.c \
-	dnvme_ds.c \
-	dnvme_irq.c \
+SOURCES :=		\
+	dnvme_reg.c	\
+	sysdnvme.c	\
+	dnvme_ioctls.c	\
+	dnvme_sts_chk.c	\
+	dnvme_queue.c	\
+	dnvme_cmds.c	\
+	dnvme_ds.c	\
+	dnvme_irq.c	\
 	ut_reap_inq.c
 
 #
