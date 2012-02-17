@@ -101,7 +101,7 @@ int read_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space, u8 *udata,
             /* Byte wise access requested */
             u8data = readb(u8bar);
 
-            LOG_NRM("NVME Read byte at 0x%llX:0x%0X", (u64)u8bar, u8data);
+            LOG_DBG("NVME Read byte at 0x%llX:0x%0X", (u64)u8bar, u8data);
 
             /* Increments in multiples of bytes */
             u8bar++;
@@ -117,7 +117,7 @@ int read_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space, u8 *udata,
             /* Read data using word access */
             u16data = readw(u8bar);
 
-            LOG_NRM("NVME Read WORD at 0x%llX:0x%X", (u64)u8bar, u16data);
+            LOG_DBG("NVME Read WORD at 0x%llX:0x%X", (u64)u8bar, u16data);
 
             /* Increments in multiples of 2 (size of 2 bytes) */
             u8bar++;
@@ -133,7 +133,7 @@ int read_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space, u8 *udata,
 
             u32data = readl(bar);
 
-            LOG_NRM("NVME Read DWORD at 0x%llX:0x%X", (u64)bar, u32data);
+            LOG_DBG("NVME Read DWORD at 0x%llX:0x%X", (u64)bar, u32data);
 
             /* Increments in multiples of 4 (size of int) */
             bar++;
@@ -150,7 +150,7 @@ int read_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space, u8 *udata,
             /* Copy data to user buffer. */
             memcpy((u8 *)&udata[index], &u64data, sizeof(u64));
 
-            LOG_NRM("NVME Read QUAD 0x%llX:0x%llX",
+            LOG_DBG("NVME Read QUAD 0x%llX:0x%llX",
                 (u64)bar, (u64)udata[index]);
 
             /* increment address by 8 bytes */
@@ -205,7 +205,7 @@ int write_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space,
             /* byte access so do 8 bit access */
             memcpy((u8 *)&u8tmpdata, &u8data[index], sizeof(u8));
 
-            LOG_NRM("NVME Writing BYTE at Addr:Val::0x%lX:0x%X",
+            LOG_DBG("NVME Writing BYTE at Addr:Val::0x%lX:0x%X",
                 (unsigned long int)u8bar, u8tmpdata);
 
             /* Write 8 bit data to NVME space */
@@ -222,7 +222,7 @@ int write_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space,
             /* word access so do 16 bit access */
             memcpy((u8 *)&u16data, &u8data[index], sizeof(u16));
 
-            LOG_NRM("NVME Writing WORD at Addr:Val::0x%lX:0x%X",
+            LOG_DBG("NVME Writing WORD at Addr:Val::0x%lX:0x%X",
                 (unsigned long int)u8bar, u16data);
 
             /* Write 32 bit data to NVME space */
@@ -240,7 +240,7 @@ int write_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space,
             /* Dword access so do 32 bit access */
             memcpy((u8 *)&u32data, &u8data[index], sizeof(u32));
 
-            LOG_NRM("NVME Writing DWORD at Addr:Val::0x%lX:0x%X",
+            LOG_DBG("NVME Writing DWORD at Addr:Val::0x%lX:0x%X",
                 (unsigned long int)bar, u32data);
             /* Write 32 bit data to NVME space */
             writel(u32data, bar);
@@ -255,7 +255,7 @@ int write_nvme_reg_generic(struct nvme_ctrl_reg *nvme_ctrl_reg_space,
             /* QUAD access so do 64 bit access */
             memcpy((u8 *)&u64data, &u8data[index], sizeof(u64));
 
-            LOG_NRM("NVME Writing QUAD at Addr:Val::0x%lX:0x%llX",
+            LOG_DBG("NVME Writing QUAD at Addr:Val::0x%lX:0x%llX",
                 (unsigned long int)bar, u64data);
 
             /* Write 8 bytes of data */
