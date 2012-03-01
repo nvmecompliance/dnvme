@@ -280,11 +280,8 @@ static struct  metrics_device_list *find_device(struct inode *inode)
     /* Loop through the devices available in the metrics list */
     list_for_each_entry(pmetrics_device_element, &metrics_dev_ll,
             metrics_device_hd) {
-        LOG_DBG("Minor Number in the List = %d", pmetrics_device_element->
-                metrics_device->private_dev.minor_no);
         if (iminor(inode) == pmetrics_device_element->metrics_device->
                 private_dev.minor_no) {
-            LOG_DBG("Found device in the metrics list");
             return pmetrics_device_element;
         } else {
             dev_found = 0;
@@ -311,7 +308,7 @@ static struct  metrics_device_list *lock_device(struct inode *inode)
         LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
         return NULL;
     }
-    LOG_DBG("Obtain Mutex...");
+
     /* Grab the Mutex for this device in the linked list */
     mutex_lock(&pmetrics_device_element->metrics_mtx);
     return pmetrics_device_element;
@@ -322,7 +319,6 @@ static struct  metrics_device_list *lock_device(struct inode *inode)
  */
 static void unlock_device(struct  metrics_device_list *pmetrics_device_element)
 {
-    LOG_DBG("Releasing Mutex...");
     if (mutex_is_locked(&pmetrics_device_element->metrics_mtx)) {
         mutex_unlock(&pmetrics_device_element->metrics_mtx);
     }
@@ -556,7 +552,6 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct public_metrics_dev *dev_metrics;  /* public nvme dev metrics      */
     struct inode *inode = filp->f_dentry->d_inode;
 
-    LOG_DBG("Minor No = %d", iminor(inode));
     pmetrics_device_element = lock_device(inode);
     if (pmetrics_device_element == NULL) {
         LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
@@ -575,13 +570,13 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case NVME_IOCTL_READ_GENERIC:
-        LOG_DBG("Invoking User App request to read  the PCI Header Space");
+        LOG_DBG("OCTL Generic Read Function");
         nvme_data = (struct rw_generic *)ioctl_param;
         ret_val = driver_generic_read(nvme_data, pmetrics_device_element);
         break;
 
     case NVME_IOCTL_WRITE_GENERIC:
-        LOG_DBG("Invoke IOCTL Generic Write Function");
+        LOG_DBG("IOCTL Generic Write Function");
         nvme_data = (struct rw_generic *)ioctl_param;
         ret_val = driver_generic_write(nvme_data, pmetrics_device_element);
         break;
