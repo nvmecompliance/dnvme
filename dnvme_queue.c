@@ -899,6 +899,13 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
         sizeof(struct nvme_reap_inquiry))) {
         LOG_ERR("Error copying to user buffer returning");
         ret_val = -EFAULT;
+        goto exit;
+    }
+
+    /* Check for hw violation of full Q definition */
+    if (kern_reap_inq->num_remaining >= pmetrics_cq_node->public_cq.elements) {
+        LOG_ERR("HW violating full Q definition");
+        ret_val = -EINVAL;
     }
 
 exit:
@@ -1343,6 +1350,13 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
                 goto mtx_unlk;
             }
         }
+    }
+
+    /* Check for hw violation of full Q definition */
+    if (num_could_reap >= pmetrics_cq_node->public_cq.elements) {
+        LOG_ERR("HW violating full Q definition");
+        ret_val = -EINVAL;
+        goto mtx_unlk;
     }
 
     /* If this CQ is an IOCQ, not ACQ, then lookup the CE size */
