@@ -919,7 +919,6 @@ struct metrics_sq *find_sq(struct  metrics_device_list
     list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
             metrics_sq_list, sq_list_hd) {
         if (sq_id == pmetrics_sq_list->public_sq.sq_id) {
-            LOG_DBG("SQ ID = %d exists", sq_id);
             return pmetrics_sq_list;
         }
     }
@@ -939,7 +938,6 @@ struct metrics_cq *find_cq(struct  metrics_device_list
     list_for_each_entry(pmetrics_cq_list, &pmetrics_device_element->
             metrics_cq_list, cq_list_hd) {
         if (cq_id == pmetrics_cq_list->public_cq.q_id) {
-            LOG_DBG("CQ ID = %d exists", cq_id);
             return pmetrics_cq_list;
         }
     }
@@ -958,7 +956,6 @@ struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id)
     list_for_each_entry(pcmd_track_list, &pmetrics_sq_node->private_sq.
             cmd_track_list, cmd_list_hd) {
         if (cmd_id == pcmd_track_list->unique_id) {
-            LOG_DBG("Cmd Id = %d exists", cmd_id);
             return pcmd_track_list;
         }
     }
@@ -977,7 +974,6 @@ struct metrics_meta *find_meta_node(struct metrics_device_list
     list_for_each_entry(pmetrics_meta, &pmetrics_device_elem->metrics_meta.
             meta_trk_list, meta_list_hd) {
         if (meta_id == pmetrics_meta->meta_id) {
-            LOG_DBG("Meta ID = %d exists", meta_id);
             return pmetrics_meta;
         }
     }
@@ -1186,7 +1182,6 @@ static int process_reap_algos(struct cq_completion *cq_entry,
     pcmd_node = find_cmd(pmetrics_sq_node, cq_entry->cmd_identifier);
     if (pcmd_node != NULL) {
         /* Command Node exists */
-        LOG_DBG("Cmd node exists...");
         if (pcmd_node->cmd_set == CMD_ADMIN) {
             LOG_DBG("Admin Command Set...");
             ret_val = process_admin_cmd(pmetrics_sq_node, pcmd_node, cq_entry->

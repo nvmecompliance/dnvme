@@ -27,18 +27,18 @@ DRV_NAME:=dnvme
 QEMU_ON:=-DQEMU
 #DBG_ON:=-g -DDEBUG
 
-EXTRA_CFLAGS+=$(DBG_ON) $(QEMU_ON) -I$(PWD)/
+EXTRA_CFLAGS+=$(QEMU_ON) $(DBG_ON) -I$(PWD)/
 
 
-SOURCES :=		\
-	dnvme_reg.c	\
-	sysdnvme.c	\
-	dnvme_ioctls.c	\
-	dnvme_sts_chk.c	\
-	dnvme_queue.c	\
-	dnvme_cmds.c	\
-	dnvme_ds.c	\
-	dnvme_irq.c	\
+SOURCES := \
+	dnvme_reg.c \
+	sysdnvme.c \
+	dnvme_ioctls.c \
+	dnvme_sts_chk.c \
+	dnvme_queue.c \
+	dnvme_cmds.c \
+	dnvme_ds.c \
+	dnvme_irq.c \
 	ut_reap_inq.c
 
 #

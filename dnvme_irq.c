@@ -1042,6 +1042,7 @@ int update_cq_irqtrack(struct  metrics_device_list *pmetrics_device_elem,
     /* fetch the Irq node for given irq no */
     pirq_node = find_irq_node(pmetrics_device_elem, irq_no);
     if (pirq_node == NULL) {
+        LOG_DBG("Unable to find IRQ node %d", irq_no);
         ret_val = -EINVAL;
         goto exit;
     }

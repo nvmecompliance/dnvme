@@ -118,7 +118,6 @@ int driver_generic_read(struct rw_generic *nvme_data,
     struct nvme_device *nvme_dev;
     void *datap;
 
-    LOG_DBG("Inside Generic Read Function of the IOCTLs");
 
     /* Allocating memory for the read in kernel space */
     datap = kmalloc(nvme_data->nBytes, GFP_KERNEL | __GFP_ZERO);
@@ -208,9 +207,6 @@ int driver_generic_read(struct rw_generic *nvme_data,
         break;
 
     case NVMEIO_BAR01:
-        /* Registers are aligned and so */
-        LOG_DBG("Invoking User App request to read from NVME space");
-
         /*
         * Checking for 4 bytes boundary. If either nBytes or offset is not
         * 4 bytes aligned return error.
@@ -317,8 +313,6 @@ int driver_generic_write(struct rw_generic *nvme_data,
     */
     switch (nvme_data->type) {
     case NVMEIO_PCI_HDR: /* Switch case for NVME PCI Header type. */
-
-        LOG_DBG("Invoking User App request to write the PCI Header Space");
         /*
         * Loop through the number of bytes that are specified in the
         * bBytes parameter.
@@ -371,8 +365,6 @@ int driver_generic_write(struct rw_generic *nvme_data,
         /* Done writing user requested data, returning. */
         break;
     case NVMEIO_BAR01:
-        LOG_DBG("Invoking User App request to write NVME Space using BAR01");
-
         /*
         * Checking for 4 bytes boundary. If either nBytes or offset is not
         * 4 bytes aligned return error.
