@@ -54,7 +54,7 @@ struct nvme_prps {
     __u32 dma_mapped_pgs;
     /* Address of data buffer for the specific command */
     unsigned long data_buf_addr;
-    u8 data_dir; /* Flow of Data to/from device 1/0 */
+    u8 data_dir; /* Flow of Data to/from device !0/0 */
 };
 
 /*

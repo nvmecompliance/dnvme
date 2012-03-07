@@ -134,7 +134,7 @@ struct nvme_64b_send {
     enum nvme_cmds cmd_set; /* Command set for the cmd_buf command */
     uint32_t meta_buf_id; /* Meta buffer ID when MASK_MPTR is set */
     uint16_t q_id; /* Queue ID where the cmd_buf command should go */
-    uint8_t data_dir; /* Direction of DMA mapped memory 1/0 to/from device */
+    uint8_t data_dir; /* Direction of DMA mapped memory !0/0 to/from device */
 };
 
 /**
