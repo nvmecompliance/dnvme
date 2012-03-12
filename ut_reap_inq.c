@@ -58,7 +58,7 @@ void unit_test_reap(struct  metrics_device_list *pmetrics_device)
             tmpbit = 0;
         }
         if (num == 4) {
-            LOG_NRM("Entries in Q = %d", num);
+            LOG_DBG("Entries in Q = %d", num);
             break;
         }
     }
@@ -119,7 +119,7 @@ void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device)
                 if ((q_head_ptr == pmetrics_cq_node->private_cq.vir_kern_addr +
                                     pmetrics_cq_node->private_cq.size) ||
                                     (num == 10)) {
-                    LOG_NRM("Num = %d", num);
+                    LOG_DBG("Num = %d", num);
                     break;
                 }
             }
@@ -149,7 +149,7 @@ void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device)
                 }
 
                 if (num == 101) {
-                    LOG_NRM("Entries in Q = %d", num);
+                    LOG_DBG("Entries in Q = %d", num);
                     break;
                 }
             }
@@ -181,7 +181,7 @@ void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device)
                 }
 
                 if (num == 101) {
-                    LOG_NRM("Entries in Q = %d", num);
+                    LOG_DBG("Entries in Q = %d", num);
                     break;
                 }
             }
@@ -212,7 +212,7 @@ void unit_test_reap_inq(struct  metrics_device_list *pmetrics_device)
                 }
 
                 if (num == 1) {
-                    LOG_NRM("Entries in Q = %d", num);
+                    LOG_DBG("Entries in Q = %d", num);
                     break;
                 }
             }
@@ -241,7 +241,7 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                     (64 * pmetrics_sq_node->public_sq.head_ptr);
             while (1) {
                 *q_head_ptr = val;
-                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr,
+                LOG_DBG("Addr:val-0x%llx:%llx", (u64)q_head_ptr,
                         (u64)*q_head_ptr);
                 q_head_ptr += 2; /* increment to next location */
                 num++;
@@ -251,7 +251,7 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                     q_head_ptr = pmetrics_sq_node->private_sq.vir_kern_addr;
                 }
                 if (num == 15) {
-                    LOG_NRM("Entries in Q = %d", num);
+                    LOG_DBG("Entries in Q = %d", num);
                     break;
                 }
                 if (num/16 > 4096 && num/16 < (2 * 4096)) {
@@ -272,7 +272,7 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                     (64 * pmetrics_sq_node->public_sq.head_ptr);
             while (1) {
                 *q_head_ptr = (0xbb77 + num);
-                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr,
+                LOG_DBG("Addr:val-0x%llx:%llx", (u64)q_head_ptr,
                         (u64)*q_head_ptr);
                 q_head_ptr++; /* increment to next location */
                 num++;
@@ -282,7 +282,7 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                     q_head_ptr = pmetrics_sq_node->private_sq.vir_kern_addr;
                 }
                 if (num == 15) {
-                    LOG_NRM("Entries in Q = %d", num);
+                    LOG_DBG("Entries in Q = %d", num);
                     break;
                 }
             }
@@ -302,7 +302,7 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                     (16 * pmetrics_cq_node->public_cq.head_ptr));
             while (1) {
                 *q_head_ptr = val;
-                LOG_NRM("Addr:val-0x%llx:%llx", (u64)q_head_ptr,
+                LOG_DBG("Addr:val-0x%llx:%llx", (u64)q_head_ptr,
                         (u64)*q_head_ptr);
                 q_head_ptr += 2; /* increment to next location */
                 num += 16;
@@ -313,7 +313,7 @@ void unit_test_mmap(struct  metrics_device_list *pmetrics_device)
                             vir_kern_addr;
                 }
                 if (num > pmetrics_cq_node->private_cq.size - 1) {
-                    LOG_NRM("Entries in Q = %d", num);
+                    LOG_DBG("Entries in Q = %d", num);
                     break;
                 }
                 if (num > 4096 && num < 2 * 4096) {

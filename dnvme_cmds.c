@@ -146,15 +146,12 @@ void empty_cmd_track_list(struct  nvme_device *nvme_device,
     struct list_head *pos, *temp;
 
     /* Loop through the cmd track list */
-    list_for_each_safe(pos, temp,
-        &pmetrics_sq->private_sq.cmd_track_list) {
-        pcmd_track_element =
-            list_entry(pos, struct cmd_track, cmd_list_hd);
+    list_for_each_safe(pos, temp, &pmetrics_sq->private_sq.cmd_track_list) {
+        pcmd_track_element = list_entry(pos, struct cmd_track, cmd_list_hd);
         del_prps(nvme_device, &pcmd_track_element->prp_nonpersist);
         list_del(pos);
         kfree(pcmd_track_element);
-    } /* End of cmd_track_list */
-
+    }
 }
 
 /*
@@ -251,7 +248,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
                 num_prps -= i;
                 i = 0 ;
                 prp_vlist = prps->vir_prp_list[j];
-                LOG_NRM("Physical address of next PRP Page: %llx",
+                LOG_DBG("Physical address of next PRP Page: %llx",
                     (__le64) prp_vlist);
             }
 
@@ -274,7 +271,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
         goto err;
     }
 
-    LOG_NRM("PRP Built and added to command track node succesfully");
+    LOG_DBG("PRP Built and added to command track node successfully");
     return 0;
 
 err:
@@ -518,7 +515,7 @@ prp_list:
         return -ENOMEM;
     }
 
-    LOG_NRM("No. of PRP Entries inside PRPList: %u", num_prps);
+    LOG_DBG("No. of PRP Entries inside PRPList: %u", num_prps);
 
     prp_page = 0;
     prp_page_pool = nvme_dev->private_dev.prp_page_pool;

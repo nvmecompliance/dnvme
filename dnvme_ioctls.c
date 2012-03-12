@@ -69,30 +69,24 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
     * Get the Device Status from the PCI Header.
     */
     ker_status = device_status_pci(data);
-
-    /* Print out to kernel log the device status */
     if (ker_status == SUCCESS) {
-        LOG_NRM("PCI Device Status SUCCESS (STS)");
+        LOG_DBG("PCI Device Status SUCCESS (STS)");
     } else {
         LOG_ERR("PCI Device Status FAIL (STS)");
     }
 
     ker_status = (ker_status == SUCCESS) ? device_status_next
         (pmetrics_device_element->metrics_device->private_dev.pdev) : FAIL;
-
-    /* Print out to kernel log the device status */
     if (ker_status == SUCCESS) {
-        LOG_NRM("NEXT Capability Status SUCCESS.");
+        LOG_DBG("NEXT Capability Status SUCCESS.");
     } else {
         LOG_ERR("NEXT Capabilty status FAIL");
     }
 
     ker_status = (ker_status == SUCCESS) ? nvme_controller_status
         (pmetrics_device_element->metrics_device->private_dev.pdev) : FAIL;
-
-    /* Print out to kernel log the device status */
     if (ker_status == SUCCESS) {
-        LOG_NRM("NVME Controller Status SUCCESS (CSTS)");
+        LOG_DBG("NVME Controller Status SUCCESS (CSTS)");
     } else {
         LOG_ERR("iNVME Controller Status FAIL (CSTS)");
     }
@@ -165,7 +159,7 @@ int driver_generic_read(struct rw_generic *nvme_data,
                 /* Read dword from the PCI register space. */
                 ret_code = pci_read_config_dword(pdev,
                 (nvme_data->offset + index), (u32 *) (datap + index));
-                    LOG_NRM("Reading PCI offset, data = 0x%x, 0x%x",
+                    LOG_DBG("Reading PCI offset, data = 0x%x, 0x%x",
                         (nvme_data->offset + index), *(u32 *) (datap + index));
 
                 /* increment by dword size */
@@ -175,7 +169,7 @@ int driver_generic_read(struct rw_generic *nvme_data,
                 /* Read a word from the PCI register space. */
                 ret_code = pci_read_config_word(pdev,
                 (nvme_data->offset + index), (u16 *) (datap + index));
-                LOG_NRM("Reading PCI offset, data = 0x%x, 0x%x",
+                LOG_DBG("Reading PCI offset, data = 0x%x, 0x%x",
                     (nvme_data->offset + index), *(u16 *) (datap + index));
 
                 /* increment by word size */
@@ -184,7 +178,7 @@ int driver_generic_read(struct rw_generic *nvme_data,
                 /* Read a byte from the PCI register space. */
                 ret_code = pci_read_config_byte(pdev,
                     (nvme_data->offset + index), (u8 *) (datap + index));
-                LOG_NRM("Reading PCI offset, data = 0x%x, 0x%x",
+                LOG_DBG("Reading PCI offset, data = 0x%x, 0x%x",
                     (nvme_data->offset + index), *(u8 *) (datap + index));
 
                 /* increment by byte size */
@@ -327,7 +321,7 @@ int driver_generic_write(struct rw_generic *nvme_data,
                 /* Write a word to PCI register space. */
                 ret_code = pci_write_config_dword(pdev,
                     (nvme_data->offset + index), *(u32 *) (datap + index));
-                LOG_NRM("Writing to PCI offset, data = 0x%x, 0x%x",
+                LOG_DBG("Writing to PCI offset, data = 0x%x, 0x%x",
                     (nvme_data->offset + index), *(u32 *) (datap + index));
                 /* increment by dword size */
                 index += 4;
@@ -336,7 +330,7 @@ int driver_generic_write(struct rw_generic *nvme_data,
                 /* Write a word to PCI register space. */
                 ret_code = pci_write_config_word(pdev,
                     (nvme_data->offset + index), *(u16 *) (datap + index));
-                LOG_NRM("Writing to PCI offset, data = 0x%x, 0x%x",
+                LOG_DBG("Writing to PCI offset, data = 0x%x, 0x%x",
                     (nvme_data->offset + index), *(u16 *) (datap + index));
                 /* increment by word size */
                 index += 2;
@@ -345,7 +339,7 @@ int driver_generic_write(struct rw_generic *nvme_data,
                 ret_code = pci_write_config_byte(pdev,
                     (nvme_data->offset + index), *(u8 *) (datap + index));
 
-                LOG_NRM("Writing to PCI offset, data = 0x%x, 0x%x",
+                LOG_DBG("Writing to PCI offset, data = 0x%x, 0x%x",
                     (nvme_data->offset + index), *(u8 *) (datap + index));
                 /* increment by byte size */
                 index++;
@@ -438,14 +432,14 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     }
 
     /* Search if admin sq already exists. */
-    LOG_NRM("Searching for Node in the sq_list_hd...");
+    LOG_DBG("Searching for Node in the sq_list_hd...");
     ret_code = identify_unique(admn_id, METRICS_SQ, pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("ASQ already exists..");
         goto asq_exit; /* use invalid return code */
     }
 
-    LOG_NRM("Alloc mem for a node...");
+    LOG_DBG("Alloc mem for a node...");
     pmetrics_sq_list = kmalloc(sizeof(struct metrics_sq), GFP_KERNEL);
     if (pmetrics_sq_list == NULL) {
         LOG_ERR("failed mem alloc in ASQ creation.");
@@ -472,7 +466,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
         goto asq_exit;
     }
 
-    LOG_NRM("Adding node for Admin SQ to the list.");
+    LOG_DBG("Adding node for Admin SQ to the list.");
     /* Add an element to the end of the list */
     list_add_tail(&pmetrics_sq_list->sq_list_hd,
             &pmetrics_device_element->metrics_sq_list);
@@ -507,14 +501,14 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     }
 
     /* Search if admin sq already exists. */
-    LOG_NRM("Searching for Node in the cq_list_hd");
+    LOG_DBG("Searching for Node in the cq_list_hd");
     ret_code = identify_unique(admn_id, METRICS_CQ, pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("ACQ already exists");
         goto acq_exit;
     }
 
-    LOG_NRM("Alloc mem for a Admin CQ node.");
+    LOG_DBG("Alloc mem for a Admin CQ node.");
     pmetrics_cq_list = kmalloc(sizeof(struct metrics_cq), GFP_KERNEL);
     if (pmetrics_cq_list == NULL) {
         LOG_ERR("failed mem alloc in ACQ creation.");
@@ -530,7 +524,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     pmetrics_cq_list->public_cq.irq_no = 0;
     pmetrics_cq_list->public_cq.irq_enabled = 1;
 
-    LOG_NRM("Adding node for Admin CQ to the list.");
+    LOG_DBG("Adding node for Admin CQ to the list.");
 
     /* Call dma allocation, creation of contiguous memory for ACQ */
     ret_code = create_admn_cq(pnvme_dev, pmetrics_cq_list->public_cq.elements,
@@ -565,7 +559,7 @@ int driver_ioctl_init(struct pci_dev *pdev,
 {
     int ret_val = SUCCESS;
     LOG_DBG("Inside driver IOCTL init function");
-    LOG_NRM("Initializing the BAR01 and NVME Controller Space");
+    LOG_DBG("Initializing the BAR01 and NVME Controller Space");
 
     /* Allocate mem fo nvme device with kernel memory */
     pmetrics_device_list->metrics_device = kmalloc(sizeof(struct nvme_device),
@@ -633,7 +627,7 @@ int driver_ioctl_init(struct pci_dev *pdev,
     /* Spinlock to protect from kernel preemption in ISR handler */
     spin_lock_init(&pmetrics_device_list->irq_process.isr_spin_lock);
 
-    LOG_NRM("IOCTL Init Success:Reg Space Location:  0x%llx",
+    LOG_DBG("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)pmetrics_device_list->metrics_device->private_dev.
             nvme_ctrl_space);
 
@@ -656,42 +650,27 @@ iocinit_out:
  * with DWORD alignment and associate it with the active device.
  */
 int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
-        u16 alloc_size)
+    u16 alloc_size)
 {
-    int ret_val = SUCCESS;
-
-    LOG_DBG("pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = 0x%llx",
-            (u64)pmetrics_device_elem->metrics_meta.meta_dmapool_ptr);
-
     /* First Check if the meta pool already exists */
     if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr != NULL) {
         if (alloc_size == pmetrics_device_elem->metrics_meta.meta_buf_size) {
             return SUCCESS;
         }
-        LOG_ERR("Meta Pool already exists!!");
+        LOG_ERR("Meta Pool already exists, of a different size");
         return -EINVAL;
     }
 
-    /* To create coherent DMA mapping for meta data buffer creation */
+    /* Create coherent DMA mapping for meta data buffer creation */
     pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = dma_pool_create
-            ("meta buff", &pmetrics_device_elem->metrics_device->
-                    private_dev.pdev->dev, sizeof(__u32), alloc_size, 0);
+        ("meta_buff", &pmetrics_device_elem->metrics_device->
+        private_dev.pdev->dev, sizeof(__u32), alloc_size, 0);
     if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr == NULL) {
-        LOG_ERR("Creation of DMA Pool failed at meta-data");
-        ret_val = -ENOMEM;
-        goto meta_cr_out;
+        LOG_ERR("Creation of DMA Pool failed");
+        return -ENOMEM;
     }
     pmetrics_device_elem->metrics_meta.meta_buf_size = alloc_size;
-    return ret_val;
-
-meta_cr_out:
-    if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr != NULL) {
-        dma_pool_destroy(pmetrics_device_elem->metrics_meta.
-                meta_dmapool_ptr);
-        pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = NULL;
-    }
-
-    return ret_val;
+    return SUCCESS;
 }
 
 /*
@@ -709,29 +688,27 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
     if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr == NULL) {
         LOG_ERR("Meta data pool is not created...");
         LOG_ERR("Call to Create the meta data pool first...");
-        ret_val = -EINVAL;
-        goto meta_err;
+        return -EINVAL;
     }
     /* Check if this id is already created. */
     pmeta_data = find_meta_node(pmetrics_device_elem, meta_id);
     if (pmeta_data != NULL) {
         LOG_ERR("Meta ID = %d already exists!!", pmeta_data->meta_id);
-        ret_val = -EINVAL;
-        goto meta_err;
+        return -EINVAL;
     }
+
     /* Allocate memory to metrics_meta for each node */
     pmeta_data = kmalloc(sizeof(struct metrics_meta), GFP_KERNEL);
     if (pmeta_data == NULL) {
         LOG_ERR("Allocation of Meta data mem failed");
-        ret_val = -ENOMEM;
-        goto meta_err;
+        return -ENOMEM;
     }
+
     /* Assign the user passed id for tracking this meta id */
     pmeta_data->meta_id = meta_id;
     /* Allocated the dma memory and assign to vir_kern_addr */
     pmeta_data->vir_kern_addr = dma_pool_alloc(pmetrics_device_elem->
-            metrics_meta.meta_dmapool_ptr, GFP_ATOMIC, &pmeta_data->
-            meta_dma_addr);
+        metrics_meta.meta_dmapool_ptr, GFP_ATOMIC, &pmeta_data->meta_dma_addr);
     if (pmeta_data->vir_kern_addr == NULL) {
         LOG_ERR("DMA Allocation failed for meta data buffer.");
         ret_val = -ENOMEM;
@@ -739,21 +716,11 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
     }
     /* Add the meta data node into the linked list */
     list_add_tail(&pmeta_data->meta_list_hd, &pmetrics_device_elem->
-            metrics_meta.meta_trk_list);
+        metrics_meta.meta_trk_list);
     return ret_val;
 
 meta_alloc_out:
-    if ((pmeta_data->vir_kern_addr != NULL) &&
-            (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr
-                    != NULL)) {
-        dma_pool_free(pmetrics_device_elem->metrics_meta.meta_dmapool_ptr,
-                pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
-        pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = NULL;
-    }
-    if (pmeta_data != NULL) {
-        kfree(pmeta_data);
-    }
-meta_err:
+    kfree(pmeta_data);
     return ret_val;
 }
 
@@ -763,14 +730,14 @@ meta_err:
  * linked list and finally free the node memory from the kernel.
  */
 int metabuff_del(struct metrics_device_list *pmetrics_device_element,
-        u32 meta_id)
+    u32 meta_id)
 {
     struct metrics_meta *pmeta_data = NULL;
 
     /* Check if invalid parameters are passed */
     if (pmetrics_device_element->metrics_meta.meta_dmapool_ptr == NULL) {
-        LOG_ERR("Meta data pool is not created...");
-        LOG_ERR("Call to Create the meta data pool first...");
+        LOG_ERR("Meta data pool is not created.");
+        LOG_ERR("Call to Create the meta data pool first");
         return -EINVAL;
     }
     /* check if meta node id exists */
@@ -782,13 +749,51 @@ int metabuff_del(struct metrics_device_list *pmetrics_device_element,
     /* free the dma memory if exists */
     if (pmeta_data->vir_kern_addr != NULL) {
         dma_pool_free(pmetrics_device_element->metrics_meta.meta_dmapool_ptr,
-                pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
+            pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
     }
     /* Remove from the linked list and free the node */
     list_del(&pmeta_data->meta_list_hd);
     kfree(pmeta_data);
-
     return SUCCESS;
+}
+
+/*
+ * deallocate_mb - This function will start freeing up the memory and
+ * nodes for the meta buffers allocated during the alloc and create meta.
+ */
+void deallocate_mb(struct  metrics_device_list *pmetrics_device)
+{
+    struct metrics_meta *pmeta_data = NULL;
+    struct metrics_meta *pmeta_data_next = NULL;
+
+    /* do not assume the node exists always */
+    if (pmetrics_device->metrics_meta.meta_dmapool_ptr == NULL) {
+        LOG_DBG("Meta node is not allocated..");
+        return;
+    }
+    /* Loop for each meta data node */
+    list_for_each_entry_safe(pmeta_data, pmeta_data_next,
+        &(pmetrics_device->metrics_meta.meta_trk_list), meta_list_hd) {
+
+        /* free the dma memory if exists */
+        if (pmeta_data->vir_kern_addr != NULL) {
+            dma_pool_free(pmetrics_device->metrics_meta.meta_dmapool_ptr,
+                pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
+        }
+        /* Remove from the linked list and free the node */
+        list_del(&pmeta_data->meta_list_hd);
+        kfree(pmeta_data);
+    }
+
+    /* check if it has dma pool created then destroy */
+    if (pmetrics_device->metrics_meta.meta_dmapool_ptr != NULL) {
+        dma_pool_destroy(pmetrics_device->metrics_meta.meta_dmapool_ptr);
+        pmetrics_device->metrics_meta.meta_dmapool_ptr = NULL;
+    }
+    pmetrics_device->metrics_meta.meta_buf_size = 0;
+
+    /* Prepare a clean list, empty, ready for next use */
+    INIT_LIST_HEAD(&pmetrics_device->metrics_meta.meta_trk_list);
 }
 
 /*
@@ -1240,7 +1245,7 @@ int identify_unique(u16 q_id, enum metrics_type type,
 
     /* Determine the type of Q for which the metrics was needed */
     if (type == METRICS_SQ) {
-        LOG_NRM("Searching for Node in the sq_list_hd...");
+        LOG_DBG("Searching for Node in the sq_list_hd...");
         pmetrics_sq_list = find_sq(pmetrics_device_element, q_id);
         if (pmetrics_sq_list != NULL) {
             LOG_ERR("SQ ID is not unique. SQ_ID = %d already created.",
@@ -1406,42 +1411,4 @@ exit_prep_cq:
         kfree(pmetrics_cq_node);
     }
         return ret_code;
-}
-
-/*
- * deallocate_mb - This function will start freeing up the memory and
- * nodes for the meta buffers allocated during the alloc and create meta.
- */
-void deallocate_mb(struct  metrics_device_list *pmetrics_device)
-{
-    struct metrics_meta *pmeta_data = NULL;
-    struct metrics_meta  *pmeta_data_next = NULL;
-
-    /* do not assume the node exists always..*/
-    if (pmetrics_device->metrics_meta.meta_dmapool_ptr == NULL) {
-        LOG_DBG("Meta node is not allocated..");
-        return;
-    }
-    /* Loop for each meta data node */
-    list_for_each_entry_safe(pmeta_data, pmeta_data_next,
-            &(pmetrics_device->metrics_meta.meta_trk_list), meta_list_hd) {
-        /* free the dma pool memory if exists */
-        dma_pool_free(pmetrics_device->metrics_meta.meta_dmapool_ptr,
-                pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
-        /* Delete the current meta data entry from the list */
-        list_del(&pmeta_data->meta_list_hd);
-        kfree(pmeta_data);
-    }
-    /* check if it has dma pool created then destroy */
-    if (pmetrics_device->metrics_meta.meta_dmapool_ptr != NULL) {
-        dma_pool_destroy(pmetrics_device->metrics_meta.
-                meta_dmapool_ptr);
-        pmetrics_device->metrics_meta.meta_dmapool_ptr = NULL;
-    }
-
-    pmetrics_device->metrics_meta.meta_buf_size = 0;
-
-    /* here list del init is required as we will check while cntlr disable */
-    list_del_init(&pmetrics_device->metrics_meta.meta_trk_list);
-    return;
 }

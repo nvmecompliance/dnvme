@@ -1188,9 +1188,8 @@ int remove_icq_node(struct  metrics_device_list
         LOG_ERR("CQ node does not exist in the IRQ Tracked node!");
         return -EINVAL;
     }
-    /* remove the cq node from the linked list and initialize it */
-    list_del_init(&picq_node->irq_cq_head);
-    /* free up the memory allocated for cq node in irq list */
+    /* remove the cq node from the linked list and free it */
+    list_del(&picq_node->irq_cq_head);
     kfree(picq_node);
 
     return SUCCESS;

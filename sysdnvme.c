@@ -554,7 +554,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     pmetrics_device_element = lock_device(inode);
     if (pmetrics_device_element == NULL) {
-        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        LOG_ERR("Cannot lock device with minor no. %d", iminor(inode));
         ret_val = -ENODEV;
         goto ictl_exit;
     }
@@ -562,27 +562,27 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     /* Given a ioctl_num invoke corresponding function */
     switch (ioctl_num) {
     case NVME_IOCTL_ERR_CHK:
+        LOG_DBG("NVME_IOCTL_ERR_CHK");
         /* check if the device has any errors set in its status
            register. And report errors. */
         nvme_dev_err_sts = (int *)ioctl_param;
-        LOG_DBG("Checking device Status");
         ret_val = device_status_chk(pmetrics_device_element, nvme_dev_err_sts);
         break;
 
     case NVME_IOCTL_READ_GENERIC:
-        LOG_DBG("OCTL Generic Read Function");
+        LOG_DBG("NVME_IOCTL_READ_GENERIC");
         nvme_data = (struct rw_generic *)ioctl_param;
         ret_val = driver_generic_read(nvme_data, pmetrics_device_element);
         break;
 
     case NVME_IOCTL_WRITE_GENERIC:
-        LOG_DBG("IOCTL Generic Write Function");
+        LOG_DBG("NVME_IOCTL_WRITE_GENERIC");
         nvme_data = (struct rw_generic *)ioctl_param;
         ret_val = driver_generic_write(nvme_data, pmetrics_device_element);
         break;
 
     case NVME_IOCTL_CREATE_ADMN_Q:
-        LOG_DBG("IOCTL for Create Admin Q's...");
+        LOG_DBG("NVME_IOCTL_CREATE_ADMN_Q");
         create_admn_q = (struct nvme_create_admn_q *)ioctl_param;
         /* Check the type of Admin Q and call corresponding functions */
         if (create_admn_q->type == ADMIN_SQ) {
@@ -599,29 +599,27 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case NVME_IOCTL_DEVICE_STATE:
-        LOG_DBG("IOCTL for nvme controller set/reset Command");
-        LOG_NRM("Invoke IOCTL for controller Status Setting");
+        LOG_DBG("NVME_IOCTL_DEVICE_STATE");
 
         /* Assign user passed parameters to local struct */
         ctrl_new_state = (enum nvme_state *)ioctl_param;
         if (*ctrl_new_state == ST_ENABLE) {
-            LOG_NRM("Ctrlr is getting ENABLED...");
+            LOG_DBG("Invoke ST_ENABLE");
             ret_val = nvme_ctrl_enable(pmetrics_device_element);
         } else if ((*ctrl_new_state == ST_DISABLE) ||
-                (*ctrl_new_state == ST_DISABLE_COMPLETELY)) {
-            LOG_NRM("Controller is going to DISABLE...");
-            /* Waiting for the controller to go idle. */
+                   (*ctrl_new_state == ST_DISABLE_COMPLETELY)) {
+            LOG_DBG("Invoke ST_DISABLE");
             ret_val = nvme_ctrl_disable(pmetrics_device_element);
             if (ret_val == SUCCESS) {
                 nvme_disable(pmetrics_device_element, *ctrl_new_state);
             }
          } else {
-            LOG_ERR("Device State not correctly specified.");
+            LOG_ERR("Unknown IOCTL parameter");
         }
         break;
 
     case NVME_IOCTL_GET_Q_METRICS:
-        LOG_DBG("User App Requested Q Metrics...");
+        LOG_DBG("NVME_IOCTL_GET_Q_METRICS");
         /* Assign user passed parameters to q metrics structure. */
         get_q_metrics = (struct nvme_get_q_metrics *)ioctl_param;
         /* Call the Q metrics function and return the data to user. */
@@ -629,7 +627,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case NVME_IOCTL_PREPARE_SQ_CREATION:
-        LOG_DBG("Driver Preparation for IO SQ");
+        LOG_DBG("NVME_IOCTL_PREPARE_SQ_CREATION");
         /* Assign user passed parameters to prep_sq structure. */
         prep_sq = (struct nvme_prep_sq *)ioctl_param;
         /* Call alloc_sq function to add a node in liked list */
@@ -637,7 +635,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case NVME_IOCTL_PREPARE_CQ_CREATION:
-        LOG_DBG("Driver Preparation for IO CQ");
+        LOG_DBG("NVME_IOCTL_PREPARE_CQ_CREATION");
         /* Assign user passed parameters to prep_cq structure. */
         prep_cq = (struct nvme_prep_cq *)ioctl_param;
         /* Call alloc_sq function to add a node in liked list */
@@ -645,7 +643,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case NVME_IOCTL_RING_SQ_DOORBELL:
-        LOG_DBG("Driver Call to Ring SQx Doorbell");
+        LOG_DBG("NVME_IOCTL_RING_SQ_DOORBELL");
         /* Assign user passed parameters to sqx to be rung */
         ring_sqx = (u16)ioctl_param;
         /* Call the ring doorbell driver function */
@@ -653,20 +651,20 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case NVME_IOCTL_SEND_64B_CMD:
-        LOG_DBG("IOCTL NVME_IOCTL_SEND_64B_CMD Command");
+        LOG_DBG("NVME_IOCTL_SEND_64B_CMD");
         /* Assign user passed parameters to local struct pointers */
         nvme_64b_send = (struct nvme_64b_send *)ioctl_param;
         ret_val =  driver_send_64b(pmetrics_device_element, nvme_64b_send);
         /* Display success or fail */
         if (ret_val >= 0) {
-            LOG_NRM("Command sent succesfully");
+            LOG_DBG("Command sent succesfully");
         } else {
-            LOG_NRM("Sending of Command Failed");
+            LOG_DBG("Sending of Command Failed");
         }
         break;
 
     case NVME_IOCTL_DUMP_METRICS:
-        LOG_DBG("Dump Data Structure Metrics:");
+        LOG_DBG("NVME_IOCTL_DUMP_METRICS");
         /* Assign user passed parameters to local struct pointers */
         n_file = (struct nvme_file *)ioctl_param;
         /* call logging routine */
@@ -674,7 +672,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case NVME_IOCTL_REAP_INQUIRY:
-        LOG_DBG("Reap Inquiry ioctl:");
+        LOG_DBG("NVME_IOCTL_REAP_INQUIRY");
         /* Assign user passed parameters to local reap structure */
         reap_inq = (struct nvme_reap_inquiry *)ioctl_param;
         /* call reap inquiry driver routine */
@@ -682,7 +680,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case NVME_IOCTL_REAP:
-        LOG_DBG("Reap ioctl:");
+        LOG_DBG("NVME_IOCTL_REAP");
         /* Assign user passed parameters to local reap structure */
         reap_data = (struct nvme_reap *)ioctl_param;
         /* call reap inquiry driver routine */
@@ -690,14 +688,14 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case NVME_IOCTL_GET_DRIVER_METRICS:
-        LOG_DBG("Return Driver Metrics ioctl..");
+        LOG_DBG("NVME_IOCTL_GET_DRIVER_METRICS");
         dnvme_metrics = (struct metrics_driver *)ioctl_param;
         ret_val = copy_to_user(dnvme_metrics, &g_metrics_drv, sizeof(struct
                 metrics_driver));
         break;
 
     case NVME_IOCTL_METABUF_CREATE:
-        LOG_DBG("Meta Buffer Create IOCTL...");
+        LOG_DBG("NVME_IOCTL_METABUF_CREATE");
         /* Assign user passed parameters to alloc_size */
         if (ioctl_param > MAX_METABUFF_SIZE) {
             LOG_ERR("Size Exceeds Max(16KB) = 0x%x", (u16)ioctl_param);
@@ -709,19 +707,19 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case NVME_IOCTL_METABUF_ALLOC:
-        LOG_DBG("Meta Buffer Alloc IOCTL...");
+        LOG_DBG("NVME_IOCTL_METABUF_ALLOC");
         /* Call meta buff allocation routine */
         ret_val = metabuff_alloc(pmetrics_device_element, (u32)ioctl_param);
         break;
 
     case NVME_IOCTL_METABUF_DELETE:
-        LOG_DBG("Meta Buffer Delete IOCTL...");
+        LOG_DBG("NVME_IOCTL_METABUF_DELETE");
         /* Call meta buff delete routine */
         ret_val = metabuff_del(pmetrics_device_element, (u32)ioctl_param);
         break;
 
     case NVME_IOCTL_SET_IRQ:
-        LOG_DBG("IRQ Set IOCTL...");
+        LOG_DBG("NVME_IOCTL_SET_IRQ");
         irq_data = (struct interrupts *)ioctl_param;
         LOG_DBG("IRQ Scheme = %d", irq_data->irq_type);
         /* Call set irq routine to set new interrupt scheme */
@@ -730,7 +728,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     case NVME_IOCTL_GET_DEVICE_METRICS:
-        LOG_DBG("Return IRQ device metrics....");
+        LOG_DBG("NVME_IOCTL_GET_DEVICE_METRICS");
         dev_metrics = (struct public_metrics_dev *)ioctl_param;
         ret_val = copy_to_user(dev_metrics, &pmetrics_device_element->
             metrics_device->public_dev, sizeof(struct public_metrics_dev));
@@ -738,7 +736,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
 
     case IOCTL_UNIT_TESTS:
         test_number = (u16) ioctl_param;
-        LOG_DBG("Test Number = %d", test_number);
+        LOG_DBG("IOCTL_UNIT_TESTS = %d", test_number);
         /* Call the Test setup based on user request */
         switch (test_number) {
         case 0: /* Unit Test for IOCTL REAP INQUIRY */
@@ -763,7 +761,7 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         break;
 
     default:
-        LOG_DBG("Cannot find IOCTL going to default case");
+        LOG_DBG("Unknown IOCTL");
         break;
     }
 
