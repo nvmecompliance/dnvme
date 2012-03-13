@@ -320,8 +320,8 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
      * the DMA mapped address from the kernel virtual address.
      */
     pmetrics_cq_list->private_cq.vir_kern_addr =
-            dma_alloc_coherent(&pnvme_dev->private_dev.pdev->dev, acq_depth,
-                    &pmetrics_cq_list->private_cq.cq_dma_addr, GFP_KERNEL);
+        dma_alloc_coherent(&pnvme_dev->private_dev.pdev->dev, acq_depth,
+        &pmetrics_cq_list->private_cq.cq_dma_addr, GFP_KERNEL);
     if (!pmetrics_cq_list->private_cq.vir_kern_addr) {
         LOG_ERR("Unable to allocate DMA Address for ACQ!!");
         ret_code = -ENOMEM;
@@ -371,7 +371,7 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
     /* CQ 0 Head DoorBell admin computed used doorbell stride. */
     pmetrics_cq_list->private_cq.dbs =
         ((void __iomem *)pnvme_dev->private_dev.nvme_ctrl_space)
-            + NVME_SQ0TBDL + (4 << cap_dstrd);
+        + NVME_SQ0TBDL + (4 << cap_dstrd);
 
     /* returns success */
     return ret_code;
@@ -380,8 +380,8 @@ acq_out:
     if (pmetrics_cq_list->private_cq.vir_kern_addr != NULL) {
         /* Admin CQ dma mem allocated, so free the DMA memory */
         dma_free_coherent(&pnvme_dev->private_dev.pdev->dev, acq_depth,
-                (void *)pmetrics_cq_list->private_cq.vir_kern_addr,
-                pmetrics_cq_list->private_cq.cq_dma_addr);
+            (void *)pmetrics_cq_list->private_cq.vir_kern_addr,
+            pmetrics_cq_list->private_cq.cq_dma_addr);
     }
     /* returns success */
     return ret_code;
@@ -431,7 +431,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
         /* Assume that CMD.DW11.PC bit will be set to one. */
         pmetrics_sq_list->private_sq.vir_kern_addr = dma_alloc_coherent(
             &pnvme_dev->private_dev.pdev->dev, pmetrics_sq_list->private_sq.
-                size, &pmetrics_sq_list->private_sq.sq_dma_addr, GFP_KERNEL);
+            size, &pmetrics_sq_list->private_sq.sq_dma_addr, GFP_KERNEL);
         /* Check if the dma alloc was successful */
         if (!pmetrics_sq_list->private_sq.vir_kern_addr) {
             LOG_ERR("Unable to allocate DMA Address for IO SQ!!");
@@ -449,7 +449,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
     LOG_DBG("CAP DSTRD Value = 0x%x", cap_dstrd);
     pmetrics_sq_list->private_sq.dbs = ((void __iomem *)pnvme_dev->private_dev.
         nvme_ctrl_space) + NVME_SQ0TBDL +
-            ((2 * pmetrics_sq_list->public_sq.sq_id) * (4 << cap_dstrd));
+        ((2 * pmetrics_sq_list->public_sq.sq_id) * (4 << cap_dstrd));
 
     return ret_code;
 
@@ -612,7 +612,6 @@ static void deallocate_metrics_cq(struct device *dev,
     /* Delete the current cq entry from the list, and free it */
     list_del(&pmetrics_cq_list->cq_list_hd);
     kfree(pmetrics_cq_list);
-
 }
 
 /*
@@ -633,8 +632,6 @@ static void deallocate_metrics_sq(struct device *dev,
         del_prps(pmetrics_device->metrics_device,
             &pmetrics_sq_list->private_sq.prp_persist);
     } else {
-        LOG_DBG("DMA Free for contig sq id = %d", pmetrics_sq_list->
-            public_sq.sq_id);
         /* Contiguous SQ, so free the DMA memory */
         dma_free_coherent(dev, pmetrics_sq_list->private_sq.size,
             (void *)pmetrics_sq_list->private_sq.vir_kern_addr,
@@ -859,6 +856,7 @@ int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
     /* Note: If ISR's are enabled then ACQ will always be attached to INT 0 */
     if (pmetrics_device->metrics_device->public_dev.irq_active.irq_type
         == INT_NONE) {
+
         /* Process reap inquiry for non-isr case */
         LOG_DBG("Non-ISR Reap Inq on CQ = %d",
             pmetrics_cq_node->public_cq.q_id);
@@ -1101,11 +1099,12 @@ static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
 
     return ret_val;
 }
+
 /*
  * Process General Algorithm.
  */
 static int process_algo_gen(struct metrics_sq *pmetrics_sq_node,
-        u16 cmd_id, struct  metrics_device_list *pmetrics_device)
+    u16 cmd_id, struct  metrics_device_list *pmetrics_device)
 {
     int ret_val = SUCCESS;
     struct cmd_track *pcmd_node;
@@ -1118,9 +1117,7 @@ static int process_algo_gen(struct metrics_sq *pmetrics_sq_node,
     }
 
     del_prps(pmetrics_device->metrics_device, &pcmd_node->prp_nonpersist);
-
     ret_val = remove_cmd_node(pmetrics_sq_node, cmd_id);
-
     return ret_val;
 }
 
@@ -1128,8 +1125,8 @@ static int process_algo_gen(struct metrics_sq *pmetrics_sq_node,
  * Process Admin Commands.
  */
 static int process_admin_cmd(struct metrics_sq *pmetrics_sq_node,
-        struct cmd_track *pcmd_node, u8 status,
-        struct  metrics_device_list *pmetrics_device)
+    struct cmd_track *pcmd_node, u8 status,
+    struct  metrics_device_list *pmetrics_device)
 {
     int ret_val = SUCCESS;
 
@@ -1426,10 +1423,10 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
 
     /* Copy the number of CE's we should be able to reap */
     ret_val = copy_cq_data(pmetrics_cq_node,
-            (queue_base_addr +
-            (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr)),
-            comp_entry_size, &num_should_reap, kern_reap_data->buffer,
-            pmetrics_device);
+        (queue_base_addr +
+        (comp_entry_size * pmetrics_cq_node->public_cq.head_ptr)),
+        comp_entry_size, &num_should_reap, kern_reap_data->buffer,
+        pmetrics_device);
 
     /* Reevaluate our success during reaping */
     kern_reap_data->num_reaped -= num_should_reap;
@@ -1454,7 +1451,7 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     if ((pmetrics_cq_node->public_cq.irq_enabled == 1) &&
         (kern_reap_data->num_remaining == 0) &&
             (pmetrics_device->metrics_device->public_dev.irq_active.irq_type
-                != INT_NONE)) {
+            != INT_NONE)) {
         /* reset isr fired flag for the particular irq_no */
         if (reset_isr_flag(pmetrics_device,
             pmetrics_cq_node->public_cq.irq_no) < 0) {

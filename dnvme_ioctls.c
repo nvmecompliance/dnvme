@@ -115,7 +115,6 @@ int driver_generic_read(struct rw_generic *nvme_data,
 
     /* Allocating memory for the read in kernel space */
     datap = kmalloc(nvme_data->nBytes, GFP_KERNEL | __GFP_ZERO);
-
     if (!datap) {
         LOG_ERR("Unable to allocate kernel memory");
         return -ENOMEM;
@@ -284,11 +283,6 @@ int driver_generic_write(struct rw_generic *nvme_data,
 
     /* Allocating memory for the data in kernel space */
     datap = kmalloc(nvme_data->nBytes, GFP_KERNEL | __GFP_ZERO);
-
-    /*
-    * Check if allocation of memory is not null else return
-    * no memory.
-    */
     if (!datap) {
         LOG_ERR("Unable to allocate kernel memory");
         return -ENOMEM;
@@ -404,6 +398,7 @@ int driver_generic_write(struct rw_generic *nvme_data,
     default:
         LOG_DBG("Could not find switch case using default");
         ret_code = -EINVAL;
+        break;
     }
 
 err:
@@ -470,7 +465,6 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     /* Add an element to the end of the list */
     list_add_tail(&pmetrics_sq_list->sq_list_hd,
             &pmetrics_device_element->metrics_sq_list);
-
     return ret_code;
 
 asq_exit:
@@ -563,7 +557,7 @@ int driver_ioctl_init(struct pci_dev *pdev,
 
     /* Allocate mem fo nvme device with kernel memory */
     pmetrics_device_list->metrics_device = kmalloc(sizeof(struct nvme_device),
-            GFP_KERNEL);
+        GFP_KERNEL);
     if (pmetrics_device_list->metrics_device == NULL) {
         LOG_ERR("failed mem allocation for device.");
         ret_val = -ENOMEM;
@@ -586,16 +580,16 @@ int driver_ioctl_init(struct pci_dev *pdev,
     }
 
     pmetrics_device_list->metrics_device->private_dev.nvme_ctrl_space =
-            (void __iomem *)pmetrics_device_list->metrics_device->
-                private_dev.bar_0_mapped;
+        (void __iomem *)pmetrics_device_list->metrics_device->
+        private_dev.bar_0_mapped;
     pmetrics_device_list->metrics_device->private_dev.dmadev =
-            &pmetrics_device_list->metrics_device->private_dev.pdev->dev;
+        &pmetrics_device_list->metrics_device->private_dev.pdev->dev;
 
     /* Used to create Coherent DMA mapping for PRP List */
     pmetrics_device_list->metrics_device->private_dev.prp_page_pool =
         dma_pool_create("prp page",
-            &pmetrics_device_list->metrics_device->private_dev.pdev->dev,
-                PAGE_SIZE, PAGE_SIZE, 0);
+        &pmetrics_device_list->metrics_device->private_dev.pdev->dev,
+        PAGE_SIZE, PAGE_SIZE, 0);
     if (NULL == pmetrics_device_list->metrics_device->private_dev.
             prp_page_pool) {
         LOG_ERR("Creation of DMA Pool failed");
@@ -629,8 +623,7 @@ int driver_ioctl_init(struct pci_dev *pdev,
 
     LOG_DBG("IOCTL Init Success:Reg Space Location:  0x%llx",
         (uint64_t)pmetrics_device_list->metrics_device->private_dev.
-            nvme_ctrl_space);
-
+        nvme_ctrl_space);
     return ret_val;
 
 iocinit_out:
@@ -870,7 +863,6 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
     /* Allocating memory for the command in kernel space */
     nvme_cmd_ker = kmalloc(cmd_buf_size, GFP_ATOMIC | __GFP_ZERO);
-
     if (!nvme_cmd_ker) {
         LOG_ERR("Unable to allocate kernel memory");
         ret_code = -ENOMEM;
@@ -941,7 +933,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         if (((nvme_create_sq->sq_flags & CDW11_PC) &&
             (p_cmd_sq->private_sq.contig == 0)) ||
                 (!(nvme_create_sq->sq_flags & CDW11_PC) &&
-                    (p_cmd_sq->private_sq.contig != 0))) {
+                (p_cmd_sq->private_sq.contig != 0))) {
             LOG_DBG("Contig flag out of sync with what cmd says");
             goto data_err;
         } else if ((p_cmd_sq->private_sq.contig == 0 &&
@@ -965,7 +957,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             }
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
-                    nvme_create_sq->sqid, DISCONTG_IO_Q, PRP_PRESENT);
+                nvme_create_sq->sqid, DISCONTG_IO_Q, PRP_PRESENT);
             if (ret_code < 0) {
                 LOG_ERR("Failure to prepare 64 byte command");
                 goto err;
@@ -974,7 +966,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             /* Contig IOSQ creation */
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
-                    nvme_create_sq->sqid, CONTG_IO_Q, PRP_ABSENT);
+                nvme_create_sq->sqid, CONTG_IO_Q, PRP_ABSENT);
             if (ret_code < 0) {
                 LOG_ERR("Failure to prepare 64 byte command");
                 goto err;
@@ -1017,13 +1009,13 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         if (((nvme_create_cq->cq_flags & CDW11_PC) &&
             (p_cmd_cq->private_cq.contig == 0))
                 || (!(nvme_create_cq->cq_flags & CDW11_PC) &&
-                    (p_cmd_cq->private_cq.contig != 0))) {
+                (p_cmd_cq->private_cq.contig != 0))) {
             LOG_DBG("Contig flag out of sync with what cmd says");
             goto data_err;
         } else if ((p_cmd_cq->private_cq.contig == 0 &&
             nvme_64b_send->data_buf_ptr == NULL) ||
                 (p_cmd_cq->private_cq.contig != 0 &&
-                    p_cmd_cq->private_cq.vir_kern_addr == NULL)) {
+                p_cmd_cq->private_cq.vir_kern_addr == NULL)) {
             LOG_DBG("Contig flag out of sync with what cmd says");
             goto data_err;
         } else if ((p_cmd_cq->private_cq.bit_mask & UNIQUE_QID_FLAG) == 0) {
@@ -1046,7 +1038,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             /* Setting the IO CQ for the irq_no */
             ret_code = update_cq_irqtrack(pmetrics_device,
                 p_cmd_cq->public_cq.q_id, nvme_create_cq->irq_no,
-                    &p_cmd_cq->public_cq.irq_enabled);
+                &p_cmd_cq->public_cq.irq_enabled);
             if (ret_code < 0) {
                 LOG_ERR("Setting Irq No = %d failed for IO CQ = %d",
                     nvme_create_cq->irq_no, p_cmd_cq->public_cq.q_id);
@@ -1064,7 +1056,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             }
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
-                    nvme_create_cq->cqid, DISCONTG_IO_Q, PRP_PRESENT);
+                nvme_create_cq->cqid, DISCONTG_IO_Q, PRP_PRESENT);
             if (ret_code < 0) {
                 LOG_ERR("Failure to prepare 64 byte command");
                 goto err;
@@ -1073,7 +1065,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             /* Contig IOCQ creation */
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
-                    nvme_create_cq->cqid, CONTG_IO_Q, PRP_ABSENT);
+                nvme_create_cq->cqid, CONTG_IO_Q, PRP_ABSENT);
             if (ret_code < 0) {
                 LOG_ERR("Failure to prepare 64 byte command");
                 goto err;
@@ -1119,7 +1111,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
         ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
             pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd, nvme_del_q->qid,
-                0, PRP_ABSENT);
+            0, PRP_ABSENT);
 
         if (ret_code < 0) {
             LOG_ERR("Failure to prepare 64 byte command");
@@ -1131,7 +1123,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         if (nvme_64b_send->data_buf_ptr != NULL) {
             ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
                 pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd,
-                    PERSIST_QID_0, DATA_BUF, PRP_PRESENT);
+                PERSIST_QID_0, DATA_BUF, PRP_PRESENT);
             if (ret_code < 0) {
                 LOG_ERR("Failure to prepare 64 byte command");
                 goto err;
@@ -1144,24 +1136,23 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     if (pmetrics_sq->private_sq.contig) {
         memcpy((pmetrics_sq->private_sq.vir_kern_addr +
             (pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size)),
-                nvme_cmd_ker, cmd_buf_size);
+            nvme_cmd_ker, cmd_buf_size);
     } else {
         memcpy((pmetrics_sq->private_sq.prp_persist.vir_kern_addr +
             (pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size)),
-                nvme_cmd_ker, cmd_buf_size);
+            nvme_cmd_ker, cmd_buf_size);
 
         dma_sync_sg_for_device(pmetrics_device->metrics_device->
             private_dev.dmadev, pmetrics_sq->private_sq.prp_persist.sg,
-                pmetrics_sq->private_sq.prp_persist.dma_mapped_pgs,
-                    pmetrics_sq->private_sq.prp_persist.data_dir);
+            pmetrics_sq->private_sq.prp_persist.dma_mapped_pgs,
+            pmetrics_sq->private_sq.prp_persist.data_dir);
 
     }
 
     /* Increment the Tail pointer and handle rollover conditions */
     pmetrics_sq->public_sq.tail_ptr_virt =
         ++pmetrics_sq->public_sq.tail_ptr_virt %
-            pmetrics_sq->public_sq.elements;
-
+        pmetrics_sq->public_sq.elements;
     kfree(nvme_cmd_ker);
     return 0;
 
@@ -1403,12 +1394,12 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
 
     /* Add this element to the end of the list */
     list_add_tail(&pmetrics_cq_node->cq_list_hd,
-            &pmetrics_device_element->metrics_cq_list);
+        &pmetrics_device_element->metrics_cq_list);
     return ret_code;
 
 exit_prep_cq:
     if (pmetrics_cq_node != NULL) {
         kfree(pmetrics_cq_node);
     }
-        return ret_code;
+    return ret_code;
 }

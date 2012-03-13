@@ -954,8 +954,8 @@ static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
     /* Allocate memory for the cq node and check if success */
     irq_trk_node = kmalloc(sizeof(struct irq_track), GFP_KERNEL);
     if (irq_trk_node == NULL) {
-            LOG_ERR("IRQ track Node allocation failed");
-            return -ENOMEM;
+        LOG_ERR("IRQ track Node allocation failed");
+        return -ENOMEM;
     }
     /* Fill the irq track node */
     irq_trk_node->int_vec = int_vec; /* int vector number   */
@@ -968,8 +968,7 @@ static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
 
     /* Add this irq node element to the end of the list */
     list_add_tail(&irq_trk_node->irq_list_hd, &pmetrics_device_elem->
-            irq_process.irq_track_list);
-
+        irq_process.irq_track_list);
     return SUCCESS;
 }
 
@@ -994,9 +993,7 @@ static int add_wk_item(struct irq_processing *pirq_process,
     pwork->int_vec = int_vec;
     pwork->irq_no = irq_no;
     /* Add work item to work items list */
-    list_add_tail(&pwork->wrk_list_hd,
-        &pirq_process->wrk_item_list);
-
+    list_add_tail(&pwork->wrk_list_hd, &pirq_process->wrk_item_list);
     return SUCCESS;
 }
 
@@ -1019,8 +1016,7 @@ int add_icq_node(struct irq_track *pirq_trk_node, u16 cq_id)
     irq_cq_node->cq_id = cq_id;
 
     /* Add this cq node to the end of the list */
-    list_add_tail(&irq_cq_node->irq_cq_head,
-            &pirq_trk_node->irq_cq_track);
+    list_add_tail(&irq_cq_node->irq_cq_head, &pirq_trk_node->irq_cq_track);
     return SUCCESS;
 }
 

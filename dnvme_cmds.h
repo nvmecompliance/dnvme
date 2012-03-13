@@ -26,7 +26,7 @@
 enum {
     READ_PG = 0,
     WRITE_PG = 1,
-    PRP_PRESENT = 1, /* Specifies to geberate PRP's for a particular command */
+    PRP_PRESENT = 1, /* Specifies to generate PRP's for a particular command */
     PRP_ABSENT = 0, /* Specifies not to generate PRP's per command */
     PRP_Size = 8, /* Size of PRP entry in bytes */
     PERSIST_QID_0 = 0, /* Default value of Persist queue ID */
