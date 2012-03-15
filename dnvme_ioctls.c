@@ -455,7 +455,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
 
     /* Call dma allocation, creation of contiguous memory for ASQ */
     ret_code = create_admn_sq(pnvme_dev, pmetrics_sq_list->public_sq.elements,
-            pmetrics_sq_list);
+        pmetrics_sq_list);
     if (ret_code != SUCCESS) {
         LOG_ERR("Failed Admin Q creation!!");
         goto asq_exit;
@@ -522,7 +522,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
 
     /* Call dma allocation, creation of contiguous memory for ACQ */
     ret_code = create_admn_cq(pnvme_dev, pmetrics_cq_list->public_cq.elements,
-            pmetrics_cq_list);
+        pmetrics_cq_list);
     if (ret_code != SUCCESS) {
         LOG_ERR("Admin CQ creation failed!!");
         goto acq_exit;
@@ -798,7 +798,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 {
     /* ret code to verify status of sending 64 bytes command */
     int ret_code = -EINVAL;
-    __u16 cmd_buf_size = 0; /* Size of command buffer */
+    u32 cmd_buf_size = 0; /* Size of command buffer */
     /* Particular SQ from linked list of SQ's for device */
     struct  metrics_sq  *pmetrics_sq;
     /* SQ represented by the CMD.QID */
@@ -839,7 +839,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         sq_list_hd) {
         if (nvme_64b_send->q_id == pmetrics_sq->public_sq.sq_id) {
             /* Fill in the command size */
-            cmd_buf_size = (__u16) (pmetrics_sq->private_sq.size /
+            cmd_buf_size = (pmetrics_sq->private_sq.size /
                 pmetrics_sq->public_sq.elements);
             break;
         }
@@ -853,9 +853,10 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     }
 
     /* Check for SQ is full */
-    if ((pmetrics_sq->public_sq.tail_ptr_virt + 1) %
-        (pmetrics_sq->public_sq.elements) ==
-            pmetrics_sq->public_sq.head_ptr) {
+    if ((((u32)pmetrics_sq->public_sq.tail_ptr_virt + 1UL) %
+        pmetrics_sq->public_sq.elements) ==
+        (u32)pmetrics_sq->public_sq.head_ptr) {
+
         LOG_ERR("SQ is full");
         ret_code = -EPERM;
         goto ret;
@@ -990,9 +991,9 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
          */
         list_for_each_entry(p_cmd_cq, &pmetrics_device->metrics_cq_list,
             cq_list_hd) {
-            if (nvme_create_cq->cqid ==
-                p_cmd_cq->public_cq.q_id) {
-                q_ptr =  (struct  metrics_cq  *) p_cmd_cq;
+
+            if (nvme_create_cq->cqid == p_cmd_cq->public_cq.q_id) {
+                q_ptr = (struct  metrics_cq  *)p_cmd_cq;
                 break;
             }
         }
@@ -1135,11 +1136,11 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
     /* Copying the command in to appropriate SQ and handling sync issues */
     if (pmetrics_sq->private_sq.contig) {
         memcpy((pmetrics_sq->private_sq.vir_kern_addr +
-            (pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size)),
+            ((u32)pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size)),
             nvme_cmd_ker, cmd_buf_size);
     } else {
         memcpy((pmetrics_sq->private_sq.prp_persist.vir_kern_addr +
-            (pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size)),
+            ((u32)pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size)),
             nvme_cmd_ker, cmd_buf_size);
 
         dma_sync_sg_for_device(pmetrics_device->metrics_device->
@@ -1149,10 +1150,10 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
     }
 
-    /* Increment the Tail pointer and handle rollover conditions */
+    /* Increment the Tail pointer and handle roll over conditions */
     pmetrics_sq->public_sq.tail_ptr_virt =
-        ++pmetrics_sq->public_sq.tail_ptr_virt %
-        pmetrics_sq->public_sq.elements;
+        (u16)(((u32)pmetrics_sq->public_sq.tail_ptr_virt + 1UL) %
+        pmetrics_sq->public_sq.elements);
     kfree(nvme_cmd_ker);
     return 0;
 
@@ -1319,7 +1320,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
 
     /* Add this element to the end of the list */
     list_add_tail(&pmetrics_sq_node->sq_list_hd,
-            &pmetrics_device_element->metrics_sq_list);
+        &pmetrics_device_element->metrics_sq_list);
     return ret_code;
 
 exit_prep_sq:

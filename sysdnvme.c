@@ -38,7 +38,6 @@
 #include "version.h"
 #include "dnvme_cmds.h"
 #include "dnvme_irq.h"
-#include "ut_reap_inq.h"
 
 #define    DRV_NAME             "dnvme"
 #define    NVME_DEVICE_NAME     "nvme"
@@ -144,7 +143,7 @@ static int dnvme_init(void)
  * performed.
  */
 int __devinit dnvme_pci_probe(struct pci_dev *pdev,
-        const struct pci_device_id *id)
+    const struct pci_device_id *id)
 {
     int retCode = -ENODEV;  /* retCode is set to no devices */
     int bars = 0;           /* initialize bars to 0         */
@@ -547,7 +546,6 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
     struct nvme_reap_inquiry *reap_inq;  /* reap inquiry params              */
     struct nvme_reap *reap_data;         /* Actual Reap params               */
     struct interrupts *irq_data;         /* IRQ type and IRQ vectors         */
-    u16 test_number;
     struct metrics_driver *dnvme_metrics;/* Dnvme Metrics params             */
     struct public_metrics_dev *dev_metrics;  /* public nvme dev metrics      */
     struct inode *inode = filp->f_dentry->d_inode;
@@ -732,32 +730,6 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
         dev_metrics = (struct public_metrics_dev *)ioctl_param;
         ret_val = copy_to_user(dev_metrics, &pmetrics_device_element->
             metrics_device->public_dev, sizeof(struct public_metrics_dev));
-        break;
-
-    case IOCTL_UNIT_TESTS:
-        test_number = (u16) ioctl_param;
-        LOG_DBG("IOCTL_UNIT_TESTS = %d", test_number);
-        /* Call the Test setup based on user request */
-        switch (test_number) {
-        case 0: /* Unit Test for IOCTL REAP INQUIRY */
-            LOG_DBG("UT Reap Inquiry ioctl:");
-            unit_test_reap_inq(pmetrics_device_element);
-            ret_val = SUCCESS;
-            break;
-        case 1:
-            LOG_DBG("UT Mmap ioctl:");
-            unit_test_mmap(pmetrics_device_element);
-            ret_val = SUCCESS;
-            break;
-        case 2:
-            LOG_DBG("UT Reap Admin");
-            unit_test_reap(pmetrics_device_element);
-            ret_val = SUCCESS;
-            break;
-        default:
-            LOG_DBG("Invalid Test Setup called....%d", test_number);
-            break;
-        }
         break;
 
     default:

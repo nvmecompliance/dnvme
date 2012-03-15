@@ -1065,7 +1065,7 @@ exit:
  */
 int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
     struct  metrics_device_list *pmetrics_device_elem,
-        u16 *num_remaining, u32 *isr_count)
+    u32 *num_remaining, u32 *isr_count)
 {
     u16 irq_no = pmetrics_cq_node->public_cq.irq_no; /* irq_no for CQ   */
     struct irq_track *pirq_node;
@@ -1089,12 +1089,13 @@ int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
     /* Check if ISR is really fired for this CQ */
     if (pirq_node->isr_fired != 0) {
         /* process reap inquiry for isr fired case */
-        *num_remaining = reap_inquiry(pmetrics_cq_node, &pmetrics_device_elem
-            ->metrics_device->private_dev.pdev->dev);
+        *num_remaining = reap_inquiry(pmetrics_cq_node,
+            &pmetrics_device_elem->metrics_device->private_dev.pdev->dev);
     } else {
         /* To deal with ISR's aggregation, not supposed to notify CE's yet */
         *num_remaining = 0;
     }
+
     /* return the isr_count flag */
     *isr_count = pirq_node->isr_count;
     return SUCCESS;
@@ -1306,7 +1307,7 @@ int reset_isr_flag(struct metrics_device_list *pmetrics_device,
     struct irq_track *pirq_node; /* IRQ node inside irq track list */
     struct irq_cq_track *picq_node; /* CQ node inside irq node */
     struct metrics_cq  *pmetrics_cq_node; /* CQ node in metrics_cq_list */
-    u16 num_rem = 0;
+    u32 num_rem = 0;
 
     /* Get the Irq node for given irq vector */
     pirq_node = find_irq_node(pmetrics_device, irq_no);

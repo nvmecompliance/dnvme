@@ -86,7 +86,7 @@ struct cq_completion {
  * @param pmetrics_cq_list
  * @return whether ACQ creation successful or not.
  */
-int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
+int create_admn_cq(struct nvme_device *pnvme_dev, u32 qsize,
         struct  metrics_cq  *pmetrics_cq_list);
 
 /**
@@ -98,8 +98,8 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u16 qsize,
  * @param pmetrics_sq_list
  * @return whether ASQ creation successful or not.
  */
-int create_admn_sq(struct nvme_device *pnvme_dev, u16 qsize,
-        struct  metrics_sq  *pmetrics_sq_list);
+int create_admn_sq(struct nvme_device *pnvme_dev, u32 qsize,
+    struct  metrics_sq  *pmetrics_sq_list);
 
 /**
  * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
@@ -222,7 +222,6 @@ int get_public_qmetrics(struct  metrics_device_list *pmetrics_device,
  *  @param dev
  *  @return number of CE's remaining
   */
-u16 reap_inquiry(struct metrics_cq  *pmetrics_cq_node,
-        struct device *dev);
+u32 reap_inquiry(struct metrics_cq  *pmetrics_cq_node, struct device *dev);
 
 #endif

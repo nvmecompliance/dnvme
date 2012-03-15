@@ -162,7 +162,7 @@ int update_cq_irqtrack(struct  metrics_device_list *pmetrics_device_elem,
  */
 int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
     struct  metrics_device_list *pmetrics_device_elem,
-        u16 *num_remaining, u32 *isr_count);
+    u32 *num_remaining, u32 *isr_count);
 
 /* Loop through all CQ's associated with irq_no and check whehter
  * they are empty and if empty reset the isr_flag for that particular

@@ -27,8 +27,7 @@ DRV_NAME:=dnvme
 QEMU_ON:=-DQEMU
 #DBG_ON:=-g -DDEBUG
 
-EXTRA_CFLAGS+=$(QEMU_ON) $(DBG_ON) -I$(PWD)/
-
+EXTRA_CFLAGS+=-Wall $(QEMU_ON) $(DBG_ON) -I$(PWD)/
 
 SOURCES := \
 	dnvme_reg.c \
@@ -38,8 +37,7 @@ SOURCES := \
 	dnvme_queue.c \
 	dnvme_cmds.c \
 	dnvme_ds.c \
-	dnvme_irq.c \
-	ut_reap_inq.c
+	dnvme_irq.c
 
 #
 # RPM build parameters
@@ -55,7 +53,7 @@ RPMSPECFILE=$(RPMBASE).spec
 SRCDIR?=./src
 
 obj-m := dnvme.o
-dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o dnvme_sts_chk.o dnvme_queue.o dnvme_cmds.o dnvme_ds.o dnvme_irq.o ut_reap_inq.o
+dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o dnvme_sts_chk.o dnvme_queue.o dnvme_cmds.o dnvme_ds.o dnvme_irq.o
 
 all:
 	make -C $(KDIR) M=$(PWD) modules
