@@ -101,7 +101,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
  */
 int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     __u16 persist_q_id, struct nvme_prps *prps, enum nvme_cmds cmd_type,
-        __u8 opcode, __u16 cmd_id)
+    __u8 opcode, __u16 cmd_id)
 {
     /* pointer to cmd track linked list node */
     struct cmd_track  *pcmd_track_list;
@@ -119,7 +119,7 @@ int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     pcmd_track_list->persist_q_id = persist_q_id;
     pcmd_track_list->opcode = opcode;
     pcmd_track_list->cmd_set = cmd_type;
-    /* non_persist PRP's not filled for create/delete conitig/discontig IOQ */
+    /* non_persist PRP's not filled for create/delete contig/discontig IOQ */
     if (!persist_q_id) {
         memcpy(&pcmd_track_list->prp_nonpersist, prps,
             sizeof(struct nvme_prps));
@@ -136,25 +136,19 @@ int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
  * empty_cmd_track_list:
  * Delete command track list completley per SQ
  */
-
-void empty_cmd_track_list(struct  nvme_device *nvme_device,
-    struct  metrics_sq  *pmetrics_sq)
+void empty_cmd_track_list(struct nvme_device *nvme_device,
+    struct metrics_sq  *pmetrics_sq)
 {
-    /* pointer to one element of cmd track linked list */
-    struct cmd_track  *pcmd_track_element;
-    /* parameters required for list_for_each_safe */
-    struct list_head *pos, *temp;
+    struct cmd_track *pcmd_track_element;   /* ptr to 1 element within list */
+    struct list_head *pos, *temp;        /* required for list_for_each_safe */
 
-    /* Loop through the cmd track list */
-    list_for_each_safe(pos, temp,
-        &pmetrics_sq->private_sq.cmd_track_list) {
-        pcmd_track_element =
-            list_entry(pos, struct cmd_track, cmd_list_hd);
+    list_for_each_safe(pos, temp, &pmetrics_sq->private_sq.cmd_track_list) {
+
+        pcmd_track_element = list_entry(pos, struct cmd_track, cmd_list_hd);
         del_prps(nvme_device, &pcmd_track_element->prp_nonpersist);
         list_del(pos);
         kfree(pcmd_track_element);
-    } /* End of cmd_track_list */
-
+    }
 }
 
 /*
@@ -187,8 +181,8 @@ void destroy_dma_pool(struct nvme_device *nvme_dev)
  */
 static int data_buf_to_prp(struct nvme_device *nvme_dev,
     struct metrics_sq *pmetrics_sq, struct nvme_64b_send *nvme_64b_send,
-        struct nvme_prps *prps, __u8 opcode, __u16 persist_q_id,
-            enum data_buf_type data_buf_type, __u16 cmd_id)
+    struct nvme_prps *prps, __u8 opcode, __u16 persist_q_id,
+    enum data_buf_type data_buf_type, __u16 cmd_id)
 {
     int err; /* Error code return values */
     struct scatterlist *sg; /* Pointer to SG List */
@@ -251,7 +245,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
                 num_prps -= i;
                 i = 0 ;
                 prp_vlist = prps->vir_prp_list[j];
-                LOG_NRM("Physical address of next PRP Page: %llx",
+                LOG_DBG("Physical address of next PRP Page: %llx",
                     (__le64) prp_vlist);
             }
 
@@ -274,7 +268,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
         goto err;
     }
 
-    LOG_NRM("PRP Built and added to command track node succesfully");
+    LOG_DBG("PRP Built and added to command track node successfully");
     return 0;
 
 err:
@@ -291,7 +285,7 @@ err:
  */
 static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
     unsigned long buf_addr, __u32 buf_len, struct scatterlist **sgp,
-        struct nvme_prps *prps, enum data_buf_type data_buf_type)
+    struct nvme_prps *prps, enum data_buf_type data_buf_type)
 {
     __u32 offset, count; /* Offset inside Page, No. of pages */
     struct page **pages; /* List of pointers to user space pages */
@@ -305,7 +299,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
 
     count = DIV_ROUND_UP(offset + buf_len, PAGE_SIZE);
 
-    /* Allocating conitguous memory for pointer to pages */
+    /* Allocating contiguous memory for pointer to pages */
     pages = kcalloc(count, sizeof(*pages), GFP_KERNEL);
     if (NULL == pages) {
         LOG_ERR("Memory allocation for pages failed");
@@ -354,7 +348,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev, __u8 write,
 
     /* Mapping SG List to DMA */
     err = dma_map_sg(&nvme_dev->private_dev.pdev->dev, *sgp, count,
-                write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+        write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
     if (!err) {
         LOG_ERR("Mapping of SG List failed");
         err = -ENOMEM;
@@ -392,7 +386,7 @@ static int pages_to_sg(struct page **pages,
     int index;
     struct scatterlist *sglist;
 
-    /* Allocating conitguous memory for SG List */
+    /* Allocating contiguous memory for SG List */
     sglist = kcalloc(nr_pages, sizeof(*sglist), GFP_KERNEL);
     if (NULL == sglist) {
         LOG_ERR("Memory allocation for SG List failed");
@@ -512,19 +506,20 @@ prp_list:
     /* Taking into account the last entry of PRP Page */
     num_pg = DIV_ROUND_UP(PRP_Size * num_prps, PAGE_SIZE - PRP_Size);
 
-    prps->vir_prp_list = kmalloc(sizeof(__le64 *) *num_pg, GFP_ATOMIC);
-    if (NULL == prps) {
+    prps->vir_prp_list = kmalloc(sizeof(__le64 *) * num_pg, GFP_ATOMIC);
+    if (NULL == prps->vir_prp_list) {
         LOG_ERR("Memory allocation for virtual list failed");
         return -ENOMEM;
     }
 
-    LOG_NRM("No. of PRP Entries inside PRPList: %u", num_prps);
+    LOG_DBG("No. of PRP Entries inside PRPList: %u", num_prps);
 
     prp_page = 0;
     prp_page_pool = nvme_dev->private_dev.prp_page_pool;
 
     prp_list = dma_pool_alloc(prp_page_pool, GFP_ATOMIC, &prp_dma);
     if (NULL == prp_list) {
+        kfree(prps->vir_prp_list);
         LOG_ERR("Memory allocation for prp page failed");
         return -ENOMEM;
     }
@@ -618,7 +613,7 @@ static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
     if (prps->type != NO_PRP) {
         dma_unmap_sg(&nvme_dev->private_dev.pdev->dev, prps->sg,
             prps->dma_mapped_pgs, prps->data_dir ? DMA_TO_DEVICE :
-                DMA_FROM_DEVICE);
+            DMA_FROM_DEVICE);
 
         for (i = 0; i < prps->dma_mapped_pgs; i++) {
             pg = sg_page(&prps->sg[i]);

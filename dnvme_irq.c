@@ -954,8 +954,8 @@ static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
     /* Allocate memory for the cq node and check if success */
     irq_trk_node = kmalloc(sizeof(struct irq_track), GFP_KERNEL);
     if (irq_trk_node == NULL) {
-            LOG_ERR("IRQ track Node allocation failed");
-            return -ENOMEM;
+        LOG_ERR("IRQ track Node allocation failed");
+        return -ENOMEM;
     }
     /* Fill the irq track node */
     irq_trk_node->int_vec = int_vec; /* int vector number   */
@@ -968,8 +968,7 @@ static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
 
     /* Add this irq node element to the end of the list */
     list_add_tail(&irq_trk_node->irq_list_hd, &pmetrics_device_elem->
-            irq_process.irq_track_list);
-
+        irq_process.irq_track_list);
     return SUCCESS;
 }
 
@@ -994,9 +993,7 @@ static int add_wk_item(struct irq_processing *pirq_process,
     pwork->int_vec = int_vec;
     pwork->irq_no = irq_no;
     /* Add work item to work items list */
-    list_add_tail(&pwork->wrk_list_hd,
-        &pirq_process->wrk_item_list);
-
+    list_add_tail(&pwork->wrk_list_hd, &pirq_process->wrk_item_list);
     return SUCCESS;
 }
 
@@ -1019,8 +1016,7 @@ int add_icq_node(struct irq_track *pirq_trk_node, u16 cq_id)
     irq_cq_node->cq_id = cq_id;
 
     /* Add this cq node to the end of the list */
-    list_add_tail(&irq_cq_node->irq_cq_head,
-            &pirq_trk_node->irq_cq_track);
+    list_add_tail(&irq_cq_node->irq_cq_head, &pirq_trk_node->irq_cq_track);
     return SUCCESS;
 }
 
@@ -1069,7 +1065,7 @@ exit:
  */
 int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
     struct  metrics_device_list *pmetrics_device_elem,
-        u16 *num_remaining, u32 *isr_count)
+    u32 *num_remaining, u32 *isr_count)
 {
     u16 irq_no = pmetrics_cq_node->public_cq.irq_no; /* irq_no for CQ   */
     struct irq_track *pirq_node;
@@ -1093,12 +1089,13 @@ int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
     /* Check if ISR is really fired for this CQ */
     if (pirq_node->isr_fired != 0) {
         /* process reap inquiry for isr fired case */
-        *num_remaining = reap_inquiry(pmetrics_cq_node, &pmetrics_device_elem
-            ->metrics_device->private_dev.pdev->dev);
+        *num_remaining = reap_inquiry(pmetrics_cq_node,
+            &pmetrics_device_elem->metrics_device->private_dev.pdev->dev);
     } else {
         /* To deal with ISR's aggregation, not supposed to notify CE's yet */
         *num_remaining = 0;
     }
+
     /* return the isr_count flag */
     *isr_count = pirq_node->isr_count;
     return SUCCESS;
@@ -1188,9 +1185,8 @@ int remove_icq_node(struct  metrics_device_list
         LOG_ERR("CQ node does not exist in the IRQ Tracked node!");
         return -EINVAL;
     }
-    /* remove the cq node from the linked list and initialize it */
-    list_del_init(&picq_node->irq_cq_head);
-    /* free up the memory allocated for cq node in irq list */
+    /* remove the cq node from the linked list and free it */
+    list_del(&picq_node->irq_cq_head);
     kfree(picq_node);
 
     return SUCCESS;
@@ -1311,7 +1307,7 @@ int reset_isr_flag(struct metrics_device_list *pmetrics_device,
     struct irq_track *pirq_node; /* IRQ node inside irq track list */
     struct irq_cq_track *picq_node; /* CQ node inside irq node */
     struct metrics_cq  *pmetrics_cq_node; /* CQ node in metrics_cq_list */
-    u16 num_rem = 0;
+    u32 num_rem = 0;
 
     /* Get the Irq node for given irq vector */
     pirq_node = find_irq_node(pmetrics_device, irq_no);

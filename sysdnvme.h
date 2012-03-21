@@ -21,6 +21,14 @@
 
 #define APPNAME         "dnvme"
 #define LEVEL           APPNAME
+
+/* LOG_NRM() macro should be used with caution. It was originally peppered
+ * throughout the code and enough latency was introduced while running within
+ * QEMU that tnmve would sometimes miss CE's arriving from the simulated hdw.
+ * It was discovered that syslogd was running causing QEMU to hold off
+ * important threads. Converting almost all LOG_NRM's to LOG_DBG's and realizing
+ * that the dnvme should be as efficient as possible made this issue disappear.
+ */
 #define LOG_NRM(fmt, ...)    \
     printk("%s: " fmt "\n", LEVEL, ## __VA_ARGS__)
 #define LOG_ERR(fmt, ...)    \

@@ -36,7 +36,7 @@ int device_status_pci(u16 device_data)
     int status;
 
     LOG_DBG("PCI Device Status (STS) Data = 0x%X", device_data);
-    LOG_NRM("Checking all the PCI register error bits");
+    LOG_DBG("Checking all the PCI register error bits");
     /*
     * Set the status to SUCCESS and eventually verify any error
     * really got set.
@@ -84,7 +84,7 @@ int nvme_controller_status(struct pci_dev *pdev)
     u32 tmp;
     struct nvme_ctrl_reg __iomem *nvme_ctrl_reg_space;
 
-    LOG_NRM("Checking the NVME Controller Status (CSTS)...");
+    LOG_DBG("Checking the NVME Controller Status (CSTS)...");
 
     nvme_ctrl_reg_space = ioremap(pci_resource_start(pdev, 0),
         pci_resource_len(pdev, 0));
@@ -92,20 +92,20 @@ int nvme_controller_status(struct pci_dev *pdev)
     u32data = readl(&nvme_ctrl_reg_space->csts);
     tmp = u32data;
 
-    LOG_NRM("NVME Controller Status CSTS = 0x%X", u32data);
+    LOG_DBG("NVME Controller Status CSTS = 0x%X", u32data);
     u32data &= NVME_CSTS_RSVD;
 
     status = SUCCESS;
     if (u32data != NVME_CSTS_RDY || u32data == NVME_CSTS_CFS) {
         if ((u32data & NVME_CSTS_RDY) == 0x0) {
-            LOG_NRM("NVME Controller is not ready (RDY)...");
+            LOG_DBG("NVME Controller is not ready (RDY)...");
         }
         if ((u32data & NVME_CSTS_CFS) == NVME_CSTS_CFS) {
             status = FAIL;
             LOG_ERR("NVME Controller Fatal Status (CFS) is set...");
         }
     } else {
-        LOG_NRM("NVME Controller Status (CSTS) Success");
+        LOG_DBG("NVME Controller Status (CSTS) Success");
     }
 
     u32data = tmp;
@@ -151,8 +151,8 @@ int device_status_next(struct pci_dev *pdev)
     u16 data       = 0; /* Unsigned 16 bit data. */
     u8 power_management_feature = 0;
 
-    LOG_NRM("Checking NEXT Capabilities of the NVME Controller");
-    LOG_NRM("Checks if PMCS is supported as a minimum");
+    LOG_DBG("Checking NEXT Capabilities of the NVME Controller");
+    LOG_DBG("Checks if PMCS is supported as a minimum");
 
     /*
     * Set status success when you enter this function and
@@ -210,8 +210,8 @@ int device_status_next(struct pci_dev *pdev)
             /* Switch based on which ID Capability indicates */
             switch (capability & ~NEXT_MASK) {
             case PMCAP_ID:
-                LOG_NRM("PCI Pwr Mgmt is Supported (PMCS Exists)");
-                LOG_NRM("Checking PCI Pwr Mgmt Capabilities Status");
+                LOG_DBG("PCI Pwr Mgmt is Supported (PMCS Exists)");
+                LOG_DBG("Checking PCI Pwr Mgmt Capabilities Status");
 
                 /* Set power management is supported */
                 power_management_feature = 1;
@@ -233,17 +233,17 @@ int device_status_next(struct pci_dev *pdev)
                 }
                 break;
             case MSICAP_ID:
-                LOG_NRM("Checking MSI Capabilities");
+                LOG_DBG("Checking MSI Capabilities");
                 status = (status == SUCCESS) ?
                     device_status_msicap(pdev, pci_offset) : FAIL;
                 break;
             case MSIXCAP_ID:
-                LOG_NRM("Checking MSI-X Capabilities");
+                LOG_DBG("Checking MSI-X Capabilities");
                 status = (status == SUCCESS) ?
                     device_status_msixcap(pdev, pci_offset) : FAIL;
                 break;
             case PXCAP_ID:
-                LOG_NRM("Checking PCI Express Capabilities");
+                LOG_DBG("Checking PCI Express Capabilities");
                 status = (status == SUCCESS) ?
                     device_status_pxcap(pdev, pci_offset) : FAIL;
                 break;
@@ -263,14 +263,14 @@ int device_status_next(struct pci_dev *pdev)
 
             switch (cap_aer & AER_ID_MASK) {
             case AER_CAP_ID:
-                LOG_NRM("Checking Advanced Error Reporting Capability");
+                LOG_DBG("Checking Advanced Error Reporting Capability");
                 status = device_status_aercap(pdev, pci_offset);
                 break;
             }
 
             /* Check if more items are there*/
             if (next_item == 0) {
-                LOG_NRM("No NEXT item in the list Exiting..1");
+                LOG_DBG("No NEXT item in the list Exiting..1");
                 break;
             }
         } /* end of else if cap_aer */
@@ -288,7 +288,7 @@ int device_status_next(struct pci_dev *pdev)
                 LOG_ERR("pci_read_config failed in driver error check");
             }
         } else {
-            LOG_NRM("No NEXT item in the list exiting...2");
+            LOG_DBG("No NEXT item in the list exiting...2");
             break;
         }
     } /* end of while loop */
@@ -379,8 +379,8 @@ int device_status_pxcap(struct pci_dev *pdev, u16 base_offset)
      * Print out on kern.log that driver is checking the PCI
      * express device status register.
      */
-    LOG_NRM("Checking the PCI Express Device Status (PXDS)...");
-    LOG_NRM("Offset PXCAP + Ah: PXDS");
+    LOG_DBG("Checking the PCI Express Device Status (PXDS)...");
+    LOG_DBG("Offset PXCAP + Ah: PXDS");
 
     /* Compute the PXDS offset from the PXCAP */
     offset = base_offset + NVME_PXCAP_PXDS;
@@ -426,11 +426,11 @@ int device_status_pxcap(struct pci_dev *pdev, u16 base_offset)
         }
         /* Check if AUX Power detected */
         if ((pxcap_sts_reg & NVME_PXDS_APD) >> 4) {
-            LOG_NRM("AUX POWER Detected (APD) in PXDS");
+            LOG_DBG("AUX POWER Detected (APD) in PXDS");
         }
         /* Check if Transactions Pending */
         if ((pxcap_sts_reg & NVME_PXDS_TP) >> 5) {
-            LOG_NRM("Transactions Pending (TP) in PXDS");
+            LOG_DBG("Transactions Pending (TP) in PXDS");
         }
     }
     return status;
@@ -454,7 +454,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
     status = SUCCESS;
 
     LOG_DBG("Offset in AER CAP= 0x%X", base_offset);
-    LOG_NRM("Checking Advanced Err Capability Status Regs (AERUCES and AERCS)");
+    LOG_DBG("Checking Advanced Err Capability Status Regs (AERUCES and AERCS)");
 
     /* Compute the offset of AER Uncorrectable error status */
     offset = base_offset + NVME_AERUCES_OFFSET;

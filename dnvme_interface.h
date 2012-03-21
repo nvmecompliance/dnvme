@@ -156,7 +156,7 @@ struct nvme_gen_cq {
     uint16_t    q_id;        /* even admin q's are supported here q_id = 0   */
     uint16_t    tail_ptr;    /* The value calculated for respective tail_ptr */
     uint16_t    head_ptr;    /* Actual value in CQxTDBL for this q_id        */
-    uint16_t    elements;    /* pass the actual elements in this q           */
+    uint32_t    elements;    /* pass the actual elements in this q           */
     uint8_t     irq_enabled; /* sets when the irq scheme is active           */
     uint16_t    irq_no;      /* idx in list; always 0 based                  */
     uint8_t     pbit_new_entry; /* Indicates if a new entry is in CQ         */
@@ -173,7 +173,7 @@ struct nvme_gen_sq {
     uint16_t    tail_ptr_virt; /* future SQxTDBL write value based on no.
         of new cmds copied to SQ */
     uint16_t    head_ptr;    /* Calculate this value based on cmds reaped    */
-    uint16_t    elements;    /* total number of elements in this Q           */
+    uint32_t    elements;    /* total number of elements in this Q           */
 };
 
 /**
@@ -202,8 +202,8 @@ struct nvme_get_q_metrics {
  * Interface structure for creating Admin Q's. The elements is a 1 based value.
  */
 struct nvme_create_admn_q {
-    enum        nvme_q_type     type;   /* Admin q type, ASQ or ACQ.    */
-    uint16_t    elements;               /* No. of elements of size 64 B */
+    enum nvme_q_type type;           /* Admin q type, ASQ or ACQ.    */
+    uint32_t         elements;       /* No. of elements of size 64 B */
 };
 
 /**
@@ -211,7 +211,7 @@ struct nvme_create_admn_q {
  * values and the CC.IOSQES is 2^n based.
  */
 struct nvme_prep_sq {
-    uint16_t    elements;   /* Total number of entries that need kernel mem */
+    uint32_t    elements;   /* Total number of entries that need kernel mem */
     uint16_t    sq_id;      /* The user specified unique SQ ID              */
     uint16_t    cq_id;      /* Existing or non-existing CQ ID.              */
     uint8_t     contig;     /* Indicates if SQ is contig or not, 1 = contig */
@@ -222,7 +222,7 @@ struct nvme_prep_sq {
  * values and the CC.IOSQES is 2^n based.
  */
 struct nvme_prep_cq {
-    uint16_t    elements;   /* Total number of entries that need kernal mem */
+    uint32_t    elements;   /* Total number of entries that need kernal mem */
     uint16_t    cq_id;      /* Existing or non-existing CQ ID.              */
     uint8_t     contig;     /* Indicates if SQ is contig or not, 1 = contig */
 };
@@ -241,10 +241,10 @@ struct nvme_file {
  * and IO Q's.
  */
 struct nvme_reap_inquiry {
-    uint16_t    q_id;           /* CQ ID to reap commands for             */
-    uint16_t    num_remaining;  /* return no of cmds waiting to be reaped */
+    uint16_t q_id;           /* CQ ID to reap commands for             */
+    uint32_t num_remaining;  /* return no of cmds waiting to be reaped */
     /* no of times isr was fired which is associated with cq reaped on    */
-    uint32_t   isr_count;
+    uint32_t isr_count;
 };
 
 /**
@@ -252,13 +252,13 @@ struct nvme_reap_inquiry {
  */
 struct nvme_reap {
     uint16_t q_id;          /* CQ ID to reap commands for             */
-    uint16_t elements;      /* Get the no. of elements to be reaped   */
-    uint16_t num_remaining; /* return no. of cmds waiting for this cq */
-    uint16_t num_reaped;    /* Return no. of elements reaped          */
+    uint32_t elements;      /* Get the no. of elements to be reaped   */
+    uint32_t num_remaining; /* return no. of cmds waiting for this cq */
+    uint32_t num_reaped;    /* Return no. of elements reaped          */
     uint8_t  *buffer;       /* Buffer to copy reaped data             */
     /* no of times isr was fired which is associated with cq reaped on    */
-    uint32_t   isr_count;
-    uint16_t size;          /* Size of buffer to fill data to         */
+    uint32_t isr_count;
+    uint32_t size;          /* Size of buffer to fill data to         */
 };
 
 /**
