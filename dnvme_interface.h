@@ -299,14 +299,14 @@ struct nvme_create_sq {
     uint8_t  opcode;
     uint8_t  flags;
     uint16_t command_id;
-    uint32_t rsvd1[5];
+    uint32_t  rsvd1[5];
     uint64_t prp1;
     uint64_t rsvd8;
     uint16_t sqid;
     uint16_t qsize;
     uint16_t sq_flags;
     uint16_t cqid;
-    uint32_t rsvd12[4];
+    uint32_t  rsvd12[4];
 };
 
 /**

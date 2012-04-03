@@ -84,7 +84,7 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
     }
 
     ker_status = (ker_status == SUCCESS) ? nvme_controller_status
-        (pmetrics_device_element->metrics_device->private_dev.pdev) : FAIL;
+        (pmetrics_device_element->metrics_device->private_dev.bar0) : FAIL;
     if (ker_status == SUCCESS) {
         LOG_DBG("NVME Controller Status SUCCESS (CSTS)");
     } else {
@@ -105,8 +105,7 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
 int driver_generic_read(struct rw_generic *nvme_data,
     struct  metrics_device_list *pmetrics_device_element)
 {
-    /* Local variable declaration. */
-    u16 index; /* index for looping till the end. */
+    u16 index;
     int ret_code = -EINVAL; /* to verify if return code is success. */
     struct pci_dev *pdev;
     struct nvme_device *nvme_dev;
@@ -124,22 +123,14 @@ int driver_generic_read(struct rw_generic *nvme_data,
     pdev = pmetrics_device_element->metrics_device->private_dev.pdev;
     nvme_dev = pmetrics_device_element->metrics_device;
 
-    /*
-    *  Switch based on the user passed read type using the
-    *  enum type specified in struct rw_generic.
-    */
     switch (nvme_data->type) {
-    case NVMEIO_PCI_HDR: /* Switch case for NVME PCI Header type. */
 
+    case NVMEIO_PCI_HDR:
         LOG_DBG("User App request to read  the PCI Header Space");
         LOG_DBG("Read request for bytes = 0x%x", nvme_data->nBytes);
         LOG_DBG("off:acc= 0x%x:0x%2x", nvme_data->offset, nvme_data->acc_type);
-        /*
-        * Loop through the number of bytes that are specified in the
-        * bBytes parameter.
-        */
-        for (index = 0; index < nvme_data->nBytes;) {
-            /* Check where you are reading */
+
+        for (index = 0; index < nvme_data->nBytes; ) {
             LOG_DBG("Reading for index = 0x%x", index);
             LOG_DBG("PCI Offset = 0x%x", nvme_data->offset + index);
 
@@ -149,99 +140,80 @@ int driver_generic_read(struct rw_generic *nvme_data,
                 ret_code = -EINVAL;
                 goto err;
             }
+
             /*
             * Check the access width and access the PCI space as per
             * the requested width.
             */
             if ((nvme_data->acc_type == DWORD_LEN)
-                    && (nvme_data->nBytes % 4 == 0)) {
-                /* Read dword from the PCI register space. */
+                && (nvme_data->nBytes % 4 == 0)) {
+
                 ret_code = pci_read_config_dword(pdev,
-                (nvme_data->offset + index), (u32 *) (datap + index));
-                    LOG_DBG("Reading PCI offset, data = 0x%x, 0x%x",
-                        (nvme_data->offset + index), *(u32 *) (datap + index));
-
-                /* increment by dword size */
+                    (nvme_data->offset + index), (datap + index));
+                LOG_DBG("Reading PCI offset, data = 0x%x, 0x%x",
+                    (nvme_data->offset + index), *(u32 *)(datap + index));
                 index += 4;
+
             } else if ((nvme_data->acc_type == WORD_LEN)
-                        && (nvme_data->nBytes % 2 == 0)) {
-                /* Read a word from the PCI register space. */
+                && (nvme_data->nBytes % 2 == 0)) {
+
                 ret_code = pci_read_config_word(pdev,
-                (nvme_data->offset + index), (u16 *) (datap + index));
+                    (nvme_data->offset + index), (datap + index));
                 LOG_DBG("Reading PCI offset, data = 0x%x, 0x%x",
-                    (nvme_data->offset + index), *(u16 *) (datap + index));
-
-                /* increment by word size */
+                    (nvme_data->offset + index), *(u16 *)(datap + index));
                 index += 2;
-            } else if (nvme_data->acc_type == BYTE_LEN) {
-                /* Read a byte from the PCI register space. */
-                ret_code = pci_read_config_byte(pdev,
-                    (nvme_data->offset + index), (u8 *) (datap + index));
-                LOG_DBG("Reading PCI offset, data = 0x%x, 0x%x",
-                    (nvme_data->offset + index), *(u8 *) (datap + index));
 
-                /* increment by byte size */
+            } else if (nvme_data->acc_type == BYTE_LEN) {
+
+                ret_code = pci_read_config_byte(pdev,
+                    (nvme_data->offset + index), (datap + index));
+                LOG_DBG("Reading PCI offset, data = 0x%x, 0x%x",
+                    (nvme_data->offset + index), *(u8 *)(datap + index));
                 index++;
+
             } else {
                 LOG_ERR("PCI space accessed by DWORD, WORD or BYTE");
-                LOG_ERR("Wrong PCI access width specified or");
-                LOG_ERR("Wrong no. of bytes specified.");
                 ret_code = -EINVAL;
                 goto err;
             }
 
-            /* Check if reading is successful */
             if (ret_code < 0) {
                 LOG_ERR("pci_read_config failed");
                 goto err;
             }
         }
-        /* done required reading then break and return.     */
         break;
 
     case NVMEIO_BAR01:
-        /*
-        * Checking for 4 bytes boundary. If either nBytes or offset is not
-        * 4 bytes aligned return error.
-        */
         if ((nvme_data->acc_type == DWORD_LEN) &&
-                (((nvme_data->nBytes % 4) != 0) ||
-                ((nvme_data->offset % 4) != 0))
-           ) {
-            LOG_ERR("Offset or nBytes is not DWORD Aligned");
-            LOG_ERR("Provide them on 4 bytes Boundary");
+            (((nvme_data->nBytes % 4) != 0) ||
+            ((nvme_data->offset % 4) != 0))) {
+
+            LOG_ERR("Offset must be DWORD align, nBytes must be DWORD align");
             ret_code = -EINVAL;
             goto err;
         } else if ((nvme_data->acc_type == QUAD_LEN) &&
-                (((nvme_data->nBytes % 8) != 0) ||
-                ((nvme_data->offset % 4) != 0))
-                ) {
-            /*
-             * Only nbytes need to be QUAD aligned and offset may be
-             * DWORD or QUAD aligned.
-             */
-            LOG_ERR("Offset is not DWORD Aligned");
-            LOG_ERR("nbytes is not QUAD Aligned");
-            LOG_ERR("Provide them on 8 bytes Boundary");
+            (((nvme_data->nBytes % 8) != 0) ||
+            ((nvme_data->offset % 4) != 0))) {
+
+            LOG_ERR("Offset must be DWORD align, nBytes must be QWORD align");
             ret_code = -EINVAL;
             goto err;
         } else if ((nvme_data->acc_type == WORD_LEN) &&
-                  ((nvme_data->nBytes % 2) != 0)) {
-            LOG_ERR("nBytes is not WORD aligned");
+            (((nvme_data->nBytes % 2) != 0) ||
+            ((nvme_data->offset % 2) != 0))) {
+
+            LOG_ERR("Offset must be WORD align, nBytes must be WORD align");
             ret_code = -EINVAL;
             goto err;
         }
 
-        /* Read NVME register space. */
-        ret_code = read_nvme_reg_generic(nvme_dev->private_dev.
-                nvme_ctrl_space, datap, nvme_data->nBytes, nvme_data->offset,
-                    nvme_data->acc_type);
-
+        ret_code = read_nvme_reg_generic(nvme_dev->private_dev.bar0,
+            datap, nvme_data->nBytes, nvme_data->offset, nvme_data->acc_type);
         if (ret_code < 0) {
             LOG_ERR("Read NVME Space failed");
             goto err;
         }
-        /* done with nvme space reading break from this case .*/
         break;
 
     default:
@@ -252,6 +224,7 @@ int driver_generic_read(struct rw_generic *nvme_data,
 
     if (copy_to_user((void __user *) nvme_data->buffer, datap,
         nvme_data->nBytes)) {
+
         LOG_ERR("Invalid copy to user space");
         ret_code = -EFAULT;
         goto err;
@@ -291,108 +264,89 @@ int driver_generic_write(struct rw_generic *nvme_data,
     /* Copying userspace buffer to kernel memory */
     if (copy_from_user(datap, (void __user *) nvme_data->buffer,
         nvme_data->nBytes)) {
+
         LOG_ERR("Invalid copy from user space");
         ret_code = -EFAULT;
         goto err;
     }
 
-    /*
-    * Switch based on the type of requested write determined by nvme_data->data
-    */
     switch (nvme_data->type) {
-    case NVMEIO_PCI_HDR: /* Switch case for NVME PCI Header type. */
-        /*
-        * Loop through the number of bytes that are specified in the
-        * bBytes parameter.
-        */
+
+    case NVMEIO_PCI_HDR:
         for (index = 0; index < nvme_data->nBytes; index++) {
+
             /*
             * write user data to pci config space at location
             * indicated by (offset + index) as per access width.
             */
             if ((nvme_data->acc_type == DWORD_LEN)
                 && (nvme_data->nBytes % 4 == 0)) {
-                /* Write a word to PCI register space. */
+
                 ret_code = pci_write_config_dword(pdev,
-                    (nvme_data->offset + index), *(u32 *) (datap + index));
+                    (nvme_data->offset + index), *(u32 *)(datap + index));
                 LOG_DBG("Writing to PCI offset, data = 0x%x, 0x%x",
-                    (nvme_data->offset + index), *(u32 *) (datap + index));
-                /* increment by dword size */
+                    (nvme_data->offset + index), *(u32 *)(datap + index));
                 index += 4;
+
             } else if ((nvme_data->acc_type == WORD_LEN)
                 && (nvme_data->nBytes % 2 == 0)) {
-                /* Write a word to PCI register space. */
                 ret_code = pci_write_config_word(pdev,
-                    (nvme_data->offset + index), *(u16 *) (datap + index));
+                    (nvme_data->offset + index), *(u16 *)(datap + index));
                 LOG_DBG("Writing to PCI offset, data = 0x%x, 0x%x",
-                    (nvme_data->offset + index), *(u16 *) (datap + index));
-                /* increment by word size */
+                    (nvme_data->offset + index), *(u16 *)(datap + index));
                 index += 2;
-            } else if (nvme_data->acc_type == BYTE_LEN) {
-                /* Write a byte from to PCI register space. */
-                ret_code = pci_write_config_byte(pdev,
-                    (nvme_data->offset + index), *(u8 *) (datap + index));
 
+            } else if (nvme_data->acc_type == BYTE_LEN) {
+
+                ret_code = pci_write_config_byte(pdev,
+                    (nvme_data->offset + index), *(u8 *)(datap + index));
                 LOG_DBG("Writing to PCI offset, data = 0x%x, 0x%x",
-                    (nvme_data->offset + index), *(u8 *) (datap + index));
-                /* increment by byte size */
+                    (nvme_data->offset + index), *(u8 *)(datap + index));
                 index++;
+
             } else {
                 LOG_ERR("PCI space accessed by DWORD, WORD or BYTE");
-                LOG_ERR("Wrong PCI access width specified or ");
-                LOG_ERR("Wrong no of bytes specified");
                 ret_code = -EINVAL;
                 goto err;
             }
-            /* Check if writing is successful */
+
             if (ret_code < 0) {
                 LOG_ERR("pci_write_config failed");
                 goto err;
             }
         }
-        /* Done writing user requested data, returning. */
         break;
-    case NVMEIO_BAR01:
-        /*
-        * Checking for 4 bytes boundary. If either nBytes or offset is not
-        * 4 bytes aligned return error.
-        */
-        if ((nvme_data->acc_type == DWORD_LEN) &&
-                (((nvme_data->nBytes % 4) != 0) ||
-                ((nvme_data->offset % 4) != 0))
-            ) {
-                LOG_ERR("Either Offset or nBytes is not DWORD Aligned");
-                LOG_ERR("Provide them on 4 bytes Boundary");
-                ret_code = -EINVAL;
-                goto err;
-            } else if ((nvme_data->acc_type == QUAD_LEN) &&
-                (((nvme_data->nBytes % 8) != 0) ||
-                ((nvme_data->offset % 4) != 0))
-                ) {
-                LOG_ERR("Either Offset or nBytes is not QUAD Aligned");
-                LOG_ERR("Provide them on 8 bytes Boundary");
-                ret_code = -EINVAL;
-                goto err;
-            } else if ((nvme_data->acc_type == WORD_LEN) &&
-                ((nvme_data->nBytes % 2) != 0)) {
-                LOG_ERR("nBytes is not WORD aligned");
-                ret_code = -EINVAL;
-                goto err;
-            }
 
-        /*
-         * Write NVME register space with datap from offset until
-         * nBytes are written.
-         */
-        ret_code = write_nvme_reg_generic(
-                nvme_dev->private_dev.nvme_ctrl_space,
-                (u8 *)datap, nvme_data->nBytes, nvme_data->offset,
-                nvme_data->acc_type);
+    case NVMEIO_BAR01:
+        if ((nvme_data->acc_type == DWORD_LEN) &&
+            (((nvme_data->nBytes % 4) != 0) ||
+            ((nvme_data->offset % 4) != 0))) {
+
+            LOG_ERR("Offset must be DWORD align, nBytes must be DWORD align");
+            ret_code = -EINVAL;
+            goto err;
+        } else if ((nvme_data->acc_type == QUAD_LEN) &&
+            (((nvme_data->nBytes % 8) != 0) ||
+            ((nvme_data->offset % 4) != 0))) {
+
+            LOG_ERR("Offset must be DWORD align, nBytes must be QWORD align");
+            ret_code = -EINVAL;
+            goto err;
+        } else if ((nvme_data->acc_type == WORD_LEN) &&
+            (((nvme_data->nBytes % 2) != 0) ||
+            ((nvme_data->offset % 2) != 0))) {
+
+            LOG_ERR("Offset must be WORD align, nBytes must be WORD align");
+            ret_code = -EINVAL;
+            goto err;
+        }
+
+        ret_code = write_nvme_reg_generic(nvme_dev->private_dev.bar0,
+            datap, nvme_data->nBytes, nvme_data->offset, nvme_data->acc_type);
         if (ret_code < 0) {
             LOG_ERR("Write NVME Space failed");
             goto err;
         }
-        /* done with nvme space writing break from this case .*/
         break;
 
     default:
@@ -411,7 +365,7 @@ err:
  *   from Q create ioctl.
  */
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
-        struct  metrics_device_list *pmetrics_device_element)
+    struct  metrics_device_list *pmetrics_device_element)
 {
     int ret_code = -EINVAL; /* Set return value to error                */
     u8 admn_id = 0;         /* Always admin ID is 0                     */
@@ -421,9 +375,9 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     /* get the device from the list */
     pnvme_dev = pmetrics_device_element->metrics_device;
 
-    if (readl(&pnvme_dev->private_dev.nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
+    if (readl(&pnvme_dev->private_dev.ctrlr_regs->cc) & NVME_CC_ENABLE) {
         LOG_ERR("Device enable bit is set already!!");
-        goto asq_exit; /* use invalid return code */
+        goto asq_exit;
     }
 
     /* Search if admin sq already exists. */
@@ -489,7 +443,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     /* get the device from the list */
     pnvme_dev = pmetrics_device_element->metrics_device;
 
-    if (readl(&pnvme_dev->private_dev.nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
+    if (readl(&pnvme_dev->private_dev.ctrlr_regs->cc) & NVME_CC_ENABLE) {
         LOG_ERR("Device enable bit is set already!!");
         goto acq_exit;
     }
@@ -544,98 +498,74 @@ acq_exit:
     }
     return ret_code;
 }
+
 /*
- *  driver_iotcl_init - Driver Initialization routine before starting to
- *  issue  ioctls.
+ *  Driver Initialization routine before starting to issue ioctls.
  */
-int driver_ioctl_init(struct pci_dev *pdev,
-        struct metrics_device_list *pmetrics_device_list)
+int driver_ioctl_init(struct pci_dev *pdev, void __iomem *ctrlrRegs,
+    struct metrics_device_list *pmetrics_device_list)
 {
-    int ret_val = SUCCESS;
-    LOG_DBG("Inside driver IOCTL init function");
-    LOG_DBG("Initializing the BAR01 and NVME Controller Space");
+    int err;
 
-    /* Allocate mem fo nvme device with kernel memory */
-    pmetrics_device_list->metrics_device = kmalloc(sizeof(struct nvme_device),
-        GFP_KERNEL);
+    pmetrics_device_list->metrics_device =
+        kmalloc(sizeof(struct nvme_device), GFP_KERNEL);
     if (pmetrics_device_list->metrics_device == NULL) {
-        LOG_ERR("failed mem allocation for device.");
-        ret_val = -ENOMEM;
-        goto iocinit_out;
+        LOG_ERR("Failed alloc of devel level metric storage area");
+        err = -ENOMEM;
+        goto driver_ioctl_init_err;
     }
-    /* Init Submission Q linked list for this device. */
+
+    /* Init linked lists for this device. */
     INIT_LIST_HEAD(&(pmetrics_device_list->metrics_sq_list));
-    /* Init Completion Q linked list for this device. */
     INIT_LIST_HEAD(&(pmetrics_device_list->metrics_cq_list));
+    INIT_LIST_HEAD(&(pmetrics_device_list->metrics_meta.meta_trk_list));
+    INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.irq_track_list));
+    INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.wrk_item_list));
 
-    /* Populate Metrics device list with this device */
+    mutex_init(&pmetrics_device_list->irq_process.irq_track_mtx);
     pmetrics_device_list->metrics_device->private_dev.pdev = pdev;
-    pmetrics_device_list->metrics_device->private_dev.bar_0_mapped = ioremap(
-            pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
-    /* Check if remap was success */
-    if (!pmetrics_device_list->metrics_device->private_dev.bar_0_mapped) {
-        LOG_ERR("IOCTL init failed");
-        ret_val = -EINVAL;
-        goto iocinit_out;
-    }
-
-    pmetrics_device_list->metrics_device->private_dev.nvme_ctrl_space =
-        (void __iomem *)pmetrics_device_list->metrics_device->
-        private_dev.bar_0_mapped;
+    pmetrics_device_list->metrics_device->private_dev.bar0 = ctrlrRegs;
+    pmetrics_device_list->metrics_device->private_dev.ctrlr_regs = ctrlrRegs;
     pmetrics_device_list->metrics_device->private_dev.dmadev =
         &pmetrics_device_list->metrics_device->private_dev.pdev->dev;
 
     /* Used to create Coherent DMA mapping for PRP List */
+    pmetrics_device_list->metrics_meta.meta_dmapool_ptr = NULL;
     pmetrics_device_list->metrics_device->private_dev.prp_page_pool =
         dma_pool_create("prp page",
         &pmetrics_device_list->metrics_device->private_dev.pdev->dev,
         PAGE_SIZE, PAGE_SIZE, 0);
-    if (NULL == pmetrics_device_list->metrics_device->private_dev.
-            prp_page_pool) {
-        LOG_ERR("Creation of DMA Pool failed");
-        ret_val = -ENOMEM;
-        goto iocinit_out;
+    if (pmetrics_device_list->metrics_device->private_dev.prp_page_pool ==
+        NULL) {
+
+        LOG_ERR("Creating DMA Pool failed");
+        err = -ENOMEM;
+        goto driver_ioctl_init_err;
      }
-
-    /* Initialize meta data linked list for this device. */
-    INIT_LIST_HEAD(&(pmetrics_device_list->metrics_meta.meta_trk_list));
-
-    /* Initialize Meta DMA Pool flag to zero */
-    pmetrics_device_list->metrics_meta.meta_dmapool_ptr = NULL;
-
-    /* Initialize the irq mutex state. */
-    mutex_init(&pmetrics_device_list->irq_process.irq_track_mtx);
-
-    /* Initialize irq linked list for this device. */
-    INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.irq_track_list));
-    /* Initialize irq linked list for the work items*/
-    INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.wrk_item_list));
-
-    /* Initialize irq scheme to INT_NONE and perform cleanup of all lists */
-    ret_val = init_irq_lists(pmetrics_device_list, INT_NONE);
-    if (ret_val < 0) {
-        LOG_ERR("IRQ track initialization failed...");
-        goto iocinit_out;
-    }
 
     /* Spinlock to protect from kernel preemption in ISR handler */
     spin_lock_init(&pmetrics_device_list->irq_process.isr_spin_lock);
 
-    LOG_DBG("IOCTL Init Success:Reg Space Location:  0x%llx",
-        (uint64_t)pmetrics_device_list->metrics_device->private_dev.
-        nvme_ctrl_space);
-    return ret_val;
-
-iocinit_out:
-    if (pmetrics_device_list->metrics_device->private_dev.
-            prp_page_pool != NULL) {
-        dma_pool_destroy(pmetrics_device_list->metrics_device->
-                private_dev.prp_page_pool);
+    /* Initialize irq scheme to INT_NONE and perform cleanup of all lists */
+    err = init_irq_lists(pmetrics_device_list, INT_NONE);
+    if (err < 0) {
+        LOG_ERR("IRQ track initialization failed...");
+        goto driver_ioctl_init_err;
     }
+    return SUCCESS;
+
+
+driver_ioctl_init_err:
     if (pmetrics_device_list->metrics_device != NULL) {
         kfree(pmetrics_device_list->metrics_device);
     }
-    return ret_val;
+    if (pmetrics_device_list->metrics_device->private_dev.prp_page_pool !=
+        NULL) {
+
+        dma_pool_destroy(
+            pmetrics_device_list->metrics_device->private_dev.prp_page_pool);
+    }
+    return err;
 }
 
 /*
@@ -657,7 +587,7 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
     /* Create coherent DMA mapping for meta data buffer creation */
     pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = dma_pool_create
         ("meta_buff", &pmetrics_device_elem->metrics_device->
-        private_dev.pdev->dev, sizeof(__u32), alloc_size, 0);
+        private_dev.pdev->dev, sizeof(u32), alloc_size, 0);
     if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr == NULL) {
         LOG_ERR("Creation of DMA Pool failed");
         return -ENOMEM;
@@ -827,18 +757,19 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
         goto ret;
     } else if ((nvme_64b_send->data_buf_size != 0 &&
         NULL == nvme_64b_send->data_buf_ptr) ||
-            (nvme_64b_send->data_buf_size == 0 &&
-                NULL != nvme_64b_send->data_buf_ptr)) {
+        (nvme_64b_send->data_buf_size == 0 &&
+        NULL != nvme_64b_send->data_buf_ptr)) {
+
         LOG_ERR("Data buffer size and data buffer inconsistent");
         goto ret;
     }
 
-
     /* Get the required SQ through which command should be sent */
     list_for_each_entry(pmetrics_sq, &pmetrics_device->metrics_sq_list,
         sq_list_hd) {
+
         if (nvme_64b_send->q_id == pmetrics_sq->public_sq.sq_id) {
-            /* Fill in the command size */
+            /* Learn the command size */
             cmd_buf_size = (pmetrics_sq->private_sq.size /
                 pmetrics_sq->public_sq.elements);
             break;
@@ -847,8 +778,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
     if (!cmd_buf_size) {
         ret_code = -EPERM;
-        LOG_ERR("Required SQ for sending the command not found"
-            "in global structure");
+        LOG_ERR("Required SQ node for sending the command not found");
         goto ret;
     }
 
@@ -872,21 +802,21 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
     /* Copying userspace buffer to kernel memory */
     if (copy_from_user(nvme_cmd_ker,
-        (void __user *) nvme_64b_send->cmd_buf_ptr, cmd_buf_size)) {
+        (void __user *)nvme_64b_send->cmd_buf_ptr, cmd_buf_size)) {
+
         LOG_ERR("Invalid copy from user space");
         ret_code = -EFAULT;
         goto free;
     }
 
-    nvme_gen_cmd = (struct nvme_gen_cmd *) nvme_cmd_ker;
+    nvme_gen_cmd = (struct nvme_gen_cmd *)nvme_cmd_ker;
     memset(&prps, 0, sizeof(prps));
 
-    /* Copy and Increment the CMD ID */
+    /* Copy and Increment the CMD ID, copy back to user spavce so can see ID */
     nvme_gen_cmd->command_id = pmetrics_sq->private_sq.unique_cmd_id++;
-
-    /* Send a copy of the unique ID back to userspace */
     if (copy_to_user((void __user *) (nvme_64b_send->cmd_buf_ptr + 0x02),
         &nvme_gen_cmd->command_id, UNIQUE_ID)) {
+
         LOG_ERR("Invalid copy to user space");
         ret_code = -EFAULT;
         goto err;
@@ -901,46 +831,42 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             goto err;
         }
         /* Add the required information to the command */
-        nvme_gen_cmd->metadata = meta_buf->meta_dma_addr;
+        nvme_gen_cmd->metadata = cpu_to_le64(meta_buf->meta_dma_addr);
         LOG_DBG("Metadata address: 0x%llx", nvme_gen_cmd->metadata);
     }
 
-    /* Handling special condition for opcodes 0x00,0x01,0x04
-     * and 0x05 of NVME Admin command set */
+    /* Special handling for opcodes 0x00,0x01,0x04 and 0x05 of Admin cmd set */
     if (nvme_64b_send->cmd_set == CMD_ADMIN && nvme_gen_cmd->opcode == 0x01) {
         /* Create IOSQ command */
         nvme_create_sq = (struct nvme_create_sq *) nvme_cmd_ker;
 
-        /* Get the required SQ from the global linked list
-         * represented by CMD.DW10.QID
-         */
+        /* Get the required SQ from the global linked list from CMD.DW10.QID */
         list_for_each_entry(p_cmd_sq, &pmetrics_device->metrics_sq_list,
             sq_list_hd) {
-            if (nvme_create_sq->sqid ==
-                p_cmd_sq->public_sq.sq_id) {
-                q_ptr =  (struct  metrics_sq  *) p_cmd_sq;
+            if (nvme_create_sq->sqid == p_cmd_sq->public_sq.sq_id) {
+                q_ptr = (struct  metrics_sq  *)p_cmd_sq;
                 break;
             }
         }
-
         if (q_ptr == NULL) {
-            LOG_DBG("List node found, but contents are NULL");
             ret_code = -EPERM;
-            LOG_ERR("Required SQID node present in create SQ command not found"
-                "in global structure");
+            LOG_ERR("SQID node present in create SQ, but lookup found nothing");
             goto err;
         }
+
         /* Sanity Checks */
         if (((nvme_create_sq->sq_flags & CDW11_PC) &&
             (p_cmd_sq->private_sq.contig == 0)) ||
-                (!(nvme_create_sq->sq_flags & CDW11_PC) &&
-                (p_cmd_sq->private_sq.contig != 0))) {
+            (!(nvme_create_sq->sq_flags & CDW11_PC) &&
+            (p_cmd_sq->private_sq.contig != 0))) {
+
             LOG_DBG("Contig flag out of sync with what cmd says");
             goto data_err;
         } else if ((p_cmd_sq->private_sq.contig == 0 &&
             nvme_64b_send->data_buf_ptr == NULL) ||
-                (p_cmd_sq->private_sq.contig != 0 &&
-                    p_cmd_sq->private_sq.vir_kern_addr == NULL)) {
+            (p_cmd_sq->private_sq.contig != 0 &&
+            p_cmd_sq->private_sq.vir_kern_addr == NULL)) {
+
             LOG_DBG("Contig flag out of sync with what cmd says");
             goto data_err;
         } else if ((p_cmd_sq->private_sq.bit_mask & UNIQUE_QID_FLAG) == 0) {
@@ -972,23 +898,22 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                 LOG_ERR("Failure to prepare 64 byte command");
                 goto err;
             }
-            nvme_gen_cmd->prp1 =
-                p_cmd_sq->private_sq.sq_dma_addr;
+            nvme_gen_cmd->prp1 = cpu_to_le64(p_cmd_sq->private_sq.sq_dma_addr);
         }
         /* Fill the persistent entry structure */
         memcpy(&p_cmd_sq->private_sq.prp_persist, &prps, sizeof(prps));
 
         /* Resetting the unique QID bitmask flag */
-        p_cmd_sq->private_sq.bit_mask = (p_cmd_sq->private_sq.bit_mask &
-            ~(UNIQUE_QID_FLAG));
+        p_cmd_sq->private_sq.bit_mask =
+            (p_cmd_sq->private_sq.bit_mask & ~UNIQUE_QID_FLAG);
     } else if (nvme_64b_send->cmd_set == CMD_ADMIN &&
         nvme_gen_cmd->opcode == 0x05) {
+
         /* Create IOCQ command */
         nvme_create_cq = (struct nvme_create_cq *) nvme_cmd_ker;
 
         /* Get the required CQ from the global linked list
-         * represented by CMD.DW10.QID
-         */
+         * represented by CMD.DW10.QID */
         list_for_each_entry(p_cmd_cq, &pmetrics_device->metrics_cq_list,
             cq_list_hd) {
 
@@ -997,26 +922,25 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                 break;
             }
         }
-
         if (q_ptr == NULL) {
-            LOG_DBG("List node found, but contents are NULL");
             ret_code = -EPERM;
-            LOG_ERR("Required CQID node present in create CQ command not found"
-                "in global structure");
+            LOG_ERR("CQID node present in create CQ, but lookup found nothing");
             goto err;
         }
 
         /* Sanity Checks */
         if (((nvme_create_cq->cq_flags & CDW11_PC) &&
             (p_cmd_cq->private_cq.contig == 0))
-                || (!(nvme_create_cq->cq_flags & CDW11_PC) &&
-                (p_cmd_cq->private_cq.contig != 0))) {
+            || (!(nvme_create_cq->cq_flags & CDW11_PC) &&
+            (p_cmd_cq->private_cq.contig != 0))) {
+
             LOG_DBG("Contig flag out of sync with what cmd says");
             goto data_err;
         } else if ((p_cmd_cq->private_cq.contig == 0 &&
             nvme_64b_send->data_buf_ptr == NULL) ||
-                (p_cmd_cq->private_cq.contig != 0 &&
-                p_cmd_cq->private_cq.vir_kern_addr == NULL)) {
+            (p_cmd_cq->private_cq.contig != 0 &&
+            p_cmd_cq->private_cq.vir_kern_addr == NULL)) {
+
             LOG_DBG("Contig flag out of sync with what cmd says");
             goto data_err;
         } else if ((p_cmd_cq->private_cq.bit_mask & UNIQUE_QID_FLAG) == 0) {
@@ -1047,7 +971,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
             }
             /* Assign irq_no for IO_CQ in public CQ metrics node */
             p_cmd_cq->public_cq.irq_no = nvme_create_cq->irq_no;
-        } /* end of irq setting for IO CQs */
+        }
 
         if (p_cmd_cq->private_cq.contig == 0) {
             /* Discontig IOCQ creation */
@@ -1071,18 +995,18 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                 LOG_ERR("Failure to prepare 64 byte command");
                 goto err;
             }
-            nvme_gen_cmd->prp1 =
-                p_cmd_cq->private_cq.cq_dma_addr;
+            nvme_gen_cmd->prp1 = cpu_to_le64(p_cmd_cq->private_cq.cq_dma_addr);
         }
 
         /* Fill the persistent entry structure */
         memcpy(&p_cmd_cq->private_cq.prp_persist, &prps, sizeof(prps));
 
         /* Resetting the unique QID bitmask flag */
-        p_cmd_cq->private_cq.bit_mask = (p_cmd_cq->private_cq.bit_mask &
-            ~(UNIQUE_QID_FLAG));
+        p_cmd_cq->private_cq.bit_mask =
+            (p_cmd_cq->private_cq.bit_mask & ~UNIQUE_QID_FLAG);
     } else if (nvme_64b_send->cmd_set == CMD_ADMIN &&
         nvme_gen_cmd->opcode == 0x00) {
+
         /* Delete IOSQ case */
         nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
 
@@ -1093,7 +1017,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
         ret_code = prep_send64b_cmd(pmetrics_device->metrics_device,
             pmetrics_sq, nvme_64b_send, &prps, nvme_gen_cmd, nvme_del_q->qid,
-                0, PRP_ABSENT);
+             0, PRP_ABSENT);
 
         if (ret_code < 0) {
             LOG_ERR("Failure to prepare 64 byte command");
@@ -1102,6 +1026,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
     } else if (nvme_64b_send->cmd_set == CMD_ADMIN &&
         nvme_gen_cmd->opcode == 0x04) {
+
         /* Delete IOCQ case */
         nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
 
@@ -1130,8 +1055,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
                 goto err;
             }
         }
-
-    } /* Different sceanrios of commands */
+    }
 
     /* Copying the command in to appropriate SQ and handling sync issues */
     if (pmetrics_sq->private_sq.contig) {
@@ -1145,7 +1069,7 @@ int driver_send_64b(struct  metrics_device_list *pmetrics_device,
 
         dma_sync_sg_for_device(pmetrics_device->metrics_device->
             private_dev.dmadev, pmetrics_sq->private_sq.prp_persist.sg,
-            pmetrics_sq->private_sq.prp_persist.dma_mapped_pgs,
+            pmetrics_sq->private_sq.prp_persist.num_map_pgs,
             pmetrics_sq->private_sq.prp_persist.data_dir);
 
     }
@@ -1230,25 +1154,23 @@ int get_public_qmetrics(struct  metrics_device_list *pmetrics_device,
  * the list this returns success.
  */
 int identify_unique(u16 q_id, enum metrics_type type,
-        struct  metrics_device_list *pmetrics_device_element)
+    struct  metrics_device_list *pmetrics_device_element)
 {
-    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
-    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list */
+    struct  metrics_sq  *pmetrics_sq_list;
+    struct  metrics_cq  *pmetrics_cq_list;
 
     /* Determine the type of Q for which the metrics was needed */
     if (type == METRICS_SQ) {
         LOG_DBG("Searching for Node in the sq_list_hd...");
         pmetrics_sq_list = find_sq(pmetrics_device_element, q_id);
         if (pmetrics_sq_list != NULL) {
-            LOG_ERR("SQ ID is not unique. SQ_ID = %d already created.",
-                         pmetrics_sq_list->public_sq.sq_id);
+            LOG_ERR("SQ ID %d isn't unique", pmetrics_sq_list->public_sq.sq_id);
             return -EINVAL;
         }
     } else if (type == METRICS_CQ) {
         pmetrics_cq_list = find_cq(pmetrics_device_element, q_id);
         if (pmetrics_cq_list != NULL) {
-            LOG_ERR("CQ ID is not unique. CQ_ID = %d already created.",
-                                pmetrics_cq_list->public_cq.q_id);
+            LOG_ERR("CQ ID %d isn't unique", pmetrics_cq_list->public_cq.q_id);
             return -EINVAL;
         }
     }
@@ -1262,11 +1184,11 @@ int identify_unique(u16 q_id, enum metrics_type type,
  * available then fail and return NOMEM error code.
  */
 int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
-        struct  metrics_device_list *pmetrics_device_element)
+    struct  metrics_device_list *pmetrics_device_element)
 {
-    int ret_code = SUCCESS;
+    int ret_code;
     struct nvme_device *pnvme_dev;
-    struct  metrics_sq  *pmetrics_sq_node = NULL;
+    struct metrics_sq *pmetrics_sq_node = NULL;
 
     /* get the device from the list */
     pnvme_dev = pmetrics_device_element->metrics_device;
@@ -1278,13 +1200,10 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
         goto exit_prep_sq;
     }
 
-    /*
-     * Does the ctrl'r allow discontig mem to back an IOQ? if not then fail
-     * because it isn't valid and will place the system in an unknown state
-     */
-    if (READQ(&pnvme_dev->private_dev.nvme_ctrl_space->cap) & REGMASK_CAP_CQR) {
+    if (READQ(&pnvme_dev->private_dev.ctrlr_regs->cap) & REGMASK_CAP_CQR) {
         if (prep_sq->contig == 0) {
             LOG_DBG("Device doesn't support discontig Q memory");
+            ret_code = -ENOMEM;
             goto exit_prep_sq;
         }
     }
@@ -1292,14 +1211,13 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     LOG_DBG("Allocating SQ node in linked list.");
     pmetrics_sq_node = kmalloc(sizeof(struct metrics_sq), GFP_KERNEL);
     if (pmetrics_sq_node == NULL) {
-        LOG_ERR("failed allocating kernel memory in SQ allocation.");
+        LOG_ERR("Failed kernel alloc for SQ metrics node");
         ret_code = -ENOMEM;
         goto exit_prep_sq;
     }
-    /* Reset the data for this node */
-    memset(pmetrics_sq_node, 0, sizeof(struct metrics_sq));
 
     /* Filling the data elements of sq metrics. */
+    memset(pmetrics_sq_node, 0, sizeof(struct metrics_sq));
     pmetrics_sq_node->public_sq.sq_id = prep_sq->sq_id;
     pmetrics_sq_node->public_sq.cq_id = prep_sq->cq_id;
     pmetrics_sq_node->public_sq.elements = prep_sq->elements;
@@ -1307,21 +1225,19 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
 
     ret_code = nvme_prepare_sq(pmetrics_sq_node, pnvme_dev);
     if (ret_code < 0) {
-        LOG_ERR("Failed nvme_prep_sq call!!");
         goto exit_prep_sq;
     }
+
+    pmetrics_sq_node->private_sq.bit_mask =
+        (pmetrics_sq_node->private_sq.bit_mask | UNIQUE_QID_FLAG);
 
     /* Adding Command Tracking list */
     INIT_LIST_HEAD(&(pmetrics_sq_node->private_sq.cmd_track_list));
 
-    /* Setting the bit-mask for unique ID creation */
-    pmetrics_sq_node->private_sq.bit_mask =
-        (pmetrics_sq_node->private_sq.bit_mask | UNIQUE_QID_FLAG);
-
     /* Add this element to the end of the list */
     list_add_tail(&pmetrics_sq_node->sq_list_hd,
         &pmetrics_device_element->metrics_sq_list);
-    return ret_code;
+    return SUCCESS;
 
 exit_prep_sq:
     if (pmetrics_sq_node != NULL) {
@@ -1339,7 +1255,7 @@ exit_prep_sq:
 int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
         struct  metrics_device_list *pmetrics_device_element)
 {
-    int ret_code = SUCCESS;
+    int ret_code;
     struct  metrics_cq  *pmetrics_cq_node = NULL;
     struct nvme_device *pnvme_dev;
 
@@ -1347,19 +1263,16 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     pnvme_dev = pmetrics_device_element->metrics_device;
 
     ret_code = identify_unique(prep_cq->cq_id, METRICS_CQ,
-            pmetrics_device_element);
+        pmetrics_device_element);
     if (ret_code != SUCCESS) {
         LOG_ERR("CQ ID is not unique.");
         goto exit_prep_cq;
     }
 
-    /*
-     *  Does the ctrl'r allow discontig mem to back an IOQ? if not then fail
-     *  because it isn't valid and will place the system in an unknown state
-     */
-    if (READQ(&pnvme_dev->private_dev.nvme_ctrl_space->cap) & REGMASK_CAP_CQR) {
+    if (READQ(&pnvme_dev->private_dev.ctrlr_regs->cap) & REGMASK_CAP_CQR) {
         if (prep_cq->contig == 0) {
             LOG_DBG("Device doesn't support discontig Q memory");
+            ret_code = -ENOMEM;
             goto exit_prep_cq;
         }
     }
@@ -1367,36 +1280,31 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     LOG_DBG("Allocating CQ node in linked list.");
     pmetrics_cq_node = kmalloc(sizeof(struct metrics_cq), GFP_KERNEL);
     if (pmetrics_cq_node == NULL) {
-        LOG_ERR("failed allocating kernel memory in CQ allocation.");
+        LOG_ERR("Failed kernel alloc for CQ metrics node");
         ret_code = -ENOMEM;
         goto exit_prep_cq;
     }
-    /* Reset the data for this node */
-    memset(pmetrics_cq_node, 0, sizeof(struct metrics_cq));
 
     /* Filling the data elements of sq metrics. */
+    memset(pmetrics_cq_node, 0, sizeof(struct metrics_cq));
     pmetrics_cq_node->public_cq.q_id = prep_cq->cq_id;
     pmetrics_cq_node->public_cq.elements = prep_cq->elements;
-    pmetrics_cq_node->private_cq.contig = prep_cq->contig;
     pmetrics_cq_node->public_cq.irq_enabled = 0;
+    pmetrics_cq_node->private_cq.contig = prep_cq->contig;
 
     ret_code = nvme_prepare_cq(pmetrics_cq_node, pnvme_dev);
     if (ret_code < 0) {
-        LOG_ERR("Failed nvme_prep_cq call!!");
         goto exit_prep_cq;
     }
 
-    /* Set the pbit_new_entry for IO CQ here. */
     pmetrics_cq_node->public_cq.pbit_new_entry = 1;
-
-    /* Setting the bit-mask for unique ID creation */
     pmetrics_cq_node->private_cq.bit_mask =
         (pmetrics_cq_node->private_cq.bit_mask | UNIQUE_QID_FLAG);
 
     /* Add this element to the end of the list */
     list_add_tail(&pmetrics_cq_node->cq_list_hd,
         &pmetrics_device_element->metrics_cq_list);
-    return ret_code;
+    return SUCCESS;
 
 exit_prep_cq:
     if (pmetrics_cq_node != NULL) {

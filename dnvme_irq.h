@@ -30,8 +30,8 @@
  */
 struct msix_info {
     u16 ts;
-    u8 *pba_tbl;
-    u8 *msix_tbl;
+    u8 __iomem *pba_tbl;
+    u8 __iomem *msix_tbl;
 };
 
 /* Max IRQ vectors for MSI SINGLE IRQ scheme */

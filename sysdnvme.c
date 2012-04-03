@@ -26,6 +26,7 @@
 #include <linux/fcntl.h>
 #include <linux/errno.h>
 #include <linux/mman.h>
+#include <linux/dma-mapping.h>
 
 #include "dnvme_interface.h"
 #include "definitions.h"
@@ -42,12 +43,9 @@
 #define    DRV_NAME             "dnvme"
 #define    NVME_DEVICE_NAME     "nvme"
 
-/*
- * Define the PCI storage express as
- * 0xFFFFF00 to be used while informing to kernel.
- */
+
 static DEFINE_PCI_DEVICE_TABLE(dnvme_pci_tbl) = {
-    { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xFFFF00) },
+    { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
     { 0, }
 };
 
@@ -94,46 +92,38 @@ module_param(NVME_MAJOR, int, 0);
  * dnvme_init - Perform early initialization of the host
  * host: dnvme host to initialize
  * @return returns 0 if initialization was successful.
- * @author T.Sravan Kumar
 */
-static int dnvme_init(void)
+static int __init dnvme_init(void)
 {
-    int retCode = -ENODEV;
-    int err = -EINVAL;
+    int err;
 
-    LOG_NRM("version: %d.%d", VER_MAJOR, VER_MINOR);
-    LOG_DBG("Init module - dnvme init");
-
-    /* As the params are u16, we use 1.0 as 100 */
+    LOG_NRM("dnvme loading; dnvme version: %d.%d", VER_MAJOR, VER_MINOR);
     g_metrics_drv.driver_version = DRIVER_VERSION;
     g_metrics_drv.api_version = API_VERSION;
 
-    /* This is classic way to register a char device */
     NVME_MAJOR = register_chrdev(NVME_MAJOR, NVME_DEVICE_NAME, &dnvme_fops_f);
     if (NVME_MAJOR < 0) {
         LOG_ERR("NVME Char Registration failed");
         return -ENODEV;
     }
-    LOG_DBG("NVME Char type registered..");
-
-   class_nvme = class_create(THIS_MODULE, NVME_DEVICE_NAME);
 
     /* Check if class_nvme creation has any issues */
+    class_nvme = class_create(THIS_MODULE, NVME_DEVICE_NAME);
     if (IS_ERR(class_nvme)) {
         err = PTR_ERR(class_nvme);
         LOG_ERR("Nvme class creation failed and stopping");
         return err;
     }
 
-    /* Register this device as pci device */
-    retCode = pci_register_driver(&dnvme_pci_driver);
-    if (retCode < 0) {
+    /* Register this driver */
+    err = pci_register_driver(&dnvme_pci_driver);
+    if (err < 0) {
         /*Unable to register the PCI device */
         LOG_ERR("PCI Driver Registration unsuccessful");
-        return retCode;
+        return err;
     }
 
-    LOG_DBG("PCI Registration Success return code = 0x%x", retCode);
+    LOG_DBG("PCI Registration complete");
     return 0;
 }
 
@@ -145,127 +135,102 @@ static int dnvme_init(void)
 int __devinit dnvme_pci_probe(struct pci_dev *pdev,
     const struct pci_device_id *id)
 {
-    int retCode = -ENODEV;  /* retCode is set to no devices */
-    int bars = 0;           /* initialize bars to 0         */
-    u32  BaseAddress0 = 0;
-    u32  *bar;
-    dev_t devno = 0;
     int err;
+    int bars = 0;
+    dev_t devno = 0;
+    void __iomem *bar0;
     struct metrics_device_list *pmetrics_device_element;
 
-    /* Following the Iniitalization steps from LDD 3 */
-    LOG_DBG("Start probing for NVME PCI Express Device");
-    retCode = pci_enable_device(pdev);
-    if (retCode < 0) {
-        LOG_ERR("PciEnable not successful");
-        return retCode;
-    }
-    LOG_DBG("PCI enable Success!. Return Code = 0x%x", retCode);
 
-    retCode = pci_enable_device_mem(pdev);
-    if (retCode < 0) {
-        LOG_ERR("pci_enalbe_device_mem not successful");
-        return retCode;
-    }
-
-    LOG_DBG("NVME Probing... Dev = 0x%x Vendor = 0x%x", pdev->device,
-            pdev->vendor);
-    LOG_DBG("Bus No = 0x%x, Dev Slot = 0x%x", pdev->bus->number,
-            PCI_SLOT(pdev->devfn));
-    LOG_DBG("Dev Func = 0x%x, Class = 0x%x", PCI_FUNC(pdev->devfn),
-            pdev->class);
-
-    /* Allocate kernel mem for each of the device using one now */
+    /* Allocate kernel memory for each of the device(s) */
     char_dev = kzalloc(sizeof(struct cdev), GFP_KERNEL);
     if (char_dev == NULL) {
-        LOG_ERR("Allocation for char device failed!!");
+        LOG_ERR("Alloc memory for kernel rep failed: 0x%p", char_dev);
         return -ENOMEM;
     }
+
+    err = pci_enable_device(pdev);
+    if (err < 0) {
+        LOG_ERR("Enabling the PCI device has failed: 0x%04X", err);
+        return err;
+    }
+    err = pci_enable_device_mem(pdev);
+    if (err < 0) {
+        LOG_ERR("Enabling the PCI device memory has failed: 0x%04X", err);
+        return err;
+    }
+
+    /* Reserve all the mem map'd config registers for this device */
+    bars = pci_select_bars(pdev, IORESOURCE_MEM);
+    err = pci_request_selected_regions(pdev, bars, DRV_NAME);
+    LOG_DBG("pci mapped bars = 0x%08x", bars);
+    if (err < 0) {
+        LOG_ERR("Can't preserved memory regions");
+        return err;
+    }
+
+    LOG_DBG("NVMe dev: 0x%x, vendor: 0x%x", pdev->device, pdev->vendor);
+    LOG_DBG("NVMe bus #%d, dev slot: %d", pdev->bus->number,
+        PCI_SLOT(pdev->devfn));
+    LOG_DBG("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
+        pdev->class);
+
     /* Make device with nvme major and minor number */
     devno = MKDEV(NVME_MAJOR, nvme_minor_x);
-    /* initialize the device and char device */
     cdev_init(char_dev, &dnvme_fops_f);
-    /* Set the owner */
     char_dev->owner = THIS_MODULE;
-    /* assign the fops to char device */
     char_dev->ops = &dnvme_fops_f;
-    /* Add this char device to kernel */
     err = cdev_add(char_dev, devno, 1);
     if (err) {
-        LOG_ERR("Adding device to kernel failed");
+        LOG_ERR("Adding NVMe device into the kernel failed: %d", err);
         return err;
     }
-    /* Create device with class name class_nvme */
+
+    /* Create an NVMe special device */
     device = device_create(class_nvme, NULL, devno, NULL, NVME_DEVICE_NAME"%d",
-            nvme_minor_x);
+        nvme_minor_x);
     if (IS_ERR(device)) {
         err = PTR_ERR(device);
-        LOG_ERR("Device Creation failed");
+        LOG_ERR("Creation of special device file failed: %d", err);
         return err;
     }
 
-    /* Return void, Enables bus mastering and calls pcibios_set_master */
     pci_set_master(pdev);
+    dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+    dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 
-    /* Make BAR mask from the resource */
-    bars = pci_select_bars(pdev, IORESOURCE_MEM);
-
-    retCode = pci_request_selected_regions(pdev, bars, DRV_NAME);
-    if (retCode < 0) {
-        LOG_ERR("Can't select regions, Exiting!!!");
-        return retCode;
-    } else {
-        LOG_DBG("Select regions success");
+    /* Needed to enable IRQ's upon subsequent insmod dnvme.ko */
+    err = pci_reenable_device(pdev);
+    if (err < 0) {
+        LOG_ERR("Can't reenable PCI device");
+        return err;
     }
 
-    /* Resume the device. */
-    retCode = pci_reenable_device(pdev);
-    if (retCode < 0) {
-        LOG_ERR("Can't reenable PCI device.. Exiting!!!");
-        return retCode;
-    }
-
-    LOG_DBG("Mask for PCI BARS = 0x%x", bars);
-    LOG_DBG("PCI Probe Success!. Return Code = 0x%x", retCode);
-
-    bar = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
-    if (bar == NULL) {
-        LOG_ERR("allocate Host Memory for Device Failed!!");
+    bar0 = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
+    if (bar0 == NULL) {
+        LOG_ERR("Mapping BAR0 mem map'd registers failed");
         return -EINVAL;
     }
 
-    /* Only debug because the above remap should give BAR's  */
-    pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &BaseAddress0);
-    LOG_DBG("PCI BAR 0 = 0x%x", BaseAddress0);
-
-    /* Allocate mem fo nvme device with kernel memory */
-    pmetrics_device_element = kmalloc(sizeof(struct metrics_device_list),
-            GFP_KERNEL | __GFP_ZERO);
+    pmetrics_device_element = kmalloc(
+        sizeof(struct metrics_device_list), (GFP_KERNEL | __GFP_ZERO));
     if (pmetrics_device_element == NULL) {
-        LOG_ERR("failed mem allocation for device in device list.");
+        LOG_ERR("Failed alloc mem for internal device metric storage");
         return -ENOMEM;
     }
-    /* Initialize the current device found */
-    retCode = driver_ioctl_init(pdev, pmetrics_device_element);
-    if (retCode < 0) {
-        LOG_ERR("Failed driver ioctl initializations!!");
-        return retCode;
+
+    err = driver_ioctl_init(pdev, bar0, pmetrics_device_element);
+    if (err < 0) {
+        LOG_ERR("Failed to init dnvme's internal state metrics");
+        return err;
     }
-    /* Update info in the metrics list */
-    pmetrics_device_element->metrics_device->private_dev.
-        minor_no = nvme_minor_x;
-    /* update the device minor number */
-    nvme_minor_x = nvme_minor_x + 1;
 
-    /* set device open status to false when initialized */
-    pmetrics_device_element->metrics_device->private_dev.open_flag = 0;
-
-    /* Initialize the mutex state. */
     mutex_init(&pmetrics_device_element->metrics_mtx);
-
-    /* Add the device to the linked list */
+    pmetrics_device_element->metrics_device->private_dev.open_flag = 0;
+    pmetrics_device_element->metrics_device->private_dev.minor_no =
+        nvme_minor_x++;
     list_add_tail(&pmetrics_device_element->metrics_device_hd, &metrics_dev_ll);
-    return retCode;
+    return 0;
 }
 
 /*

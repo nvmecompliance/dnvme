@@ -65,20 +65,21 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
  */
 int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
 {
-    u64 timer_delay;    /* Timer delay read from CAP.TO register          */
+    u64 timer_delay;    /* Timer delay read from CAP.TO register */
     u64 ini, end;
 
     /* Read in the value of CAP.TO */
 
-    timer_delay = (u64) (readl(&pnvme_dev->private_dev.nvme_ctrl_space->cap)
-        >> NVME_TO_SHIFT_MASK);
-    timer_delay = timer_delay * (CAP_TO_UNIT);
+    timer_delay = ((readl(&pnvme_dev->private_dev.ctrlr_regs->cap)
+        >> NVME_TO_SHIFT_MASK) & 0x0f);
+    timer_delay = (timer_delay * CAP_TO_UNIT);
+
     LOG_DBG("Checking NVME Device Status (CSTS.RDY = 1)...");
     LOG_DBG("Timer Expires in %lld ms", timer_delay);
-    ini = get_jiffies_64(); /* Read Jiffies for timer */
+    ini = get_jiffies_64();
+
     /* Check if the device status set to ready */
-    while (!(readl(&pnvme_dev->private_dev.nvme_ctrl_space->csts)
-            & NVME_CSTS_RDY)) {
+    while (!(readl(&pnvme_dev->private_dev.ctrlr_regs->csts) & NVME_CSTS_RDY)) {
         LOG_DBG("Waiting...");
         msleep(250);
         end = get_jiffies_64();
@@ -89,9 +90,7 @@ int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
         }
         /* Check if the time out occured */
         if (jiffies_to_msecs(end - ini) > timer_delay) {
-            LOG_ERR("ASQ Setup Failed before Timeout");
-            LOG_ERR("Check if Admin Completion Queue is Created First");
-            /* set return invalid/failed */
+            LOG_ERR("Ctrlr did not become ready within TO");
             return -EINVAL;
         }
     }
@@ -107,23 +106,17 @@ int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
 int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element)
 {
     struct nvme_device *pnvme_dev;
-    u32 ctrl_config;
+    u32 regCC;
 
     /* get the device from the list */
     pnvme_dev = pmetrics_device_element->metrics_device;
 
-    /* Read Controller Configuration as we can only write 32 bits */
-    ctrl_config = readl(&pnvme_dev->private_dev.nvme_ctrl_space->cc);
-
-    /* BIT 0 is set to 1 i.e., CC.EN = 1 */
-    ctrl_config |= 0x1;
-
-    /* Write the enable bit into CC register */
-    writel(ctrl_config, &pnvme_dev->private_dev.nvme_ctrl_space->cc);
+    regCC = readl(&pnvme_dev->private_dev.ctrlr_regs->cc);
+    regCC |= 0x1;   /* BIT 0 is set to 1 i.e., CC.EN = 1 */
+    writel(regCC, &pnvme_dev->private_dev.ctrlr_regs->cc);
 
    /* Check the Timeout flag */
     if (nvme_ctrlrdy_capto(pnvme_dev) != SUCCESS) {
-        LOG_ERR("Controller is not ready before time out");
         return -EINVAL;
     }
 
@@ -138,22 +131,21 @@ int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element)
 int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element)
 {
     struct nvme_device *pnvme_dev;
-    u32 ctrl_config;
+    u32 regCC;
     u8 rdy_sts = 0xFF;
     u8 i;
+
     /* get the device from the list */
     pnvme_dev = pmetrics_device_element->metrics_device;
 
-    /* Read Controller Configuration as we can only write 32 bits */
-    ctrl_config = readl(&pnvme_dev->private_dev.nvme_ctrl_space->cc);
-    /* BIT 0 is set to 0 i.e., CC.EN = 0 */
-    ctrl_config &= ~0x1;
-    /* Write the enable bit into CC register */
-    writel(ctrl_config, &pnvme_dev->private_dev.nvme_ctrl_space->cc);
+    regCC = readl(&pnvme_dev->private_dev.ctrlr_regs->cc);
+    regCC &= ~0x1;  /* BIT 0 is set to 0 i.e., CC.EN = 0 */
+    writel(regCC, &pnvme_dev->private_dev.ctrlr_regs->cc);
+
     /* poll until a constant T/O to see when device really becomes disabled */
     for (i = 0; i < 20; i++) {
         msleep(100);
-        rdy_sts = readl(&pnvme_dev->private_dev.nvme_ctrl_space->csts);
+        rdy_sts = readl(&pnvme_dev->private_dev.ctrlr_regs->csts);
         if (! (rdy_sts & NVME_CSTS_RDY)) {
             return SUCCESS;
         }
@@ -226,11 +218,11 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u32 qsize,
     memset(pmetrics_sq_list->private_sq.vir_kern_addr, 0, asq_depth);
 
     LOG_DBG("Virtual ASQ DMA Address: 0x%llx",
-            (u64)pmetrics_sq_list->private_sq.vir_kern_addr);
+        (u64)pmetrics_sq_list->private_sq.vir_kern_addr);
 
     /* Read, Modify, Write  the aqa as per the q size requested */
     aqa = (qsize - 1) & ASQS_MASK; /* asqs is zero based value */
-    tmp_aqa = readl(&pnvme_dev->private_dev.nvme_ctrl_space->aqa);
+    tmp_aqa = readl(&pnvme_dev->private_dev.ctrlr_regs->aqa);
     tmp_aqa &= ~ASQS_MASK;
     aqa |= tmp_aqa;
 
@@ -238,30 +230,30 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u32 qsize,
     LOG_DBG("AQA Attributes in ASQ:0x%x", aqa);
 
     /* Write new ASQ size using AQA */
-    writel(aqa, &pnvme_dev->private_dev.nvme_ctrl_space->aqa);
+    writel(aqa, &pnvme_dev->private_dev.ctrlr_regs->aqa);
 
     /* Write the DMA address into ASQ base address */
     WRITEQ(pmetrics_sq_list->private_sq.sq_dma_addr,
-            &pnvme_dev->private_dev.nvme_ctrl_space->asq);
+        &pnvme_dev->private_dev.ctrlr_regs->asq);
 #ifdef DEBUG
     /* Debug statements */
     LOG_DBG("Admin CQ Base Address = 0x%x",
-        (u32)readl(&pnvme_dev->private_dev.nvme_ctrl_space->acq));
+        (u32)readl(&pnvme_dev->private_dev.ctrlr_regs->acq));
     /* Read the AQA attributes after writing and check */
-    tmp_aqa = readl(&pnvme_dev->private_dev.nvme_ctrl_space->aqa);
+    tmp_aqa = readl(&pnvme_dev->private_dev.ctrlr_regs->aqa);
 
     LOG_DBG("Reading AQA after writing = 0x%x", tmp_aqa);
 
     /* Read the status register and printout to log */
-    tmp_aqa = readl(&pnvme_dev->private_dev.nvme_ctrl_space->csts);
+    tmp_aqa = readl(&pnvme_dev->private_dev.ctrlr_regs->csts);
 
     LOG_DBG("Reading status reg = 0x%x", tmp_aqa);
 #endif
 
     /* Set the door bell of ASQ to 0x1000 as per spec 1.0b */
-    pmetrics_sq_list->private_sq.dbs =
-        ((void __iomem *)pnvme_dev->private_dev.nvme_ctrl_space)
-            + NVME_SQ0TBDL;
+    pmetrics_sq_list->private_sq.dbs = (u32 __iomem *)
+        (pnvme_dev->private_dev.bar0 + NVME_SQ0TBDL);
+
     /* set private members in sq metrics */
     pmetrics_sq_list->private_sq.size = asq_depth;
     pmetrics_sq_list->private_sq.unique_cmd_id = 0;
@@ -289,7 +281,6 @@ asq_out:
 int create_admn_cq(struct nvme_device *pnvme_dev, u32 qsize,
     struct  metrics_cq  *pmetrics_cq_list)
 {
-
     int ret_code = SUCCESS; /* Ret code set to SUCCESS check for otherwise */
     u16 acq_id;             /* Admin Submission Q Id                       */
     u32 aqa;                /* Admin Q attributes in 32 bits size          */
@@ -338,7 +329,7 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u32 qsize,
     /* Read, Modify and write the Admin Q attributes */
     aqa = (qsize - 1) << 16; /* acqs is zero based value */
     aqa &= ACQS_MASK;
-    tmp_aqa = readl(&pnvme_dev->private_dev.nvme_ctrl_space->aqa);
+    tmp_aqa = readl(&pnvme_dev->private_dev.ctrlr_regs->aqa);
     tmp_aqa &= ~ACQS_MASK;
 
     /* Final value to write to AQA Register */
@@ -348,31 +339,24 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u32 qsize,
     LOG_DBG("AQA Attributes in ACQ:0x%x", aqa);
 
     /* Write new ASQ size using AQA */
-    writel(aqa, &pnvme_dev->private_dev.nvme_ctrl_space->aqa);
+    writel(aqa, &pnvme_dev->private_dev.ctrlr_regs->aqa);
     /* Write the DMA address into ACQ base address */
     WRITEQ(pmetrics_cq_list->private_cq.cq_dma_addr,
-            &pnvme_dev->private_dev.nvme_ctrl_space->acq);
+            &pnvme_dev->private_dev.ctrlr_regs->acq);
 #ifdef DEBUG
     /* Read the AQA attributes after writing and check */
-    tmp_aqa = readl(&pnvme_dev->private_dev.nvme_ctrl_space->aqa);
-
+    tmp_aqa = readl(&pnvme_dev->private_dev.ctrlr_regs->aqa);
     LOG_DBG("Reading AQA after writing in ACQ = 0x%x\n", tmp_aqa);
-
 #endif
 
     pmetrics_cq_list->private_cq.size = acq_depth;
     pmetrics_cq_list->private_cq.contig = 1;
 
     /* Get the door bell stride from CAP register */
-    cap_dstrd = (READQ(&pnvme_dev->private_dev.nvme_ctrl_space->cap) >> 32)
-        & 0xF;
-
+    cap_dstrd = ((READQ(&pnvme_dev->private_dev.ctrlr_regs->cap) >> 32) & 0xF);
     /* CQ 0 Head DoorBell admin computed used doorbell stride. */
-    pmetrics_cq_list->private_cq.dbs =
-        ((void __iomem *)pnvme_dev->private_dev.nvme_ctrl_space)
-        + NVME_SQ0TBDL + (4 << cap_dstrd);
-
-    /* returns success */
+    pmetrics_cq_list->private_cq.dbs = (u32 __iomem *)
+        (pnvme_dev->private_dev.bar0 + NVME_SQ0TBDL + (4 << cap_dstrd));
     return ret_code;
 
 acq_out:
@@ -392,74 +376,70 @@ acq_out:
  * for IO SQ Creation. It will retrieve the q size from IOSQES from CC.
  */
 int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
-            struct nvme_device *pnvme_dev)
+    struct nvme_device *pnvme_dev)
 {
-    int ret_code = SUCCESS;
-    u32 ctrl_config = 0;
-    u8  cap_dstrd;
+    int ret_code = -ENOMEM;
+    u32 regCC = 0;
+    u8 cap_dstrd;
 #ifdef DEBUG
     u32 cap_mqes = 0;
 #endif
 
-    /*Read Controller Configuration CC register at offset 0x14h. */
-    ctrl_config = readl(&pnvme_dev->private_dev.nvme_ctrl_space->cc);
-    /* Extract the IOSQES from CC */
-    ctrl_config = (ctrl_config >> 16) & 0xF;
-
-    LOG_DBG("CC.IOSQES = 0x%x, 2^x = %d", ctrl_config, (1 << ctrl_config));
-    pmetrics_sq_list->private_sq.size = pmetrics_sq_list->public_sq.elements *
-        (u32)(1 << ctrl_config);
+    regCC = readl(&pnvme_dev->private_dev.ctrlr_regs->cc);
+    regCC = ((regCC >> 16) & 0xF);   /* Extract the IOSQES from CC */
+    LOG_DBG("CC.IOSQES = 0x%x, 2^x = %d", regCC, (1 << regCC));
+    pmetrics_sq_list->private_sq.size =
+        (pmetrics_sq_list->public_sq.elements * (u32)(1 << regCC));
 
 #ifdef DEBUG
     /* Check to see if the entries exceed the Max Q entries supported */
-    cap_mqes = readl(&pnvme_dev->private_dev.nvme_ctrl_space->cap) & 0xFFFF;
-    LOG_DBG("Max Q:Actual Q elements = 0x%x:0x%x", cap_mqes,
-            pmetrics_sq_list->public_sq.elements);
+    cap_mqes = ((readl(&pnvme_dev->private_dev.ctrlr_regs->cap) & 0xFFFF) + 1);
+    LOG_DBG("Elements: (Max Q:Actual Q) = 0x%x:0x%x", cap_mqes,
+        pmetrics_sq_list->public_sq.elements);
     /* I should not return from here if exceeds */
     if (pmetrics_sq_list->public_sq.elements > cap_mqes) {
         LOG_ERR("The IO SQ id = %d exceeds maximum elements allowed!",
-                pmetrics_sq_list->public_sq.sq_id);
+            pmetrics_sq_list->public_sq.sq_id);
     }
 #endif
+
     /*
      * call dma_alloc_coherent or SQ which gets DMA mapped address from
-     * the kernel virtual address.
-     * != 0 is contiguous SQ as per design.
+     * the kernel virtual address. != 0 is contiguous SQ as per design.
      */
     if (pmetrics_sq_list->private_sq.contig != 0) {
-        /* Assume that CMD.DW11.PC bit will be set to one. */
+        /* Assume that the future CMD.DW11.PC bit will be set to one. */
         pmetrics_sq_list->private_sq.vir_kern_addr = dma_alloc_coherent(
             &pnvme_dev->private_dev.pdev->dev, pmetrics_sq_list->private_sq.
             size, &pmetrics_sq_list->private_sq.sq_dma_addr, GFP_KERNEL);
-        /* Check if the dma alloc was successful */
-        if (!pmetrics_sq_list->private_sq.vir_kern_addr) {
-            LOG_ERR("Unable to allocate DMA Address for IO SQ!!");
+        if (pmetrics_sq_list->private_sq.vir_kern_addr == NULL) {
+            LOG_ERR("Unable to allocate DMA mem for IOSQ");
             ret_code = -ENOMEM;
             goto psq_out;
         }
-        /* Zero out all IO SQ memory before processing */
+        /* Zero out allows seeing any cmds which could be placed within */
         memset(pmetrics_sq_list->private_sq.vir_kern_addr, 0,
             pmetrics_sq_list->private_sq.size);
     }
-    /* Set Unique Command value to zero for starters. */
-    pmetrics_sq_list->private_sq.unique_cmd_id = 0;
-    cap_dstrd = (READQ(&pnvme_dev->private_dev.nvme_ctrl_space->cap) >> 32)
-        & 0xF;
-    LOG_DBG("CAP DSTRD Value = 0x%x", cap_dstrd);
-    pmetrics_sq_list->private_sq.dbs = ((void __iomem *)pnvme_dev->private_dev.
-        nvme_ctrl_space) + NVME_SQ0TBDL +
-        ((2 * pmetrics_sq_list->public_sq.sq_id) * (4 << cap_dstrd));
 
-    return ret_code;
+    /* Each new IOSQ resets its unique cmd counter, start from a known place */
+    pmetrics_sq_list->private_sq.unique_cmd_id = 0;
+
+    // Learn of the doorbell stride
+    cap_dstrd = ((READQ(&pnvme_dev->private_dev.ctrlr_regs->cap) >> 32) & 0xF);
+    LOG_DBG("CAP DSTRD Value = 0x%x", cap_dstrd);
+
+    pmetrics_sq_list->private_sq.dbs = (u32 __iomem *)
+        (pnvme_dev->private_dev.bar0 + NVME_SQ0TBDL +
+        ((2 * pmetrics_sq_list->public_sq.sq_id) * (4 << cap_dstrd)));
+    return SUCCESS;
 
 psq_out:
     if (pmetrics_sq_list->private_sq.vir_kern_addr != NULL) {
-        /* Admin SQ dma mem allocated, so free the DMA memory */
         dma_free_coherent(&pnvme_dev->private_dev.pdev->dev, pmetrics_sq_list->
             private_sq.size, (void *)pmetrics_sq_list->private_sq.
             vir_kern_addr, pmetrics_sq_list->private_sq.sq_dma_addr);
     }
-    /* returns failure*/
     return ret_code;
 }
 
@@ -468,75 +448,68 @@ psq_out:
  * for IO CQ Preparation. It will retrieve the q size from IOSQES from CC.
  */
 int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
-            struct nvme_device *pnvme_dev)
+    struct nvme_device *pnvme_dev)
 {
-    int ret_code = SUCCESS;
-    u32 ctrl_config = 0;
-    u8  cap_dstrd;
+    int ret_code = -ENOMEM;
+    u32 regCC = 0;
+    u8 cap_dstrd;
 #ifdef DEBUG
     u16 cap_mqes = 0;
 #endif
 
-    /* Read Controller Configuration CC register at offset 0x14h. */
-    ctrl_config = readl(&pnvme_dev->private_dev.nvme_ctrl_space->cc);
-    /* Extract the IOCQES from CC */
-    ctrl_config = (ctrl_config >> 20) & 0xF;
+    regCC = readl(&pnvme_dev->private_dev.ctrlr_regs->cc);
+    regCC = ((regCC >> 20) & 0xF);    /* Extract the IOCQES from CC */
+    LOG_DBG("CC.IOCQES = 0x%x, 2^x = %d", regCC, (1 << regCC));
+    pmetrics_cq_list->private_cq.size =
+        (pmetrics_cq_list->public_cq.elements * (u32)(1 << regCC));
 
-    LOG_DBG("CC.IOCQES = 0x%x, 2^x = %d", ctrl_config, (1 << ctrl_config));
-    pmetrics_cq_list->private_cq.size = pmetrics_cq_list->public_cq.elements *
-        (u32)(1 << ctrl_config);
 #ifdef DEBUG
     /* Check to see if the entries exceed the Max Q entries supported */
-    cap_mqes = readl(&pnvme_dev->private_dev.nvme_ctrl_space->cap) & 0xFFFF;
+    cap_mqes = ((readl(&pnvme_dev->private_dev.ctrlr_regs->cap) & 0xFFFF) + 1);
     LOG_DBG("Max CQ:Actual CQ elements = 0x%x:0x%x", cap_mqes,
-            pmetrics_cq_list->public_cq.elements);
+        pmetrics_cq_list->public_cq.elements);
     /* I should not return from here if exceeds */
     if (pmetrics_cq_list->public_cq.elements > cap_mqes) {
         LOG_ERR("The IO CQ id = %d exceeds maximum elements allowed!",
-                pmetrics_cq_list->public_cq.q_id);
+            pmetrics_cq_list->public_cq.q_id);
     }
 #endif
+
     /*
-     * call dma_alloc_coherent for CQ which gets DMA mapped address from
-     * the kernel virtual address only for contiguous CQ case.
-     * != 0 is contiguous CQ as per design.
+     * call dma_alloc_coherent or SQ which gets DMA mapped address from
+     * the kernel virtual address. != 0 is contiguous SQ as per design.
      */
     if (pmetrics_cq_list->private_cq.contig != 0) {
-        /* Assume that CMD.DW11.PC bit will be set to one. */
+        /* Assume that the future CMD.DW11.PC bit will be set to one. */
         pmetrics_cq_list->private_cq.vir_kern_addr = dma_alloc_coherent(
             &pnvme_dev->private_dev.pdev->dev, pmetrics_cq_list->private_cq.
-                size, &pmetrics_cq_list->private_cq.cq_dma_addr, GFP_KERNEL);
-        /* Check if the dma alloc was successful */
-        if (!pmetrics_cq_list->private_cq.vir_kern_addr) {
-            LOG_ERR("Unable to allocate DMA Address for IO CQ!!");
+            size, &pmetrics_cq_list->private_cq.cq_dma_addr, GFP_KERNEL);
+        if (pmetrics_cq_list->private_cq.vir_kern_addr == NULL) {
+            LOG_ERR("Unable to allocate DMA mem for IOCQ");
             ret_code = -ENOMEM;
             goto pcq_out;
         }
-        /* Zero out all IO CQ memory before processing */
+        /* Zero out; forces reset of all P-bit entries */
         memset(pmetrics_cq_list->private_cq.vir_kern_addr, 0,
             pmetrics_cq_list->private_cq.size);
     }
 
-    cap_dstrd = (READQ(&pnvme_dev->private_dev.nvme_ctrl_space->cap) >> 32)
-        & 0xF;
-    LOG_DBG("CAP DSTRD Value = 0x%x", cap_dstrd);
+    // Learn of the doorbell stride
+    cap_dstrd = ((READQ(&pnvme_dev->private_dev.ctrlr_regs->cap) >> 32) & 0xF);
+    LOG_DBG("CAP.DSTRD = 0x%x", cap_dstrd);
+
     /* Here CQ also used SQ0TDBL offset i.e., 0x1000h. */
-    pmetrics_cq_list->private_cq.dbs =
-        ((void __iomem *)pnvme_dev->private_dev.nvme_ctrl_space) +
-            NVME_SQ0TBDL + ((2 * pmetrics_cq_list->public_cq.q_id + 1)
-                * (4 << cap_dstrd));
+    pmetrics_cq_list->private_cq.dbs = (u32 __iomem *)
+        (pnvme_dev->private_dev.bar0 + NVME_SQ0TBDL +
+        ((2 * pmetrics_cq_list->public_cq.q_id + 1) * (4 << cap_dstrd)));
+    return SUCCESS;
 
-    /* returns success */
-    return ret_code;
-
- pcq_out:
+pcq_out:
     if (pmetrics_cq_list->private_cq.vir_kern_addr != NULL) {
-        /* Admin CQ dma mem allocated, so free the DMA memory */
         dma_free_coherent(&pnvme_dev->private_dev.pdev->dev, pmetrics_cq_list->
             private_cq.size, (void *)pmetrics_cq_list->private_cq.
             vir_kern_addr, pmetrics_cq_list->private_cq.cq_dma_addr);
     }
-    /* returns failure */
     return ret_code;
 }
 
@@ -547,7 +520,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
  * already in dbs.
  */
 int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
-        *pmetrics_device_element)
+    *pmetrics_device_element)
 {
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list */
     struct nvme_device *pnvme_dev;
@@ -557,32 +530,30 @@ int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
 
     /* Seek the SQ within metrics device SQ list */
     list_for_each_entry(pmetrics_sq_list, &pmetrics_device_element->
-            metrics_sq_list, sq_list_hd) {
+        metrics_sq_list, sq_list_hd) {
 
         /* Check if the Q Id matches */
         if (ring_sqx == pmetrics_sq_list->public_sq.sq_id) {
-            LOG_DBG("SQ_ID= %d found in the linked list.",
+            LOG_DBG("SQ_ID= %d found in kernel metrics.",
                 pmetrics_sq_list->public_sq.sq_id);
-            LOG_DBG("\tVirt Tail Ptr = 0x%x",
-                pmetrics_sq_list->public_sq.tail_ptr_virt);
-            LOG_DBG("\tTail Ptr = 0x%x", pmetrics_sq_list->public_sq.tail_ptr);
+            LOG_DBG("\tvirt_tail_ptr = 0x%x; tail_ptr = 0x%x",
+                pmetrics_sq_list->public_sq.tail_ptr_virt,
+                pmetrics_sq_list->public_sq.tail_ptr);
+            LOG_DBG("\tdbs = %p; bar0 = %p",
+                pmetrics_sq_list->private_sq.dbs,
+                pnvme_dev->private_dev.bar0);
+
             /* Copy tail_prt_virt to tail_prt */
-            pmetrics_sq_list->public_sq.tail_ptr = pmetrics_sq_list->
-                public_sq.tail_ptr_virt;
+            pmetrics_sq_list->public_sq.tail_ptr =
+                pmetrics_sq_list->public_sq.tail_ptr_virt;
             /* Ring the doorbell with tail_prt */
             writel(pmetrics_sq_list->public_sq.tail_ptr,
                 pmetrics_sq_list->private_sq.dbs);
-            LOG_DBG("After Writing Doorbell...");
-            LOG_DBG("\tVirt Tail Ptr = 0x%x",
-                pmetrics_sq_list->public_sq.tail_ptr_virt);
-            LOG_DBG("\tTail Ptr = 0x%x",
-                pmetrics_sq_list->public_sq.tail_ptr);
-            /* Done with this function return success */
             return SUCCESS;
         }
     }
+
     LOG_ERR("SQ ID = %d not found to ring its doorbell", ring_sqx);
-    /* If it falls here no SQ ID is found */
     return -EINVAL;
 }
 
@@ -728,13 +699,13 @@ void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
         /* Set the Registers to default values. */
         /* Write 0 to AQA */
         writel(0x0, &pmetrics_device->metrics_device->private_dev.
-            nvme_ctrl_space->aqa);
+            ctrlr_regs->aqa);
         /* Write 0 to the DMA address into ASQ base address */
         WRITEQ(0x0, &pmetrics_device->metrics_device->private_dev.
-            nvme_ctrl_space->asq);
+            ctrlr_regs->asq);
         /* Write 0 to the DMA address into ACQ base address */
         WRITEQ(0x0, &pmetrics_device->metrics_device->private_dev.
-            nvme_ctrl_space->acq);
+            ctrlr_regs->acq);
     }
 }
 
@@ -770,7 +741,7 @@ u32 reap_inquiry(struct metrics_cq  *pmetrics_cq_node, struct device *dev)
     } else {
         /* do sync and update when pointer to discontig Q is reaped inq */
         dma_sync_sg_for_cpu(dev, pmetrics_cq_node->private_cq.prp_persist.sg,
-                pmetrics_cq_node->private_cq.prp_persist.dma_mapped_pgs,
+                pmetrics_cq_node->private_cq.prp_persist.num_map_pgs,
                 pmetrics_cq_node->private_cq.prp_persist.data_dir);
         queue_base_addr =
             pmetrics_cq_node->private_cq.prp_persist.vir_kern_addr;

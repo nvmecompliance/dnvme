@@ -195,9 +195,9 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L4"sq = 0X%llX", (u64)pmetrics_cq_list->
                         private_cq.prp_persist.sg);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L4"dma_mapped_pgs = 0X%llX",
+                sprintf(data1, IDNT_L4"num_map_pgs = 0X%llX",
                         (u64)pmetrics_cq_list->private_cq.prp_persist.
-                        dma_mapped_pgs);
+                        num_map_pgs);
                 vfs_write(file, data1, strlen(data1), &pos);
             } /* End of CQ list */
             /* Reset Q cnt */
@@ -283,9 +283,9 @@ int driver_log(struct nvme_file *n_file)
                 sprintf(data1, IDNT_L4"sg = 0X%llX", (u64)pmetrics_sq_list->
                         private_sq.prp_persist.sg);
                 vfs_write(file, data1, strlen(data1), &pos);
-                sprintf(data1, IDNT_L4"dma_mapped_pgs = 0X%llX",
+                sprintf(data1, IDNT_L4"num_map_pgs = 0X%llX",
                         (u64)pmetrics_sq_list->private_sq.prp_persist.
-                        dma_mapped_pgs);
+                        num_map_pgs);
                 vfs_write(file, data1, strlen(data1), &pos);
                 sprintf(data1, IDNT_L3"cmd track list = ");
                 vfs_write(file, data1, strlen(data1), &pos);
@@ -346,9 +346,9 @@ int driver_log(struct nvme_file *n_file)
                      sprintf(data1, IDNT_L6"sg = 0X%llX",
                              (u64)pcmd_track_list->prp_nonpersist.sg);
                      vfs_write(file, data1, strlen(data1), &pos);
-                     sprintf(data1, IDNT_L6"dma_mapped_pgs = 0X%llX",
+                     sprintf(data1, IDNT_L6"num_map_pgs = 0X%llX",
                              (u64)pcmd_track_list->prp_nonpersist.
-                             dma_mapped_pgs);
+                             num_map_pgs);
                      vfs_write(file, data1, strlen(data1), &pos);
                 } /* End of cmd track list */
             } /* End of SQ metrics list */

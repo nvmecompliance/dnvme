@@ -75,21 +75,18 @@ int device_status_pci(u16 device_data)
 
 /*
  * nvme_controller_status - This function checks the controller status
- * register CSTS at offset 0x1C from the BAR01 offset.
  */
-int nvme_controller_status(struct pci_dev *pdev)
+int nvme_controller_status(u8 __iomem *bar0)
 {
     int status;
     u32 u32data;
     u32 tmp;
-    struct nvme_ctrl_reg __iomem *nvme_ctrl_reg_space;
+    struct nvme_ctrl_reg __iomem *ctrlrRegs;
+
+    ctrlrRegs = (struct nvme_ctrl_reg __iomem *)bar0;
 
     LOG_DBG("Checking the NVME Controller Status (CSTS)...");
-
-    nvme_ctrl_reg_space = ioremap(pci_resource_start(pdev, 0),
-        pci_resource_len(pdev, 0));
-
-    u32data = readl(&nvme_ctrl_reg_space->csts);
+    u32data = readl(&ctrlrRegs->csts);
     tmp = u32data;
 
     LOG_DBG("NVME Controller Status CSTS = 0x%X", u32data);
@@ -120,7 +117,7 @@ int nvme_controller_status(struct pci_dev *pdev)
         LOG_DBG("No Shutdown requested");
         break;
     case NVME_CSTS_SHT_OCC:
-        LOG_DBG("Shutdown Processing occuring");
+        LOG_DBG("Shutdown Processing occurring");
         break;
     case NVME_CSTS_SHT_COMP:
         LOG_DBG("Shutdown Process Complete");
@@ -227,7 +224,7 @@ int device_status_next(struct pci_dev *pdev)
                     }
 
                     status = (status == SUCCESS) ?
-                            device_status_pmcs(data) : FAIL;
+                        device_status_pmcs(data) : FAIL;
                 } else {
                     LOG_DBG("Invalid offset = 0x%x", pci_offset);
                 }

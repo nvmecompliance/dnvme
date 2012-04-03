@@ -46,17 +46,11 @@
 #define TEST_PRP_DEBUG
 
 /**
- * This definition is intended for making modification or quirks necessary to
- * make the driver work with QEMU. This can be commented when an actual NVME
- * hardware device is being tested.
+ * Absract the differences in trying to make this driver run within QEMU and
+ * also within real world 64 bit platforms agaisnt real hardware.
  */
+inline u64 READQ(const volatile void __iomem *addr);
+inline void WRITEQ(u64 val, volatile void __iomem *addr);
 
-#ifdef QEMU
-inline __u64 READQ(const volatile void __iomem *addr);
-inline void WRITEQ(__u64 val, volatile void __iomem *addr);
-#else
-inline void WRITEQ(__u64 val, volatile void __iomem *addr);
-inline __u64 READQ(const volatile void __iomem *addr);
-#endif
 
-#endif /* sysdnvme.h*/
+#endif /* sysdnvme.h */

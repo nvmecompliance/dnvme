@@ -120,8 +120,8 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
  * @param pmetrics_device_list
  * @return init SUCCESS or FAIL
  */
-int driver_ioctl_init(struct pci_dev *pdev, struct metrics_device_list
-        *pmetrics_device_list);
+int driver_ioctl_init(struct pci_dev *pdev, void __iomem *ctrlrRegs,
+        struct metrics_device_list *pmetrics_device_list);
 
 /**
  * driver_create_acq - Driver Admin completion  Queue creation routine

@@ -56,7 +56,7 @@ static struct work_container *get_work_item(struct  irq_processing
 static void nvme_disable_pin(struct pci_dev *dev);
 static int update_msixptr(struct  metrics_device_list
     *pmetrics_device_elem, u16 offset, struct msix_info *pmsix_tbl_info);
-static void set_msix_mask_bit(u8 *irq_msixptr, u16 irq_no, u32 flag);
+static void set_msix_mask_bit(u8 __iomem *irq_msixptr, u16 irq_no, u32 flag);
 static int work_queue_init(struct irq_processing *pirq_process);
 static int add_wk_item(struct irq_processing *pirq_process,
     u32 int_vec, u16 irq_no);
@@ -351,7 +351,7 @@ static int validate_irq_inputs(struct metrics_device_list
     u16 mc_val;
 
     /* Check if the EN bit is set and return failure if set */
-    if (readl(&pnvme_dev->private_dev.nvme_ctrl_space->cc) & NVME_CC_ENABLE) {
+    if (readl(&pnvme_dev->private_dev.ctrlr_regs->cc) & NVME_CC_ENABLE) {
         LOG_ERR("IRQ Scheme cannot change when CC.EN bit is set!!");
         LOG_ERR("Call Disable or Disable completely first...");
         return -EINVAL;
@@ -372,7 +372,7 @@ static int validate_irq_inputs(struct metrics_device_list
         }
         /* Update interrupt vector Mask Set and Mask Clear offsets */
         pmetrics_device_elem->irq_process.mask_ptr = pmetrics_device_elem->
-            metrics_device->private_dev.bar_0_mapped + INTMS_OFFSET;
+            metrics_device->private_dev.bar0 + INTMS_OFFSET;
         break;
     case INT_MSI_MULTI: /* MSI Multi interrupt settings */
         if (irq_new->num_irqs > MAX_IRQ_VEC_MSI_MUL ||
@@ -398,7 +398,7 @@ static int validate_irq_inputs(struct metrics_device_list
         }
         /* Update interrupt vector Mask Set and Mask Clear offsets */
         pmetrics_device_elem->irq_process.mask_ptr = pmetrics_device_elem->
-            metrics_device->private_dev.bar_0_mapped + INTMS_OFFSET;
+            metrics_device->private_dev.bar0 + INTMS_OFFSET;
         break;
     case INT_MSIX: /* MSI-X interrupt settings */
         /* First check if num irqs req are greater than MAX MSIX SUPPORTED */
@@ -695,11 +695,11 @@ free_msim:
 static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
     u16 offset, struct msix_info *pmsix_tbl_info)
 {
-    u8 *msixptr;    /* msix pointer for this device   */
-    u32 msi_x_to;   /* msix table offset in pci space */
-    u32 msix_tbir;  /* msix table BIR BAR indicator   */
-    u32 msix_mpba;  /* msix pba offset and pba BIR */
-    u32 msix_pbir;  /* msix table PBIR BAR indicator   */
+    u8 __iomem *msixptr;    /* msix pointer for this device   */
+    u32 msi_x_to;           /* msix table offset in pci space */
+    u32 msix_tbir;          /* msix table BIR BAR indicator   */
+    u32 msix_mpba;          /* msix pba offset and pba BIR */
+    u32 msix_pbir;          /* msix table PBIR BAR indicator   */
     struct nvme_device *metrics_device = pmetrics_device_elem->metrics_device;
     struct pci_dev *pdev = metrics_device->private_dev.pdev;
 
@@ -720,7 +720,7 @@ static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
     /* TODO: Support for all BAR's */
     if (msix_tbir == 0x0) {
         /* if BIR is 0 it indicates BAR 0 offset is used. */
-        msixptr = metrics_device->private_dev.bar_0_mapped +
+        msixptr = metrics_device->private_dev.bar0 +
             (msi_x_to & ~MSIX_TBIR_MASK);
     } else if (msix_tbir == 0x4) {
         LOG_DBG("BAR 4 Location not supported yet...");
@@ -736,7 +736,7 @@ static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
     /* Check which BAR locations are used for PBA Table offset */
     /* TODO: Support for all BAR's */
     if (msix_pbir == 0x0) {
-        pmsix_tbl_info->pba_tbl = metrics_device->private_dev.bar_0_mapped +
+        pmsix_tbl_info->pba_tbl = metrics_device->private_dev.bar0 +
             (msix_mpba & ~MSIX_TBIR_MASK);
     } else if (msix_pbir == 0x4) {
         LOG_DBG("BAR 4 Location not supported yet...");
@@ -762,17 +762,17 @@ static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
  * 0x0 and the corresponding interrupt vector is unmasked and controller
  * will start generating the interrupts.
  */
-static void set_msix_mask_bit(u8 *irq_msixptr, u16 irq_no, u32 flag)
+static void set_msix_mask_bit(u8 __iomem *irq_msixptr, u16 irq_no, u32 flag)
 {
-    u8 *msixptr;
+    u8 __iomem *msixptr;
     /* Get the MSI-X pointer offset */
     msixptr = irq_msixptr;
     /* Compute vector control offset for this irq no. */
     msixptr += MSIX_VEC_CTRL + irq_no * MSIX_ENTRY_SIZE;
     /* Mask or unmask the the MSIX vector by writing flag bit */
-    writel(flag, (u32 *) msixptr);
+    writel(flag, msixptr);
     /* Flush the write */
-    readl((u32 *) msixptr);
+    readl(msixptr);
 }
 
 /*
@@ -780,21 +780,19 @@ static void set_msix_mask_bit(u8 *irq_msixptr, u16 irq_no, u32 flag)
  * on the interrupt scheme active. Mask interrupts for MSI-Single,
  * MSI- Multi and MSIX
  */
-void mask_interrupts(u16 irq_no, struct irq_processing
-    *pirq_process)
+void mask_interrupts(u16 irq_no, struct irq_processing *pirq_process)
 {
     /* handle all masking here */
     switch (pirq_process->irq_type) {
     case INT_MSI_SINGLE: /* Same as MSI MULTI */
     case INT_MSI_MULTI: /* Masking MSI interrupt in INTMS register */
         /* Mask INTMS register for the int generated */
-        writel((0x1 << irq_no), (u32 *) pirq_process->mask_ptr);
+        writel((0x1 << irq_no), pirq_process->mask_ptr);
         /* Flush the wrte */
-        readl((u32 *) pirq_process->mask_ptr);
+        readl(pirq_process->mask_ptr);
         break;
     case INT_MSIX: /* Masking for MSI-X using vector control */
-        set_msix_mask_bit(pirq_process->mask_ptr,
-            irq_no, 0x1);
+        set_msix_mask_bit(pirq_process->mask_ptr, irq_no, 0x1);
         break;
     case INT_NONE:
         break;
@@ -816,13 +814,12 @@ void unmask_interrupts(u16 irq_no, struct irq_processing
     case INT_MSI_SINGLE:
     case INT_MSI_MULTI:
         /* unMask INTMC register for the int generated */
-        writel((0x1 << irq_no), (u32 *) (pirq_process->mask_ptr + 0x04));
+        writel((0x1 << irq_no), (pirq_process->mask_ptr + 0x04));
         /* Flush the wrte */
-        readl((u32 *) pirq_process->mask_ptr + 0x04);
+        readl(pirq_process->mask_ptr + 0x04);
         break;
     case INT_MSIX: /* ummask for MSI-X */
-        set_msix_mask_bit(pirq_process->mask_ptr,
-                irq_no, 0x0);
+        set_msix_mask_bit(pirq_process->mask_ptr, irq_no, 0x0);
         break;
     case INT_NONE:
         break;

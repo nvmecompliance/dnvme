@@ -244,11 +244,10 @@ int device_status_next(struct pci_dev *pdev);
 
 /**
  * nvme_controller_status - This function checks the controller status
- * register CSTS at offset 0x1C from the BAR01 offset.
- * @param pdev
+ * @param bar0
  * @return SUCCESS or FAIL
  */
-int nvme_controller_status(struct pci_dev *pdev);
+int nvme_controller_status(u8 __iomem *bar0);
 
 /**
  * device_status_pci function returns the device status of

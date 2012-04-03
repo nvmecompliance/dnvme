@@ -42,7 +42,7 @@ struct nvme_prps {
     u32 type; /* refers to types of PRP Possible */
     /* List of virtual pointers to PRP List pages */
     __le64 **vir_prp_list;
-    __u8 *vir_kern_addr; /* K.V.A for pinned down pages */
+    u8 *vir_kern_addr; /* K.V.A for pinned down pages */
     __le64 prp1; /* Physical address in PRP1 of command */
     __le64 prp2; /* Physical address in PRP2 of command */
     dma_addr_t first_dma; /* First entry in PRP List */
@@ -51,9 +51,9 @@ struct nvme_prps {
     /* Pointer to SG list generated */
     struct scatterlist *sg;
     /* Number of pages mapped to DMA area */
-    __u32 dma_mapped_pgs;
+    u32 num_map_pgs;
     /* Address of data buffer for the specific command */
-    unsigned long data_buf_addr;
+    u64 data_buf_addr;
     u8 data_dir; /* Flow of Data to/from device !0/0 */
 };
 
@@ -163,13 +163,13 @@ struct metrics_meta {
  * or during probe.
  */
 struct private_metrics_dev {
-    struct pci_dev  *pdev;           /* Pointer to the device in PCI space  */
-    struct nvme_ctrl_reg __iomem *nvme_ctrl_space;  /* Pointer to reg space */
+    struct pci_dev *pdev;            /* Pointer to the device in PCI space */
+    struct nvme_ctrl_reg __iomem *ctrlr_regs;  /* Pointer to reg space */
+    u8 __iomem *bar0;                /* Bar 0 IO re-mapped value */
     struct dma_pool *prp_page_pool;  /* Mem for PRP List */
-    u8  *bar_0_mapped;               /* Bar 0 IO re-mapped value            */
-    struct device   *dmadev;         /* Pointer to the dma device from pdev */
-    int minor_no;                    /* Minor no. of the device being used  */
-    u8 open_flag;                    /* Allows device opening only once     */
+    struct device *dmadev;           /* Pointer to the dma device from pdev */
+    int minor_no;                    /* Minor no. of the device being used */
+    u8 open_flag;                    /* Allows device opening only once */
 };
 
 /*
@@ -207,7 +207,7 @@ struct irq_processing {
 
     /* Mask pointer for ISR (read both in ISR and BH) */
     /* Pointer to MSI-X table offset or INTMS register */
-    u8 *mask_ptr;
+    u8 __iomem *mask_ptr;
     /* Will only be read by ISR and set once per SET/DISABLE of IRQ scheme */
     u8 irq_type; /* Type of IRQ set */
 
