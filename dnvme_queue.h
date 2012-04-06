@@ -105,19 +105,19 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u32 qsize,
  * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
  * flag and this function which call the timer handler and check for the timer
  * expiration. It returns success if the ctrl in rdy before timeout.
- * @param  pmetrics_device_element
+ * @param  pmetrics_device
  * @return SUCCESS or FAIL
  */
-int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device_element);
+int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device);
 
 /**
  * nvme_ctrl_disable - NVME controller disable function.This will reset the
  * CAP.EN flag and this function which call the timer handler and check for
  * the timer expiration. It returns success if the ctrl in rdy before timeout.
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @return SUCCESS or FAIL
  */
-int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device_element);
+int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device);
 
 /**
  * nvme_disable - NVME controller disable function. This will clean up all the
@@ -132,11 +132,11 @@ void nvme_disable(struct  metrics_device_list *pmetrics_device,
  * return fail.
  * @param q_id
  * @param type
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @return SUCCESS or FAIL
  */
 int identify_unique(u16 q_id, enum metrics_type type,
-        struct  metrics_device_list *pmetrics_device_element);
+        struct  metrics_device_list *pmetrics_device);
 
 /**
  * nvme_prepare_sq - NVME controller prepare sq function. This will check
@@ -162,29 +162,29 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
  * nvme_ring_sqx_dbl - NVME controller function to ring the appropriate
  * SQ doorbell.
  * @param ring_sqx
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @return SUCCESS or FAIL
  */
 int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
-        *pmetrics_device_element);
+        *pmetrics_device);
 
 /**
  * finds the sq node in the given sq list for the given sq id
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @param sq_id
  * @return pointer to the sq node for given sq id
  */
 struct metrics_sq *find_sq(struct  metrics_device_list
-        *pmetrics_device_element, u16 sq_id);
+        *pmetrics_device, u16 sq_id);
 
 /**
  * finds the cq node in the given cq list for the given cq id
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @param cq_id
  * @return pointer to the cq node for given cq id
  */
 struct metrics_cq *find_cq(struct  metrics_device_list
-        *pmetrics_device_element, u16 cq_id);
+        *pmetrics_device, u16 cq_id);
 
 /**
  * Find the command node for the given sq node and cmd id.
@@ -196,12 +196,12 @@ struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id);
 
 /**
  * Find meta data node for the given meda id and device.
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @param meta_id
  * @return pointer to metrics_meta node.
  */
 struct metrics_meta *find_meta_node(struct metrics_device_list
-        *pmetrics_device_element, u32 meta_id);
+        *pmetrics_device, u32 meta_id);
 
 /**
  * This function gives the device metrics when the user requests. This

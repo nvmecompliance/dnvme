@@ -32,7 +32,7 @@
  * this file to adhere to the new modification and requirements of the API.
  * tnvme refuses to execute when it detects a API version mismatch to dnvme.
  */
-#define    API_VERSION          0x00010100          /* 1.1.0 */
+#define    API_VERSION          0x00010200          /* 1.2.0 */
 
 
 /**

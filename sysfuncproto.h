@@ -76,42 +76,42 @@ long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
  * NVME card. The read parameter like offset and length
  * etc are specified from the struct rw_generic
  * @param nvme_data pointer to the device opened.
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @return read success or failure.
  */
 int driver_generic_read(struct rw_generic *nvme_data,
-    struct  metrics_device_list *pmetrics_device_element);
+    struct  metrics_device_list *pmetrics_device);
 /**
  * driver_generic_write is a function that is called from
  * driver IOCTL when user want to write data to the
  * NVME card. The write parameters offset and length
  * etc are specified from the struct nvme_write_generic
  * @param nvme_data pointer to the device opened.
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @return write success or failure.
  */
 int driver_generic_write(struct rw_generic *nvme_data,
-        struct  metrics_device_list *pmetrics_device_element);
+        struct  metrics_device_list *pmetrics_device);
 
 /**
  * device_status_chk  - Generic error checking function
  * which checks error registers and set kernel
  * alert if a error is detected.
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @param status
  * @return device status fail or success.
  */
-int device_status_chk(struct  metrics_device_list *pmetrics_device_element,
+int device_status_chk(struct  metrics_device_list *pmetrics_device,
         int *status);
 
 /**
  * driver_create_asq - Driver Admin Submission Queue creation routine
  * @param create_admn_q
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @return ASQ creation SUCCESS or FAIL
  */
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
-        struct  metrics_device_list *pmetrics_device_element);
+        struct  metrics_device_list *pmetrics_device);
 
 /*
  * driver_iotcl_init - Driver Initialization routine before starting to
@@ -136,21 +136,21 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
  * driver_nvme_prep_sq - Driver routine to set up user parameters into metrics
  * for prepating the IO SQ.
  * @param prep_sq
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @return allocation of contig mem SUCCESS or FAIL.
  */
 int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
-        struct  metrics_device_list *pmetrics_device_element);
+        struct  metrics_device_list *pmetrics_device);
 
 /**
  * driver_nvme_prep_cq - Driver routine to set up user parameters into metrics
  * for prepating the IO CQ.
  * @param prep_cq
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @return allocation of contig mem SUCCESS or FAIL.
  */
 int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
-        struct  metrics_device_list *pmetrics_device_element);
+        struct  metrics_device_list *pmetrics_device);
 
 /**
  * driver_send_64b - Routine for sending 64 bytes command into
@@ -160,7 +160,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
  * @return Error Codes
  */
 int driver_send_64b(struct  metrics_device_list *pmetrics_device,
-    struct nvme_64b_send *nvme_64b_send);
+    struct nvme_64b_send *cmd_request);
 
 /**
  * driver_log - Driver routine to log data into file from metrics
@@ -235,32 +235,32 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
 /**
  * Create a dma pool for the requested size. Initialize the DMA pool pointer
  * with DWORD alignment and associate it with the active device.
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @param alloc_size
  * @return SUCCESS or FAIL based on dma pool creation.
  */
-int metabuff_create(struct metrics_device_list *pmetrics_device_element,
+int metabuff_create(struct metrics_device_list *pmetrics_device,
         u16 alloc_size);
 
 /**
  * Create a meta buffer node when user request and allocate a consistent
  * dma memory from the meta dma pool. Add this node into the meta data
  * linked list.
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @param meta_id
  * @return Success of Failure based on dma alloc Success or failure.
  */
-int metabuff_alloc(struct metrics_device_list *pmetrics_device_element,
+int metabuff_alloc(struct metrics_device_list *pmetrics_device,
         u32 meta_id);
 
 /**
  * Delete a meta buffer node when user requests and deallocate a consistent
  * dma memory. Delete this node from the meta data linked list.
- * @param pmetrics_device_element
+ * @param pmetrics_device
  * @param meta_id
  * @return Success of Failure based on metabuff delete
  */
-int metabuff_del(struct metrics_device_list *pmetrics_device_element,
+int metabuff_del(struct metrics_device_list *pmetrics_device,
         u32 meta_id);
 
 /*

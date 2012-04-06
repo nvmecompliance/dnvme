@@ -26,7 +26,8 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 
-#include <dnvme_irq.h>
+#include "dnvme_irq.h"
+
 
 /* Static function declarations used for setting interrupt schemes. */
 static int validate_irq_inputs(struct metrics_device_list
@@ -61,6 +62,7 @@ static int work_queue_init(struct irq_processing *pirq_process);
 static int add_wk_item(struct irq_processing *pirq_process,
     u32 int_vec, u16 irq_no);
 
+
 /*
  * nvme_set_irq will set the new interrupt scheme for this device regardless
  * of the current irq scheme that is active for this device. It also validates
@@ -70,71 +72,89 @@ static int add_wk_item(struct irq_processing *pirq_process,
 int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
     struct interrupts *irq_new)
 {
-    int ret_val = SUCCESS;
-    /* pointer to the metrics device */
-    struct nvme_device *pnvme_dev = pmetrics_device_elem->metrics_device;
+    int err = SUCCESS;
     struct msix_info msix_tbl_info; /* Info for MSI-X tables */
+    struct nvme_device *pnvme_dev = pmetrics_device_elem->metrics_device;
+    struct interrupts *user_data = NULL;
+
+
+    /* Allocating memory for user struct in kernel space */
+    user_data = kmalloc(sizeof(struct interrupts), GFP_KERNEL);
+    if (user_data == NULL) {
+        LOG_ERR("Unable to alloc kernel memory to copy user data");
+        err = -ENOMEM;
+        goto fail_out;
+    }
+    if (copy_from_user(user_data, irq_new, sizeof(struct interrupts))) {
+        LOG_ERR("Unable to copy from user space");
+        err = -EFAULT;
+        goto fail_out;
+    }
+    LOG_DBG("IRQ Scheme = %d", user_data->irq_type);
 
     /* First validate if the inputs given are correct */
-    ret_val = validate_irq_inputs(pmetrics_device_elem, irq_new,
+    err = validate_irq_inputs(pmetrics_device_elem, user_data,
         &msix_tbl_info);
-    if (ret_val < 0) {
-        LOG_ERR("Invalid inputs set or device is not disabled..");
-        return ret_val;
+    if (err < 0) {
+        LOG_ERR("Invalid inputs set or device is not disabled");
+        return err;
     }
 
     /* lock onto IRQ linked list mutex as we would access the IRQ list */
     mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
 
     /* disable the current IRQ scheme */
-    ret_val = disable_active_irq(pmetrics_device_elem, pnvme_dev->
-            public_dev.irq_active.irq_type);
-    if (ret_val < 0) {
+    err = disable_active_irq(pmetrics_device_elem, pnvme_dev->
+        public_dev.irq_active.irq_type);
+    if (err < 0) {
         LOG_ERR("Reset of IRQ to INT_NONE failed...");
         goto mutex_unlck;
     }
     /* initialize work queue */
-    ret_val = work_queue_init(&pmetrics_device_elem->irq_process);
-    if (ret_val < 0) {
+    err = work_queue_init(&pmetrics_device_elem->irq_process);
+    if (err < 0) {
         LOG_ERR("Failed to initialize resources for work queue/items");
         goto mutex_unlck;
     }
 
     /* Switch based on new irq type desired */
-    switch (irq_new->irq_type) {
+    switch (user_data->irq_type) {
     case INT_MSI_SINGLE: /* MSI Single interrupt settings */
-        ret_val = set_msi_single(pmetrics_device_elem);
+        err = set_msi_single(pmetrics_device_elem);
         break;
     case INT_MSI_MULTI: /* MSI Multi interrupt settings */
-        ret_val = set_msi_multi(pmetrics_device_elem, irq_new->num_irqs);
+        err = set_msi_multi(pmetrics_device_elem, user_data->num_irqs);
         break;
     case INT_MSIX: /* MSI-X interrupt settings */
-        ret_val = set_msix(pmetrics_device_elem, irq_new->num_irqs,
+        err = set_msix(pmetrics_device_elem, user_data->num_irqs,
             &msix_tbl_info);
         break;
     case INT_NONE: /* Set IRQ type to NONE */
-        /* if here then already the IRQ scheme is none */
-        ret_val = SUCCESS;
+        /* If here then already the IRQ scheme is none */
         break;
     default:
         LOG_ERR("Invalid Interrupt Type specified.");
-        ret_val = -EBADRQC;
+        err = -EBADRQC;
         break;
     }
 
-    /* Return value can be +ve,0 or -ve. 0:SUCCESS */
-    if (ret_val == SUCCESS) {
-        /* set to the new irq scheme only if success */
-        pnvme_dev->public_dev.irq_active.irq_type = irq_new->irq_type;
-        pnvme_dev->public_dev.irq_active.num_irqs = irq_new->num_irqs;
-        /* Will only be read by ISR */
-        pmetrics_device_elem->irq_process.irq_type = irq_new->irq_type;
+    /* Return value can be +ve, 0(SUCCESS) or -ve */
+    if (err == SUCCESS) {
+        /* Set to the new irq scheme */
+        pnvme_dev->public_dev.irq_active.irq_type = user_data->irq_type;
+        pnvme_dev->public_dev.irq_active.num_irqs = user_data->num_irqs;
+        /* Following will only be read by ISR */
+        pmetrics_device_elem->irq_process.irq_type = user_data->irq_type;
     }
+    /* Fall through is intended */
 
 mutex_unlck:
-    /* mutex is locked so release it here.. */
     mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
-    return ret_val;
+fail_out:
+    if (user_data != NULL) {
+        kfree(user_data);
+    }
+    return err;
 }
 
 /*
@@ -147,16 +167,16 @@ mutex_unlck:
 int init_irq_lists(struct metrics_device_list
         *pmetrics_device_elem, enum nvme_irq_type  irq_active)
 {
-    int ret_val;
+    int err;
     /* locking on IRQ MUTEX here for irq track ll access */
     mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
     /* Initialize active irq to INT_NONE */
-    ret_val = disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->
+    err = disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->
             metrics_device->public_dev.irq_active.irq_type);
     /* Unlock IRQ MUTEX as we are done with updated irq track list */
     mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
 
-    return ret_val;
+    return err;
 }
 
 /*
@@ -334,6 +354,7 @@ static int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
     return ret_val;
 }
 
+
 /*
  * Validates the IRQ inputs for MSI-X, MSI-Single and MSI-Mutli.
  * If the CC.EN bit is set or the number of irqs are invalid then
@@ -341,7 +362,7 @@ static int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
  */
 static int validate_irq_inputs(struct metrics_device_list
     *pmetrics_device_elem, struct interrupts *irq_new,
-        struct msix_info *pmsix_tbl_info)
+    struct msix_info *pmsix_tbl_info)
 {
     int ret_val = SUCCESS;
     struct nvme_device *pnvme_dev = pmetrics_device_elem->metrics_device;
