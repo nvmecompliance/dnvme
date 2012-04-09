@@ -33,44 +33,6 @@
 #include "sysdnvme.h"
 
 /**
- * pci probe function prototype. This function mainly
- * probe the pci bus and returns if is finds a PCIe
- * nvme based card in the system.
- * It provides the base address and bus, dev, fun no.s
- * for the device it found.
- * @param pdev
- * @param id
- * @return whether probing was successful or not.
- */
-int dnvme_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
-
-/**
- * This function prototype specifies the device ioctl entry point
- * for block type of device.
- * The ioctl main entry starts from this function which takes
- * argument specific to block device.
- * @param bdev
- * @param mode
- * @param cmd
- * @param arg
- * @return whether successful or not.
- */
-int dnvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
-    unsigned long arg);
-
-/**
- * This is the main entry point for IOCTL char device type.
- * The user selection of IOCTL required is specified in the
- * ioctl_num parameter based on which corresponding IOCTL
- * call is made. The data supplied by used is in ioctl_param.
- * @param filp
- * @param ioctl_num
- * @param ioctl_param
- * @return whether successful or not.
- */
-long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
-        unsigned long ioctl_param);
-/**
  * driver_generic_read is a function that is called from
  * driver IOCTL when user want to read data from the
  * NVME card. The read parameter like offset and length

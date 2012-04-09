@@ -163,21 +163,22 @@ struct metrics_meta {
  * or during probe.
  */
 struct private_metrics_dev {
-    struct pci_dev *pdev;            /* Pointer to the device in PCI space */
+    struct pci_dev *pdev;           /* Pointer to the PCIe device */
+    struct device *spcl_dev;        /* Special device file */
     struct nvme_ctrl_reg __iomem *ctrlr_regs;  /* Pointer to reg space */
-    u8 __iomem *bar0;                /* Bar 0 IO re-mapped value */
-    struct dma_pool *prp_page_pool;  /* Mem for PRP List */
-    struct device *dmadev;           /* Pointer to the dma device from pdev */
-    int minor_no;                    /* Minor no. of the device being used */
-    u8 open_flag;                    /* Allows device opening only once */
+    u8 __iomem *bar0;               /* Bar 0 IO re-mapped value */
+    struct dma_pool *prp_page_pool; /* Mem for PRP List */
+    struct device *dmadev;          /* Pointer to the dma device from pdev */
+    int minor_no;                   /* Minor no. of the device being used */
+    u8 open_flag;                   /* Allows device opening only once */
 };
 
 /*
  * Structure with nvme device related public and private parameters.
  */
 struct nvme_device {
-    struct private_metrics_dev private_dev; /* private params for nvme dev */
-    struct public_metrics_dev  public_dev;  /* public params for nvme dev  */
+    struct private_metrics_dev private_dev;
+    struct public_metrics_dev public_dev;
 };
 
 /*
@@ -225,17 +226,14 @@ struct irq_processing {
  * that are defined.
  */
 struct metrics_device_list {
-    struct  list_head   metrics_device_hd; /* metrics linked list head      */
-    struct  list_head   metrics_cq_list;   /* CQ linked list                */
-    struct  list_head   metrics_sq_list;   /* SQ linked list                */
-    struct  nvme_device *metrics_device;   /* Pointer to this nvme device   */
-    struct  mutex       metrics_mtx;       /* Mutex for locking per device  */
-    struct  metrics_meta_data metrics_meta; /* Pointer to meta data buff    */
-    struct  irq_processing irq_process;    /* IRQ processing structure      */
+    struct  list_head    metrics_device_hd; /* metrics linked list head */
+    struct  list_head    metrics_cq_list;   /* CQ linked list */
+    struct  list_head    metrics_sq_list;   /* SQ linked list */
+    struct  nvme_device *metrics_device;    /* Pointer to this nvme device */
+    struct  mutex        metrics_mtx;       /* Mutex for locking per device */
+    struct  metrics_meta_data metrics_meta; /* Pointer to meta data buff */
+    struct  irq_processing irq_process;     /* IRQ processing structure */
 };
-
-/* extern device metrics linked list for exporting to project files */
-extern struct metrics_driver g_metrics_drv;
 
 /* Global linked list for the entire data structure for all devices. */
 extern struct list_head metrics_dev_ll;

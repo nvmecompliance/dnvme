@@ -355,7 +355,6 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u32 qsize,
 
     /* Get the door bell stride from CAP register */
     cap_dstrd = ((READQ(&pnvme_dev->private_dev.ctrlr_regs->cap) >> 32) & 0xF);
-
     /* CQ 0 Head DoorBell admin computed used doorbell stride. */
     pmetrics_cq_list->private_cq.dbs = (u32 __iomem *)
         (pnvme_dev->private_dev.bar0 + NVME_SQ0TBDL + (4 << cap_dstrd));
@@ -382,9 +381,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
     int ret_code = -ENOMEM;
     u32 regCC = 0;
     u8 cap_dstrd;
-#ifdef DEBUG
-    u32 cap_mqes = 0;
-#endif
+
 
     regCC = readl(&pnvme_dev->private_dev.ctrlr_regs->cc);
     regCC = ((regCC >> 16) & 0xF);   /* Extract the IOSQES from CC */
@@ -393,14 +390,18 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
         (pmetrics_sq_list->public_sq.elements * (u32)(1 << regCC));
 
 #ifdef DEBUG
-    /* Check to see if the entries exceed the Max Q entries supported */
-    cap_mqes = ((readl(&pnvme_dev->private_dev.ctrlr_regs->cap) & 0xFFFF) + 1);
-    LOG_DBG("Elements: (Max Q:Actual Q) = 0x%x:0x%x", cap_mqes,
-        pmetrics_sq_list->public_sq.elements);
-    /* I should not return from here if exceeds */
-    if (pmetrics_sq_list->public_sq.elements > cap_mqes) {
-        LOG_ERR("The IO SQ id = %d exceeds maximum elements allowed!",
-            pmetrics_sq_list->public_sq.sq_id);
+    {
+        u32 cap_mqes = 0;
+
+        /* Check to see if the entries exceed the Max Q entries supported */
+        cap_mqes = ((readl(&pnvme_dev->private_dev.ctrlr_regs->cap) & 0xFFFF) + 1);
+        LOG_DBG("Elements: (Max Q:Actual Q) = 0x%x:0x%x", cap_mqes,
+            pmetrics_sq_list->public_sq.elements);
+        /* I should not return from here if exceeds */
+        if (pmetrics_sq_list->public_sq.elements > cap_mqes) {
+            LOG_ERR("The IO SQ id = %d exceeds maximum elements allowed!",
+                pmetrics_sq_list->public_sq.sq_id);
+        }
     }
 #endif
 
@@ -455,9 +456,6 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
     int ret_code = -ENOMEM;
     u32 regCC = 0;
     u8 cap_dstrd;
-#ifdef DEBUG
-    u16 cap_mqes = 0;
-#endif
 
     regCC = readl(&pnvme_dev->private_dev.ctrlr_regs->cc);
     regCC = ((regCC >> 20) & 0xF);    /* Extract the IOCQES from CC */
@@ -466,14 +464,18 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
         (pmetrics_cq_list->public_cq.elements * (u32)(1 << regCC));
 
 #ifdef DEBUG
-    /* Check to see if the entries exceed the Max Q entries supported */
-    cap_mqes = ((readl(&pnvme_dev->private_dev.ctrlr_regs->cap) & 0xFFFF) + 1);
-    LOG_DBG("Max CQ:Actual CQ elements = 0x%x:0x%x", cap_mqes,
-        pmetrics_cq_list->public_cq.elements);
-    /* I should not return from here if exceeds */
-    if (pmetrics_cq_list->public_cq.elements > cap_mqes) {
-        LOG_ERR("The IO CQ id = %d exceeds maximum elements allowed!",
-            pmetrics_cq_list->public_cq.q_id);
+    {
+        u16 cap_mqes = 0;
+
+        /* Check to see if the entries exceed the Max Q entries supported */
+        cap_mqes = ((readl(&pnvme_dev->private_dev.ctrlr_regs->cap) & 0xFFFF) + 1);
+        LOG_DBG("Max CQ:Actual CQ elements = 0x%x:0x%x", cap_mqes,
+            pmetrics_cq_list->public_cq.elements);
+        /* I should not return from here if exceeds */
+        if (pmetrics_cq_list->public_cq.elements > cap_mqes) {
+            LOG_ERR("The IO CQ id = %d exceeds maximum elements allowed!",
+                pmetrics_cq_list->public_cq.q_id);
+        }
     }
 #endif
 
@@ -524,9 +526,7 @@ pcq_out:
  */
 int nvme_ring_sqx_dbl(u16 ring_sqx, struct metrics_device_list *pmetrics_device)
 {
-    struct nvme_device *pnvme_dev = pmetrics_device->metrics_device;
     struct metrics_sq *pmetrics_sq;
-
 
     pmetrics_sq = find_sq(pmetrics_device, ring_sqx);
     if (pmetrics_sq == NULL) {
@@ -539,8 +539,8 @@ int nvme_ring_sqx_dbl(u16 ring_sqx, struct metrics_device_list *pmetrics_device)
     LOG_DBG("\tvirt_tail_ptr = 0x%x; tail_ptr = 0x%x",
         pmetrics_sq->public_sq.tail_ptr_virt,
         pmetrics_sq->public_sq.tail_ptr);
-    LOG_DBG("\tdbs = %p; bar0 = %p",
-        pmetrics_sq->private_sq.dbs, pnvme_dev->private_dev.bar0);
+    LOG_DBG("\tdbs = %p; bar0 = %p", pmetrics_sq->private_sq.dbs,
+        pmetrics_device->metrics_device->private_dev.bar0);
 
     /* Copy tail_prt_virt to tail_prt */
     pmetrics_sq->public_sq.tail_ptr = pmetrics_sq->public_sq.tail_ptr_virt;

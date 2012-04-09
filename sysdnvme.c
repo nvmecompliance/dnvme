@@ -40,218 +40,279 @@
 #include "dnvme_cmds.h"
 #include "dnvme_irq.h"
 
-#define    DRV_NAME             "dnvme"
-#define    NVME_DEVICE_NAME     "nvme"
+#define DRV_NAME                "dnvme"
+#define NVME_DEVICE_NAME        "nvme"
 
+/* local functions static declarations */
+static int __init dnvme_init(void);
+static void __exit dnvme_exit(void);
+static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+static void dnvme_remove(struct pci_dev *dev);
+static struct metrics_device_list *lock_device(struct inode *inode);
+static void unlock_device(struct  metrics_device_list *pmetrics_device);
+static struct metrics_device_list *find_device(struct inode *inode);
+int dnvme_open(struct inode *inode, struct file *filp);
+int dnvme_release(struct inode *inode, struct file *filp);
+int dnvme_mmap(struct file *filp, struct vm_area_struct *vma);
+long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
+    unsigned long ioctl_param);
 
-static DEFINE_PCI_DEVICE_TABLE(dnvme_pci_tbl) = {
+/* Module globals */
+static int nvme_major;
+LIST_HEAD(metrics_dev_ll);
+static struct class *class_nvme;
+struct metrics_driver g_metrics_drv;
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:"DRV_NAME);
+MODULE_AUTHOR("nvmecompliance@intel.com");
+MODULE_DESCRIPTION("NVMe compliance suite kernel driver");
+MODULE_VERSION(DRIVER_VERSION_STR(DRIVER_VERSION));
+
+module_init(dnvme_init);
+module_exit(dnvme_exit);
+
+MODULE_DEVICE_TABLE(pci, dnvme_ids);
+static struct pci_device_id dnvme_ids[] = {
     { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
     { 0, }
 };
 
-/*
- * PCI dnvme driver structure definition.
- */
-static struct pci_driver dnvme_pci_driver = {
-    .name           = DRV_NAME,
-    .id_table       = dnvme_pci_tbl,
-    .probe          = dnvme_pci_probe,
+static struct pci_driver dnvme_driver = {
+    .name     = DRV_NAME,
+    .id_table = dnvme_ids,
+    .probe    = dnvme_probe,
+    .remove   = dnvme_remove,
 };
 
-/*
- *   This is the main ioctl for char type device
- *   this ioctl invoke the dnvme device ioctls.
- */
-static const struct file_operations dnvme_fops_f = {
-    .owner = THIS_MODULE,
-    .unlocked_ioctl = dnvme_ioctl_device,
-    .open  = dnvme_device_open,
-    .release = dnvme_device_release,
-    .mmap = dnvme_device_mmap,
+static const struct file_operations dnvme_fops = {
+    .owner          = THIS_MODULE,
+    .unlocked_ioctl = dnvme_ioctl,
+    .open           = dnvme_open,
+    .release        = dnvme_release,
+    .mmap           = dnvme_mmap,
 };
 
-/* local functions static declarations */
-static struct  metrics_device_list *lock_device(struct inode *inode);
-static void unlock_device(struct  metrics_device_list *pmetrics_device);
-static struct  metrics_device_list *find_device(struct inode *inode);
 
-/* metrics driver */
-struct metrics_driver g_metrics_drv;
-
-/* char device specific parameters */
-static int NVME_MAJOR;
-static struct class *class_nvme;
-struct cdev *char_dev;
-struct device *device;
-LIST_HEAD(metrics_dev_ll);
-int nvme_minor_x;
-module_param(NVME_MAJOR, int, 0);
-
-/*
- * First initialization for Driver code.
- * dnvme_init - Perform early initialization of the host
- * host: dnvme host to initialize
- * @return returns 0 if initialization was successful.
-*/
 static int __init dnvme_init(void)
 {
-    int err;
+    int err = SUCCESS;
 
-    LOG_NRM("dnvme loading; dnvme version: %d.%d", VER_MAJOR, VER_MINOR);
-    g_metrics_drv.driver_version = DRIVER_VERSION;
+    LOG_NRM("dnvme INIT; version: %d.%d", VER_MAJOR, VER_MINOR);
     g_metrics_drv.api_version = API_VERSION;
+    g_metrics_drv.driver_version = DRIVER_VERSION;
 
-    NVME_MAJOR = register_chrdev(NVME_MAJOR, NVME_DEVICE_NAME, &dnvme_fops_f);
-    if (NVME_MAJOR < 0) {
-        LOG_ERR("NVME Char Registration failed");
+    /* Get a dynamically alloc'd major number for this driver */
+    nvme_major = register_chrdev(0, NVME_DEVICE_NAME, &dnvme_fops);
+    if (nvme_major < 0) {
+        LOG_ERR("dnvme char device driver registration fail");
         return -ENODEV;
     }
 
     /* Check if class_nvme creation has any issues */
     class_nvme = class_create(THIS_MODULE, NVME_DEVICE_NAME);
     if (IS_ERR(class_nvme)) {
+        LOG_ERR("NVMe class creation failed");
         err = PTR_ERR(class_nvme);
-        LOG_ERR("Nvme class creation failed and stopping");
-        return err;
+        goto unreg_chrdrv_fail_out;
     }
 
     /* Register this driver */
-    err = pci_register_driver(&dnvme_pci_driver);
-    if (err < 0) {
-        /*Unable to register the PCI device */
-        LOG_ERR("PCI Driver Registration unsuccessful");
-        return err;
+    err = pci_register_driver(&dnvme_driver);
+    if (err) {
+        LOG_ERR("PCIe driver registration failed");
+        goto class_create_fail_out;
     }
+    return err;
 
-    LOG_DBG("PCI Registration complete");
-    return 0;
+class_create_fail_out:
+    class_destroy(class_nvme);
+unreg_chrdrv_fail_out:
+    unregister_chrdev(nvme_major, NVME_DEVICE_NAME);
+    return err;
 }
 
-/*
- * dnvme_pci_probe - Probe the NVME PCIe device for BARs. This function is
- * called when the driver invokes the fops after basic initialization is
- * performed.
- */
-int __devinit dnvme_pci_probe(struct pci_dev *pdev,
-    const struct pci_device_id *id)
+
+static void __exit dnvme_exit(void)
 {
-    int err;
-    int bars = 0;
-    dev_t devno = 0;
-    void __iomem *bar0;
-    struct metrics_device_list *pmetrics_device;
+    pci_unregister_driver(&dnvme_driver);
+    class_destroy(class_nvme);
+    unregister_chrdev(nvme_major, NVME_DEVICE_NAME);
+    LOG_NRM("dnvme EXIT; version: %d.%d", VER_MAJOR, VER_MINOR);
+}
 
 
-    /* Allocate kernel memory for each of the device(s) */
-    char_dev = kzalloc(sizeof(struct cdev), GFP_KERNEL);
-    if (char_dev == NULL) {
-        LOG_ERR("Alloc memory for kernel rep failed: 0x%p", char_dev);
-        return -ENOMEM;
-    }
-
-    err = pci_enable_device(pdev);
-    if (err < 0) {
-        LOG_ERR("Enabling the PCI device has failed: 0x%04X", err);
-        return err;
-    }
-    err = pci_enable_device_mem(pdev);
-    if (err < 0) {
-        LOG_ERR("Enabling the PCI device memory has failed: 0x%04X", err);
-        return err;
-    }
-
-    /* Reserve all the mem map'd config registers for this device */
-    bars = pci_select_bars(pdev, IORESOURCE_MEM);
-    err = pci_request_selected_regions(pdev, bars, DRV_NAME);
-    LOG_DBG("pci mapped bars = 0x%08x", bars);
-    if (err < 0) {
-        LOG_ERR("Can't preserved memory regions");
-        return err;
-    }
-
-    LOG_DBG("NVMe dev: 0x%x, vendor: 0x%x", pdev->device, pdev->vendor);
-    LOG_DBG("NVMe bus #%d, dev slot: %d", pdev->bus->number,
-        PCI_SLOT(pdev->devfn));
-    LOG_DBG("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
-        pdev->class);
-
-    /* Make device with nvme major and minor number */
-    devno = MKDEV(NVME_MAJOR, nvme_minor_x);
-    cdev_init(char_dev, &dnvme_fops_f);
-    char_dev->owner = THIS_MODULE;
-    char_dev->ops = &dnvme_fops_f;
-    err = cdev_add(char_dev, devno, 1);
-    if (err) {
-        LOG_ERR("Adding NVMe device into the kernel failed: %d", err);
-        return err;
-    }
-
-    /* Create an NVMe special device */
-    device = device_create(class_nvme, NULL, devno, NULL, NVME_DEVICE_NAME"%d",
-        nvme_minor_x);
-    if (IS_ERR(device)) {
-        err = PTR_ERR(device);
-        LOG_ERR("Creation of special device file failed: %d", err);
-        return err;
-    }
-
-    pci_set_master(pdev);
-    dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
-    dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-
-    /* Needed to enable IRQ's upon subsequent insmod dnvme.ko */
-    err = pci_reenable_device(pdev);
-    if (err < 0) {
-        LOG_ERR("Can't reenable PCI device");
-        return err;
-    }
-
-    bar0 = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
-    if (bar0 == NULL) {
-        LOG_ERR("Mapping BAR0 mem map'd registers failed");
-        return -EINVAL;
-    }
+static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+    int err = -EINVAL;
+    void __iomem *bar0 = NULL;
+    static int nvme_minor = 0;
+    dev_t devno = MKDEV(nvme_major, nvme_minor);
+    struct metrics_device_list *pmetrics_device = NULL;
 
 
+    /* Allocate kernel memory for our own internal tracking of this device */
     pmetrics_device = kmalloc(
         sizeof(struct metrics_device_list), (GFP_KERNEL | __GFP_ZERO));
     if (pmetrics_device == NULL) {
         LOG_ERR("Failed alloc mem for internal device metric storage");
-        return -ENOMEM;
+        err = -ENOMEM;
+        goto fail_out;
+    }
+
+    /* Map BAR0; ctrlr register memory mapped address space */
+    if (check_mem_region(pci_resource_start(pdev, 0),
+        pci_resource_len(pdev, 0)))
+    {
+        LOG_ERR("BAR0 memory already in use");
+        goto fail_out;
+    }
+    request_mem_region(pci_resource_start(pdev, 0),
+        pci_resource_len(pdev, 0), DRV_NAME);
+    bar0 = ioremap_nocache(pci_resource_start(pdev, 0),
+        pci_resource_len(pdev, 0));
+    if (bar0 == NULL) {
+        LOG_ERR("Mapping BAR0 mem map'd registers failed");
+        goto remap_fail_out;
+    }
+
+    pci_set_master(pdev);
+    if (dma_supported(&pdev->dev, DMA_64BIT_MASK) == 0) {
+        LOG_ERR("The device unable to address 64 bits of DMA");
+        goto remap_fail_out;
+    }
+    else if ((err = dma_set_mask(&pdev->dev, DMA_64BIT_MASK))) {
+        LOG_ERR("Requesting 64 bit DMA has been rejected");
+        goto remap_fail_out;
+    }
+    else if ((err = dma_set_coherent_mask(&pdev->dev, DMA_64BIT_MASK))) {
+        LOG_ERR("Requesting 64 bit coherent memory has been rejected");
+        goto remap_fail_out;
     }
 
     err = driver_ioctl_init(pdev, bar0, pmetrics_device);
     if (err < 0) {
         LOG_ERR("Failed to init dnvme's internal state metrics");
-        return err;
+        goto remap_fail_out;
     }
 
     mutex_init(&pmetrics_device->metrics_mtx);
     pmetrics_device->metrics_device->private_dev.open_flag = 0;
-    pmetrics_device->metrics_device->private_dev.minor_no =
-        nvme_minor_x++;
+    pmetrics_device->metrics_device->private_dev.minor_no = nvme_minor;
+
+    /* Create an NVMe special device */
+    pmetrics_device->metrics_device->private_dev.spcl_dev = device_create(
+        class_nvme, NULL, devno, NULL, NVME_DEVICE_NAME"%d", nvme_minor);
+    if (IS_ERR(pmetrics_device->metrics_device->private_dev.spcl_dev)) {
+        err = PTR_ERR(pmetrics_device->metrics_device->private_dev.spcl_dev);
+        LOG_ERR("Creation of special device file failed: %d", err);
+        goto remap_fail_out;
+    }
+
+    err = pci_enable_device(pdev);
+    if (err < 0) {
+        LOG_ERR("Enabling the PCIe device has failed: 0x%04X", err);
+        goto spcp_fail_out;
+    }
+
+    /* Finalize this device and prepare for next one */
+    LOG_DBG("NVMe dev: 0x%x, vendor: 0x%x", pdev->device, pdev->vendor);
+    LOG_DBG("NVMe bus #%d, dev slot: %d", pdev->bus->number,
+        PCI_SLOT(pdev->devfn));
+    LOG_DBG("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
+        pdev->class);
     list_add_tail(&pmetrics_device->metrics_device_hd, &metrics_dev_ll);
+    nvme_minor++;
     return 0;
+
+spcp_fail_out:
+    device_del(pmetrics_device->metrics_device->private_dev.spcl_dev);
+remap_fail_out:
+    if (bar0 != NULL) {
+        iounmap(bar0);
+        release_mem_region(pci_resource_start(pdev, 0),
+            pci_resource_len(pdev, 0));
+    }
+fail_out:
+    if (pmetrics_device != NULL) {
+        kfree(pmetrics_device);
+    }
+    return err;
 }
+
+
+static void dnvme_remove(struct pci_dev *dev)
+{
+    struct pci_dev *pdev;
+    struct metrics_device_list *pmetrics_device;
+
+
+    /* Loop through the devices available in the metrics list */
+    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
+
+        pdev = pmetrics_device->metrics_device->private_dev.pdev;
+        if (pdev == dev) {
+
+            LOG_DBG("Removing device: 0x%x, vendor: 0x%x",
+                pdev->device, pdev->vendor);
+            LOG_DBG("PCIe bus #%d, slot: %d", pdev->bus->number,
+                PCI_SLOT(pdev->devfn));
+            LOG_DBG("PCIe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
+                pdev->class);
+
+            /* Wait for any other dnvme access to finish, then stop further
+             * before we free resources to prevent circular issues */
+            mutex_lock(&pmetrics_device->metrics_mtx);
+            nvme_disable(pmetrics_device, ST_DISABLE_COMPLETELY);
+            pci_disable_device(pdev);
+
+            /* Release the selected memory regions that were reserved */
+            destroy_dma_pool(pmetrics_device->metrics_device);
+            iounmap(pmetrics_device->metrics_device->private_dev.bar0);
+            release_mem_region(pci_resource_start(pdev, 0),
+                pci_resource_len(pdev, 0));
+
+            /* Free up the linked list */
+            list_del(&pmetrics_device->metrics_cq_list);
+            list_del(&pmetrics_device->metrics_sq_list);
+
+            /* Unlock, then destroy all mutexes */
+            mutex_unlock(&pmetrics_device->metrics_mtx);
+            mutex_destroy(pmetrics_device->metrics_mtx);
+            mutex_destroy(pmetrics_device->irq_process->irq_track_mtx);
+
+            device_del(pmetrics_device->metrics_device->private_dev.spcl_dev);
+        }
+    }
+
+    /* Free up the device linked list if there are not items left */
+    if (list_empty(&metrics_dev_ll)) {
+        list_del(&metrics_dev_ll);
+    }
+}
+
 
 /*
  * find device from the device linked list. Returns pointer to the
  * device if found otherwise returns NULL.
  */
-static struct  metrics_device_list *find_device(struct inode *inode)
+static struct metrics_device_list *find_device(struct inode *inode)
 {
-    struct  metrics_device_list *pmetrics_device; /* Metrics device  */
     int dev_found = 1;
+    struct metrics_device_list *pmetrics_device;
+
     /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device, &metrics_dev_ll,
-            metrics_device_hd) {
+    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
+
         if (iminor(inode) == pmetrics_device->metrics_device->
                 private_dev.minor_no) {
+
             return pmetrics_device;
         } else {
             dev_found = 0;
         }
     }
+
     /* The specified device could not be found in the list */
     if (dev_found == 0) {
         LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
@@ -260,12 +321,13 @@ static struct  metrics_device_list *find_device(struct inode *inode)
     return NULL;
 }
 
+
 /*
  * lock_device function will call find_device and if found device locks my
  * taking the mutex. This function returns a pointer to successfully found
  * device.
  */
-static struct  metrics_device_list *lock_device(struct inode *inode)
+static struct metrics_device_list *lock_device(struct inode *inode)
 {
     struct  metrics_device_list *pmetrics_device;
     pmetrics_device = find_device(inode);
@@ -279,9 +341,7 @@ static struct  metrics_device_list *lock_device(struct inode *inode)
     return pmetrics_device;
 }
 
-/*
- * Release the mutex for this device.
- */
+
 static void unlock_device(struct  metrics_device_list *pmetrics_device)
 {
     if (mutex_is_locked(&pmetrics_device->metrics_mtx)) {
@@ -289,11 +349,12 @@ static void unlock_device(struct  metrics_device_list *pmetrics_device)
     }
 }
 
+
 /*
  * This operation is always the first operation performed on the device file.
  * when the user call open fd, this is where it lands.
  */
-int dnvme_device_open(struct inode *inode, struct file *filp)
+int dnvme_open(struct inode *inode, struct file *filp)
 {
     struct  metrics_device_list *pmetrics_device; /* Metrics device  */
     int err = SUCCESS;
@@ -320,13 +381,14 @@ op_exit:
     return err;
 }
 
+
 /*
  * This operation is invoked when the file structure is being released. When
  * the user app close a device then this is where the entry point is. The
  * driver cleans up any memory it has reference to. This ensures a clean state
  * of the device.
  */
-int dnvme_device_release(struct inode *inode, struct file *filp)
+int dnvme_release(struct inode *inode, struct file *filp)
 {
     /* Metrics device */
     struct  metrics_device_list *pmetrics_device;
@@ -351,11 +413,12 @@ rel_exit:
     return err;
 }
 
+
 /*
- * dnvme_device_mmap - This function maps the contiguous device mapped area
+ * dnvme_mmap - This function maps the contiguous device mapped area
  * to user space. This is specfic to device which is called though fd.
  */
-int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma)
+int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 {
     struct  metrics_device_list *pmetrics_device; /* Metrics device */
     struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list               */
@@ -494,7 +557,7 @@ mmap_exit:
  * calling process), the ioctl call returns the output of this function.
  *
  */
-long dnvme_ioctl_device(struct file *filp, unsigned int ioctl_num,
+long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
     unsigned long ioctl_param)
 {
     int err = -EINVAL;
@@ -687,62 +750,3 @@ ioctl_exit:
     unlock_device(pmetrics_device);
     return err;
 }
-
-/*
- *  Module Exit code.
- *  dnvme_exit - Perform clean exit
- */
-static void __exit dnvme_exit(void)
-{
-    struct pci_dev *pdev;
-    int bars;
-    struct  metrics_device_list *pmetrics_device;  /* Metrics device */
-
-    /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device, &metrics_dev_ll,
-            metrics_device_hd) {
-        pdev = pmetrics_device->metrics_device->private_dev.pdev;
-        /* Grab the Mutex for this device in the linked list */
-        mutex_lock(&pmetrics_device->metrics_mtx);
-        /* Free up the DMA pool */
-        destroy_dma_pool(pmetrics_device->metrics_device);
-        /* Disable the NVME controller */
-        nvme_disable(pmetrics_device, ST_DISABLE_COMPLETELY);
-        /* unlock the device mutex before destroying */
-        mutex_unlock(&pmetrics_device->metrics_mtx);
-        /* destroy all mutexes */
-        mutex_destroy(pmetrics_device->metrics_mtx);
-        mutex_destroy(pmetrics_device->irq_process->irq_track_mtx);
-        /* Release the seleted PCI regions that were reserved */
-        bars = pci_select_bars(pdev, IORESOURCE_MEM);
-        pci_release_selected_regions(pdev, bars);
-        /* free up the cq linked list */
-        list_del(&pmetrics_device->metrics_cq_list);
-        /* free up the sq linked list */
-        list_del(&pmetrics_device->metrics_sq_list);
-    }
-
-    /* free up the device linked list */
-    list_del(&metrics_dev_ll);
-
-    /* Driver clean up */
-    pci_unregister_driver(&dnvme_pci_driver);
-    unregister_chrdev(NVME_MAJOR, NVME_DEVICE_NAME);
-    device_del(device);
-    class_destroy(class_nvme);
-    cdev_del(char_dev);
-
-    LOG_DBG("dnvme driver Exited...Bye!!");
-}
-
-/*
- *  Driver Module Calls.
- */
-MODULE_DESCRIPTION("Kernel Device Driver for NVME PCI Express card");
-MODULE_AUTHOR("T Sravan Kumar <sravan.kumar.thokala@intel.com>");
-MODULE_LICENSE("GPL");
-MODULE_VERSION(DRIVER_VERSION_STR(DRIVER_VERSION));
-MODULE_ALIAS("platform:"DRV_NAME);
-
-module_init(dnvme_init);
-module_exit(dnvme_exit);

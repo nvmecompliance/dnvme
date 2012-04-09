@@ -165,7 +165,7 @@ fail_out:
  * NOTE: This will grab the irq mutex and releases.
  */
 int init_irq_lists(struct metrics_device_list
-        *pmetrics_device_elem, enum nvme_irq_type  irq_active)
+    *pmetrics_device_elem, enum nvme_irq_type  irq_active)
 {
     int err;
     /* locking on IRQ MUTEX here for irq track ll access */
@@ -222,7 +222,7 @@ void release_irq(struct metrics_device_list *pmetrics_device_elem)
  * NOTE: Always call this function with IRQ MUTEX locked, otherwise it fails.
  */
 static int disable_active_irq(struct metrics_device_list
-        *pmetrics_device_elem, enum nvme_irq_type  irq_active)
+    *pmetrics_device_elem, enum nvme_irq_type  irq_active)
 {
 
 #ifdef DEBUG
