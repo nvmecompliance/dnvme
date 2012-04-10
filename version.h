@@ -26,7 +26,7 @@
  */
 
 #define VER_MAJOR    \
-1
+2
 
 #define VER_MINOR    \
-1
+0
