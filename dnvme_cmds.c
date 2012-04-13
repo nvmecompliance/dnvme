@@ -34,10 +34,10 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
     struct metrics_sq *pmetrics_sq, struct nvme_64b_send *nvme_64b_send,
     struct nvme_prps *prps, u8 opcode, u16 persist_q_id,
     enum data_buf_type data_buf_type, u16 cmd_id);
-static int map_user_pg_to_dma(struct nvme_device *nvme_dev, u8 write,
-    unsigned long buf_addr, unsigned total_buf_len,
-    struct scatterlist **sg_list, struct nvme_prps *prps,
-    enum data_buf_type data_buf_type);
+static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
+    enum dma_data_direction kernel_dir, unsigned long buf_addr,
+    unsigned total_buf_len, struct scatterlist **sg_list,
+    struct nvme_prps *prps, enum data_buf_type data_buf_type);
 static int pages_to_sg(struct page **pages, int num_pages, int buf_offset,
     unsigned len, struct scatterlist **sg_list);
 static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
@@ -47,6 +47,7 @@ static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
     struct nvme_prps *prps);
 static void free_prp_pool(struct nvme_device *nvme_dev,
     struct nvme_prps *prps, u32 npages);
+
 
 /* prep_send64b_cmd:
  * Prepares the 64 byte command to be sent
@@ -185,11 +186,13 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
     int err;
     unsigned long addr;
     struct scatterlist *sg_list = NULL;
+    enum dma_data_direction kernel_dir;
 #ifdef TEST_PRP_DEBUG
     int last_prp, i, j;
     __le64 *prp_vlist;
     s32 num_prps;
 #endif
+
 
     /* Catch common mistakes */
     addr = (unsigned long)nvme_64b_send->data_buf_ptr;
@@ -200,8 +203,13 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
         return -EINVAL;
     }
 
+    /* Typecase is only possible because the kernel vs. user space contract
+     * states the following which agrees with 'enum dma_data_direction'
+     * 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
+    kernel_dir = (enum dma_data_direction)nvme_64b_send->data_dir;
+
     /* Mapping user pages to dma memory */
-    err = map_user_pg_to_dma(nvme_dev, nvme_64b_send->data_dir, addr,
+    err = map_user_pg_to_dma(nvme_dev, kernel_dir, addr,
         nvme_64b_send->data_buf_size, &sg_list, prps, data_buf_type);
     if (err < 0) {
         return err;
@@ -272,10 +280,10 @@ err_unmap_prp_pool:
     return err;
 }
 
-static int map_user_pg_to_dma(struct nvme_device *nvme_dev, u8 write,
-    unsigned long buf_addr, unsigned total_buf_len,
-    struct scatterlist **sg_list, struct nvme_prps *prps,
-    enum data_buf_type data_buf_type)
+static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
+    enum dma_data_direction kernel_dir, unsigned long buf_addr,
+    unsigned total_buf_len, struct scatterlist **sg_list,
+    struct nvme_prps *prps, enum data_buf_type data_buf_type)
 {
     int i, err, buf_pg_offset, buf_pg_count, num_sg_entries;
     struct page **pages;
@@ -331,7 +339,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev, u8 write,
      * an IOMMU or the kernel, so checking whether or not the number of
      * mapped entries equate to the number given to the func is not warranted */
     num_sg_entries = dma_map_sg(&nvme_dev->private_dev.pdev->dev, *sg_list,
-        buf_pg_count, (write ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
+        buf_pg_count, kernel_dir);
     LOG_DBG("%d elements mapped out of %d sglist elements",
         num_sg_entries, num_sg_entries);
     if (num_sg_entries == 0) {
@@ -361,7 +369,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev, u8 write,
     prps->sg = *sg_list;
     prps->num_map_pgs = num_sg_entries;
     prps->vir_kern_addr = vir_kern_addr;
-    prps->data_dir = write;
+    prps->data_dir = kernel_dir;
     prps->data_buf_addr = buf_addr;
     prps->data_buf_size = total_buf_len;
     return 0;
@@ -579,6 +587,7 @@ error:
     return err;
 }
 
+
 /*
  * unmap_user_pg_to_dma:
  * Unmaps mapped DMA pages and frees the pinned down pages
@@ -600,12 +609,13 @@ static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
 
     if (prps->type != NO_PRP) {
         dma_unmap_sg(&nvme_dev->private_dev.pdev->dev, prps->sg,
-            prps->num_map_pgs, prps->data_dir ? DMA_TO_DEVICE :
-            DMA_FROM_DEVICE);
+            prps->num_map_pgs, prps->data_dir);
 
         for (i = 0; i < prps->num_map_pgs; i++) {
             pg = sg_page(&prps->sg[i]);
-            if (!prps->data_dir) {
+            if ((prps->data_dir == DMA_FROM_DEVICE) ||
+                (prps->data_dir == DMA_BIDIRECTIONAL)) {
+
                 set_page_dirty_lock(pg);
             }
             put_page(pg);
@@ -613,6 +623,7 @@ static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
         kfree(prps->sg);
     }
 }
+
 
 /*
  * free_prp_pool:

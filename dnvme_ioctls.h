@@ -35,7 +35,8 @@ enum {
     NVME_CREATE_ADMN_SQ,        /** <enum to invoke admin sq creation */
     NVME_CREATE_ADMN_CQ,        /** <enum to invoke admin cq creation */
     NVME_DEVICE_STATE,          /** <enum to enable and disable ctlr */
-    NVME_SEND_64B_CMD,          /** <enum Send 64B command. */
+    NVME_SEND_64B_CMD,          /** <enum Send 64B command */
+    NVME_TOXIC_64B_DWORD,       /** <enum Injects toxic values into cmds */
     NVME_GET_Q_METRICS,         /** <enum to get the q metrics */
     NVME_CREATE_ADMN_Q,         /** <enum to invoke creation of admin q's */
     NVME_PREPARE_SQ_CREATION,   /** <enum Allocate SQ contig memory */
@@ -121,6 +122,23 @@ enum {
     struct nvme_64b_send)
 
 /**
+ * @def NVME_IOCTL_TOXIC_64B_CMD
+ * After Utilizing NVME_IOCTL_SEND_64B_CMD to issue a cmd into any SQ, but
+ * before utilizing NVME_IOCTL_RING_SQ_DOORBELL on that same cmd, one is allowed
+ * issue this IOCTL. This IOCTL will effectively bypass all safety checking,
+ * those things which prevent an erroneous IOCTL from bringing down the kernel,
+ * to inject bad/illegal data bits into a cmd. This is HIGHLY VOLATILE if you
+ * are NOT intimately aware of the logic of this driver. Assumptions are made,
+ * albeit a minimal set of, which require proper setup of all cmds when they
+ * are send via NVME_IOCTL_SEND_64B_CMD and subsequently reaped via
+ * NVME_IOCTL_REAP, and thus bypassing these assumptions is what will crash
+ * the kernel. However, if you thoroughly understand these assumption, this
+ * IOCTL will allow to modify the cmd bits after safety checking is performed.
+ */
+#define NVME_IOCTL_TOXIC_64B_DWORD _IOWR('N', NVME_TOXIC_64B_DWORD, \
+    struct backdoor_inject)
+
+/**
  * @def NVME_IOCTL_PREPARE_SQ_CREATION
  * define a unique value for allocating contiguous memory for SQ.
  */
@@ -133,7 +151,6 @@ enum {
  */
 #define NVME_IOCTL_PREPARE_CQ_CREATION _IOWR('N', NVME_PREPARE_CQ_CREATION, \
     struct nvme_prep_sq)
-
 
 /**
  * @def NVME_IOCTL_RING_SQ_DOORBELL

@@ -727,6 +727,111 @@ void deallocate_mb(struct  metrics_device_list *pmetrics_device)
 }
 
 
+int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
+    struct backdoor_inject *err_inject)
+{
+    int err = -EINVAL;
+    u32 *tgt_dword;                     /* DWORD which needs updating */
+    u32 entry_size = 64;                /* Assumption is for ASQ */
+    struct metrics_sq *pmetrics_sq;     /* Ptr to specific SQ of interest */
+    struct backdoor_inject *user_data = NULL;
+
+
+    /* Allocating memory for user struct in kernel space */
+    user_data = kmalloc(sizeof(struct backdoor_inject), GFP_KERNEL);
+    if (user_data == NULL) {
+        LOG_ERR("Unable to alloc kernel memory to copy user data");
+        err = -ENOMEM;
+        goto fail_out;
+    }
+    if (copy_from_user(user_data, err_inject, sizeof(struct backdoor_inject))) {
+        LOG_ERR("Unable to copy from user space");
+        err = -EFAULT;
+        goto fail_out;
+    }
+
+    /* Get the required SQ for which command should be modified */
+    pmetrics_sq = find_sq(pmetrics_device, user_data->q_id);
+    if (pmetrics_sq == NULL) {
+        LOG_ERR("SQ ID = %d does not exist", user_data->q_id);
+        err = -EPERM;
+        goto fail_out;
+    }
+
+    /* If this SQ is an IOSQ, not ASQ, then lookup the element size */
+    if (pmetrics_sq->public_sq.sq_id != 0) {
+        entry_size = (pmetrics_sq->private_sq.size /
+            pmetrics_sq->public_sq.elements);
+    }
+
+    /* The cmd for which is being updated, better not have rung its doorbell */
+    if (pmetrics_sq->public_sq.tail_ptr_virt <
+        pmetrics_sq->public_sq.tail_ptr) {
+
+        // Handle wrapping state of the SQ
+        if ((user_data->cmd_ptr < pmetrics_sq->public_sq.tail_ptr) &&
+            (user_data->cmd_ptr >= pmetrics_sq->public_sq.tail_ptr_virt)) {
+
+            LOG_ERR("Already rung doorbell for cmd idx = %d",
+                user_data->cmd_ptr);
+            err = -EINVAL;
+            goto fail_out;
+            }
+
+    } else { // no wrap condition
+        if (user_data->cmd_ptr < pmetrics_sq->public_sq.tail_ptr) {
+            LOG_ERR("Already rung doorbell for cmd idx = %d",
+                user_data->cmd_ptr);
+            err = -EINVAL;
+            goto fail_out;
+        }
+    }
+
+    /* Validate requirement: [0 -> (CreateIOSQ.DW10.SIZE-1)] */
+    if (user_data->cmd_ptr >= pmetrics_sq->public_sq.elements) {
+        LOG_ERR("SQ ID %d contains only %d elements",
+            pmetrics_sq->public_sq.sq_id, pmetrics_sq->public_sq.elements);
+        err = -EPERM;
+        goto fail_out;
+    }
+
+    /* Validate requirement: [0 -> (CC.IOSQES-1)] */
+    if (user_data->dword >= entry_size) {
+        LOG_ERR("SQ ID %d elements are only of size %d bytes",
+            pmetrics_sq->public_sq.sq_id, entry_size);
+        err = -EPERM;
+        goto fail_out;
+    }
+
+    /* Inject the requested bit values into the appropriate place */
+    if (pmetrics_sq->private_sq.contig) {
+        tgt_dword = (u32 *)(pmetrics_sq->private_sq.vir_kern_addr +
+            (user_data->cmd_ptr * entry_size) + user_data->dword);
+        *tgt_dword &= ~user_data->value_mask;
+        *tgt_dword |= (user_data->value & user_data->value_mask);
+    } else {
+        tgt_dword = (u32 *)(pmetrics_sq->private_sq.prp_persist.vir_kern_addr +
+            (user_data->cmd_ptr * entry_size) + user_data->dword);
+        *tgt_dword &= ~user_data->value_mask;
+        *tgt_dword |= (user_data->value & user_data->value_mask);
+
+        dma_sync_sg_for_device(pmetrics_device->metrics_device->
+            private_dev.dmadev, pmetrics_sq->private_sq.prp_persist.sg,
+            pmetrics_sq->private_sq.prp_persist.num_map_pgs,
+            pmetrics_sq->private_sq.prp_persist.data_dir);
+    }
+    return SUCCESS;
+
+
+fail_out:
+    if (user_data != NULL) {
+        kfree(user_data);
+    }
+    LOG_DBG("Injecting toxic cmd bits failed");
+    return err;
+}
+
+
 int driver_send_64b(struct metrics_device_list *pmetrics_device,
     struct nvme_64b_send *cmd_request)
 {
@@ -1098,7 +1203,7 @@ free_out:
     if (user_data != NULL) {
         kfree(user_data);
     }
-    LOG_DBG("Sending of Command Failed");
+    LOG_DBG("Sending of command failed");
     return err;
 }
 

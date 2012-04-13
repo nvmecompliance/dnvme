@@ -20,7 +20,8 @@
 #define _DNVME_CMDS_H_
 
 /* define's for unique QID creation */
-#define UNIQUE_QID_FLAG 0x01
+#define UNIQUE_QID_FLAG         0x01
+
 
 enum {
     PRP_PRESENT = 1, /* Specifies to generate PRP's for a particular command */
@@ -73,8 +74,8 @@ enum data_buf_type {
  */
 int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
     *pmetrics_sq, struct nvme_64b_send *nvme_64b_send, struct nvme_prps *prps,
-        struct nvme_gen_cmd *nvme_gen_cmd, u16 persist_q_id,
-            enum data_buf_type data_buf_type, u8 gen_prp);
+    struct nvme_gen_cmd *nvme_gen_cmd, u16 persist_q_id,
+    enum data_buf_type data_buf_type, u8 gen_prp);
 
 /**
  * add_cmd_track_node:
@@ -89,7 +90,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
  */
 int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     u16 persist_q_id, struct nvme_prps *prps, enum nvme_cmds cmd_type,
-        u8 opcode, u16 cmd_id);
+    u8 opcode, u16 cmd_id);
 
 /**
  * empty_cmd_track_list:
@@ -117,5 +118,6 @@ void destroy_dma_pool(struct nvme_device *nvme_dev);
  * @return void
  */
 void del_prps(struct nvme_device *nvme_device, struct nvme_prps *prps);
+
 
 #endif

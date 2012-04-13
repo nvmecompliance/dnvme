@@ -739,8 +739,8 @@ u32 reap_inquiry(struct metrics_cq  *pmetrics_cq_node, struct device *dev)
     } else {
         /* do sync and update when pointer to discontig Q is reaped inq */
         dma_sync_sg_for_cpu(dev, pmetrics_cq_node->private_cq.prp_persist.sg,
-                pmetrics_cq_node->private_cq.prp_persist.num_map_pgs,
-                pmetrics_cq_node->private_cq.prp_persist.data_dir);
+            pmetrics_cq_node->private_cq.prp_persist.num_map_pgs,
+            pmetrics_cq_node->private_cq.prp_persist.data_dir);
         queue_base_addr =
             pmetrics_cq_node->private_cq.prp_persist.vir_kern_addr;
         q_head_ptr = queue_base_addr +

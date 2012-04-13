@@ -670,8 +670,14 @@ long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
 
     case NVME_IOCTL_SEND_64B_CMD:
         LOG_DBG("NVME_IOCTL_SEND_64B_CMD");
-        err =  driver_send_64b(pmetrics_device,
+        err = driver_send_64b(pmetrics_device,
             (struct nvme_64b_send *)ioctl_param);
+        break;
+
+    case NVME_TOXIC_64B_DWORD:
+        LOG_DBG("NVME_TOXIC_64B_DWORD");
+        err = driver_toxic_dword(pmetrics_device,
+            (struct backdoor_inject *)ioctl_param);
         break;
 
     case NVME_IOCTL_DUMP_METRICS:

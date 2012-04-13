@@ -181,7 +181,7 @@ void ioctl_create_discontig_iosq(int file_desc, void *addr)
     user_cmd.data_buf_ptr = addr;
 
     user_cmd.cmd_set = CMD_ADMIN;
-    user_cmd.data_dir = 1;
+    user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
 
@@ -212,7 +212,7 @@ void ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid)
     user_cmd.data_buf_ptr = NULL;
 
     user_cmd.cmd_set = CMD_ADMIN;
-    user_cmd.data_dir = 1;
+    user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
 
@@ -247,7 +247,7 @@ void ioctl_create_contig_iosq(int file_desc)
     user_cmd.data_buf_ptr = NULL;
 
     user_cmd.cmd_set = CMD_ADMIN;
-    user_cmd.data_dir = 1;
+    user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
 
@@ -412,7 +412,7 @@ void ioctl_send_nvme_write(int file_desc, void *addr)
     user_cmd.data_buf_ptr = addr;
 
     user_cmd.cmd_set = CMD_NVM;
-    user_cmd.data_dir = 1;
+    user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
 
@@ -518,7 +518,7 @@ void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id, void*
     user_cmd.data_buf_ptr = addr;
     user_cmd.meta_buf_id = meta_id;
     user_cmd.cmd_set = CMD_NVM;
-    user_cmd.data_dir = 1;
+    user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
 

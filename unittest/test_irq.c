@@ -388,7 +388,7 @@ int irq_cr_contig_io_sq(int fd, int sq_id, int assoc_cq_id, uint16_t elems)
     user_cmd.data_buf_size = 0;
     user_cmd.data_buf_ptr = NULL;
     user_cmd.cmd_set = CMD_ADMIN;
-    user_cmd.data_dir = 1;
+    user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
 
@@ -422,7 +422,7 @@ int irq_cr_disc_io_sq(int fd, void *addr,int sq_id,
     user_cmd.data_buf_size = PAGE_SIZE_I * 64;
     user_cmd.data_buf_ptr = addr;
     user_cmd.cmd_set = CMD_ADMIN;
-    user_cmd.data_dir = 1;
+    user_cmd.data_dir = 2;
 
     ret_val = ioctl(fd, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
     if (ret_val < 0) {

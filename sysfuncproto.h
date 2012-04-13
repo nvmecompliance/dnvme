@@ -53,7 +53,7 @@ int driver_generic_read(struct rw_generic *nvme_data,
  * @return write success or failure.
  */
 int driver_generic_write(struct rw_generic *nvme_data,
-        struct  metrics_device_list *pmetrics_device);
+    struct metrics_device_list *pmetrics_device);
 
 /**
  * device_status_chk  - Generic error checking function
@@ -63,8 +63,8 @@ int driver_generic_write(struct rw_generic *nvme_data,
  * @param status
  * @return device status fail or success.
  */
-int device_status_chk(struct  metrics_device_list *pmetrics_device,
-        int *status);
+int device_status_chk(struct metrics_device_list *pmetrics_device,
+    int *status);
 
 /**
  * driver_create_asq - Driver Admin Submission Queue creation routine
@@ -73,7 +73,7 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device,
  * @return ASQ creation SUCCESS or FAIL
  */
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
-        struct  metrics_device_list *pmetrics_device);
+    struct metrics_device_list *pmetrics_device);
 
 /*
  * driver_iotcl_init - Driver Initialization routine before starting to
@@ -83,7 +83,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
  * @return init SUCCESS or FAIL
  */
 int driver_ioctl_init(struct pci_dev *pdev, void __iomem *ctrlrRegs,
-        struct metrics_device_list *pmetrics_device_list);
+    struct metrics_device_list *pmetrics_device_list);
 
 /**
  * driver_create_acq - Driver Admin completion  Queue creation routine
@@ -92,7 +92,7 @@ int driver_ioctl_init(struct pci_dev *pdev, void __iomem *ctrlrRegs,
  * @return ACQ creation SUCCESS or FAIL
  */
 int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
-        struct metrics_device_list *pmetrics_device_list);
+    struct metrics_device_list *pmetrics_device_list);
 
 /**
  * driver_nvme_prep_sq - Driver routine to set up user parameters into metrics
@@ -102,7 +102,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
  * @return allocation of contig mem SUCCESS or FAIL.
  */
 int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
-        struct  metrics_device_list *pmetrics_device);
+    struct  metrics_device_list *pmetrics_device);
 
 /**
  * driver_nvme_prep_cq - Driver routine to set up user parameters into metrics
@@ -112,7 +112,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
  * @return allocation of contig mem SUCCESS or FAIL.
  */
 int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
-        struct  metrics_device_list *pmetrics_device);
+    struct  metrics_device_list *pmetrics_device);
 
 /**
  * driver_send_64b - Routine for sending 64 bytes command into
@@ -121,8 +121,19 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
  * @param nvme_64b_send
  * @return Error Codes
  */
-int driver_send_64b(struct  metrics_device_list *pmetrics_device,
+int driver_send_64b(struct metrics_device_list *pmetrics_device,
     struct nvme_64b_send *cmd_request);
+
+/**
+ * driver_toxic_dword - Please refer to the header file comment for
+ * NVME_IOCTL_TOXIC_64B_CMD.
+ * @param pmetrics_device
+ * @param err_inject Pass ptr to the user space buffer describing the error
+ *        to inject.
+ * @return Error Codes
+ */
+int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
+    struct backdoor_inject *err_inject);
 
 /**
  * driver_log - Driver routine to log data into file from metrics
@@ -140,8 +151,8 @@ int driver_log(struct nvme_file *n_file);
  * @param pmetrics_device
  * @param nstate
  */
-void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
-        enum nvme_state nstate);
+void deallocate_all_queues(struct metrics_device_list *pmetrics_device,
+    enum nvme_state nstate);
 
 /**
  * driver_reap_inquiry - This function will traverse the metrics device list
@@ -152,7 +163,7 @@ void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
  * @param usr_reap_inq
  * @return success or failure based on reap_inquiry
  */
-int driver_reap_inquiry(struct  metrics_device_list *pmetrics_device,
+int driver_reap_inquiry(struct metrics_device_list *pmetrics_device,
     struct nvme_reap_inquiry *usr_reap_inq);
 
 /**
@@ -191,7 +202,7 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma);
  * @param usr_reap_data
  * @return Success of Failure based on Reap Success or failure.
  */
-int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
+int driver_reap_cq(struct metrics_device_list *pmetrics_device,
     struct nvme_reap *usr_reap_data);
 
 /**
@@ -202,7 +213,7 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
  * @return SUCCESS or FAIL based on dma pool creation.
  */
 int metabuff_create(struct metrics_device_list *pmetrics_device,
-        u16 alloc_size);
+    u16 alloc_size);
 
 /**
  * Create a meta buffer node when user request and allocate a consistent
@@ -213,7 +224,7 @@ int metabuff_create(struct metrics_device_list *pmetrics_device,
  * @return Success of Failure based on dma alloc Success or failure.
  */
 int metabuff_alloc(struct metrics_device_list *pmetrics_device,
-        u32 meta_id);
+    u32 meta_id);
 
 /**
  * Delete a meta buffer node when user requests and deallocate a consistent
@@ -223,7 +234,7 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device,
  * @return Success of Failure based on metabuff delete
  */
 int metabuff_del(struct metrics_device_list *pmetrics_device,
-        u32 meta_id);
+    u32 meta_id);
 
 /*
  * deallocate_mb will free up the memory and nodes for the meta buffers
@@ -231,6 +242,6 @@ int metabuff_del(struct metrics_device_list *pmetrics_device,
  * destroys the dma pool and free up the metrics meta node.
  * @param pmetrics_device
  */
-void deallocate_mb(struct  metrics_device_list *pmetrics_device);
+void deallocate_mb(struct metrics_device_list *pmetrics_device);
 
 #endif

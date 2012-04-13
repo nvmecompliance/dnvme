@@ -54,31 +54,31 @@ struct nvme_prps {
     u32 num_map_pgs;
     /* Address of data buffer for the specific command */
     u64 data_buf_addr;
-    u8 data_dir; /* Flow of Data to/from device !0/0 */
+    enum dma_data_direction data_dir;
 };
 
 /*
  * structure for the CQ tracking params with virtual address and size.
  */
 struct nvme_trk_cq {
-    u8          *vir_kern_addr; /* phy addr ptr to the q's alloc to kern mem*/
-    dma_addr_t  cq_dma_addr;    /* dma mapped address using dma_alloc       */
-    u32         size;           /* length in bytes of the alloc Q in kernel */
-    u32 __iomem *dbs;           /* Door Bell stride                         */
-    struct nvme_prps  prp_persist; /* PRP element in CQ                     */
-    u8          contig;         /* Indicates if prp list is contig or not   */
-    u8          bit_mask;       /* bitmask added for unique ID creation */
+    u8          *vir_kern_addr;  /* phy addr ptr to the q's alloc to kern mem */
+    dma_addr_t   cq_dma_addr;    /* dma mapped address using dma_alloc */
+    u32          size;           /* length in bytes of the alloc Q in kernel */
+    u32 __iomem *dbs;            /* Door Bell stride  */
+    u8           contig;         /* Indicates if prp list is contig or not */
+    u8           bit_mask;       /* bitmask added for unique ID creation */
+    struct nvme_prps  prp_persist; /* PRP element in CQ */
 };
 
 /*
  *    Structure definition for tracking the commands.
  */
 struct cmd_track {
+    u16 unique_id;      /* driver assigned unique id for a particular cmd */
+    u16 persist_q_id;   /* Q ID used for Create/Delete Queues */
+    u8  opcode;         /* command opcode as per spec */
+    enum nvme_cmds   cmd_set;     /* what cmd set does this opcode belong to */
     struct list_head cmd_list_hd; /* link-list using the kernel list */
-    u16    unique_id; /* driver assigned unique id for a particuler cmd. */
-    u16    persist_q_id; /* Q ID used for Create/Delete Queues */
-    u8     opcode; /* command opcode as per spec */
-    enum   nvme_cmds   cmd_set; /* what cmd set does this opcode belong to */
     struct nvme_prps prp_nonpersist; /* Non persistent PRP entries */
 };
 
@@ -86,15 +86,15 @@ struct cmd_track {
  * structure definition for SQ tracking parameters.
  */
 struct nvme_trk_sq {
-    void        *vir_kern_addr; /* virtual kernal address using kmalloc    */
-    dma_addr_t  sq_dma_addr;    /* dma mapped address using dma_alloc      */
-    u32         size;           /* len in bytes of allocated Q in kernel   */
-    u32 __iomem *dbs;           /* Door Bell stride                        */
-    struct nvme_prps  prp_persist; /* PRP element in CQ */
-    struct list_head cmd_track_list; /* link-list head for cmd_track list  */
-    u16         unique_cmd_id;  /* unique counter for each comand in SQ    */
-    u8          contig;         /* Indicates if prp list is contig or not  */
-    u8          bit_mask;       /* bitmask added for unique ID creation */
+    void        *vir_kern_addr;     /* virtual kernal address using kmalloc */
+    dma_addr_t   sq_dma_addr;       /* dma mapped address using dma_alloc */
+    u32          size;              /* len in bytes of allocated Q in kernel */
+    u32 __iomem *dbs;               /* Door Bell stride */
+    u16          unique_cmd_id;     /* unique counter for each comand in SQ */
+    u8           contig;            /* Indicates if prp list is contig or not */
+    u8           bit_mask;          /* bitmask added for unique ID creation */
+    struct nvme_prps prp_persist;   /* PRP element in CQ */
+    struct list_head cmd_track_list;/* link-list head for cmd_track list */
 };
 
 /*
@@ -102,9 +102,9 @@ struct nvme_trk_sq {
  * kernel linked lists.
  */
 struct metrics_cq {
-    struct    list_head    cq_list_hd; /* link-list using the kernel list  */
-    struct    nvme_gen_cq  public_cq;  /* parameters in nvme_gen_cq        */
-    struct    nvme_trk_cq  private_cq; /* parameters in nvme_trk_cq        */
+    struct list_head    cq_list_hd; /* link-list using the kernel list  */
+    struct nvme_gen_cq  public_cq;  /* parameters in nvme_gen_cq */
+    struct nvme_trk_cq  private_cq; /* parameters in nvme_trk_cq */
 };
 
 /*
@@ -112,9 +112,9 @@ struct metrics_cq {
  * kernel linked lists.
  */
 struct metrics_sq {
-    struct    list_head    sq_list_hd;  /* link-list using the kernel list  */
-    struct    nvme_gen_sq  public_sq;   /* parameters in nvme_gen_sq        */
-    struct    nvme_trk_sq  private_sq;  /* parameters in nvme_trk_sq        */
+    struct list_head    sq_list_hd;  /* link-list using the kernel list */
+    struct nvme_gen_sq  public_sq;   /* parameters in nvme_gen_sq */
+    struct nvme_trk_sq  private_sq;  /* parameters in nvme_trk_sq */
 };
 
 /*
@@ -122,20 +122,20 @@ struct metrics_sq {
  * Note:- Struct used for u16 for future additions
  */
 struct irq_cq_track {
-    struct  list_head   irq_cq_head;    /* linked list head for irq CQ trk   */
-    u16     cq_id;                      /* Completion Q id                   */
+    struct list_head irq_cq_head;    /* linked list head for irq CQ trk */
+    u16              cq_id;          /* Completion Q id */
 };
 
 /*
  * Structure with parameters of IRQ vector, CQ track linked list and irq_no
  */
 struct irq_track {
-    struct  list_head   irq_list_hd;    /* list head for irq track list   */
-    struct  list_head   irq_cq_track;   /* linked list of IRQ CQ nodes    */
-    u16     irq_no;                     /* idx in list; always 0 based    */
-    u32     int_vec;                    /* vec number; assigned by OS     */
-    u8      isr_fired;                  /* flag to indicate if irq has fired */
-    u32     isr_count;                  /* total no. of times irq fired      */
+    struct  list_head irq_list_hd;    /* list head for irq track list */
+    struct  list_head irq_cq_track;   /* linked list of IRQ CQ nodes */
+    u16               irq_no;         /* idx in list; always 0 based */
+    u32               int_vec;        /* vec number; assigned by OS */
+    u8                isr_fired;      /* flag to indicate if irq has fired */
+    u32               isr_count;      /* total no. of times irq fired */
 };
 
 /*
@@ -144,7 +144,7 @@ struct irq_track {
 struct metrics_meta_data {
     struct list_head meta_trk_list;
     struct dma_pool *meta_dmapool_ptr;
-    u16    meta_buf_size;
+    u16              meta_buf_size;
 };
 
 /*
@@ -152,9 +152,9 @@ struct metrics_meta_data {
  */
 struct metrics_meta {
     struct list_head meta_list_hd;
-    u32         meta_id;
-    void        *vir_kern_addr;
-    dma_addr_t  meta_dma_addr;
+    u32              meta_id;
+    void *           vir_kern_addr;
+    dma_addr_t       meta_dma_addr;
 };
 
 /*
@@ -178,7 +178,7 @@ struct private_metrics_dev {
  */
 struct nvme_device {
     struct private_metrics_dev private_dev;
-    struct public_metrics_dev public_dev;
+    struct public_metrics_dev  public_dev;
 };
 
 /*
