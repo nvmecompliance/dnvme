@@ -923,17 +923,16 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
     nvme_gen_cmd = (struct nvme_gen_cmd *)nvme_cmd_ker;
     memset(&prps, 0, sizeof(prps));
 
-    /* Copy and Increment the CMD ID, copy back to user spavce so can see ID */
-    nvme_gen_cmd->command_id = pmetrics_sq->private_sq.unique_cmd_id++;
-    if (copy_to_user((user_data->cmd_buf_ptr + 0x02),
-        &nvme_gen_cmd->command_id, UNIQUE_ID)) {
-
+    /* Copy and Increment the CMD ID, copy back to user space so can see ID */
+    user_data->unique_id = pmetrics_sq->private_sq.unique_cmd_id++;
+    nvme_gen_cmd->command_id = user_data->unique_id;
+    if (copy_to_user(cmd_request, user_data, sizeof(struct nvme_64b_send))) {
         LOG_ERR("Unable to copy to user space");
         err = -EFAULT;
         goto fail_out;
     }
 
-    /* Handling metabuffer */
+    /* Handling meta buffer */
     if (user_data->bit_mask & MASK_MPTR) {
         meta_buf = find_meta_node(pmetrics_device, user_data->meta_buf_id);
         if (NULL == meta_buf) {

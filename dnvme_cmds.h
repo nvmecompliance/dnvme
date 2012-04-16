@@ -38,7 +38,6 @@ enum {
     PRP_Size = 8, /* Size of PRP entry in bytes */
     PERSIST_QID_0 = 0, /* Default value of Persist queue ID */
     CDW11_PC = 1, /* Mask for checking CDW11.PC of create IO Q cmds */
-    UNIQUE_ID = 2, /* Offset for unique ID within the command */
     CDW11_IEN = 2, /* Mask to check if CDW11.IEN is set */
 };
 
