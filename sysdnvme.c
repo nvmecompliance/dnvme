@@ -263,7 +263,7 @@ static void dnvme_remove(struct pci_dev *dev)
             /* Wait for any other dnvme access to finish, then stop further
              * before we free resources to prevent circular issues */
             mutex_lock(&pmetrics_device->metrics_mtx);
-            nvme_disable(pmetrics_device, ST_DISABLE_COMPLETELY);
+            device_cleanup(pmetrics_device, ST_DISABLE_COMPLETELY);
             pci_disable_device(pdev);
 
             /* Release the selected memory regions that were reserved */
@@ -356,10 +356,10 @@ static void unlock_device(struct  metrics_device_list *pmetrics_device)
  */
 int dnvme_open(struct inode *inode, struct file *filp)
 {
-    struct  metrics_device_list *pmetrics_device; /* Metrics device  */
+    struct metrics_device_list *pmetrics_device;
     int err = SUCCESS;
 
-    LOG_DBG("Call to open the device...");
+    LOG_DBG("Opening NVMe device");
     pmetrics_device = lock_device(inode);
     if (pmetrics_device == NULL) {
         LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
@@ -369,11 +369,10 @@ int dnvme_open(struct inode *inode, struct file *filp)
 
     if (pmetrics_device->metrics_device->private_dev.open_flag == 0) {
         pmetrics_device->metrics_device->private_dev.open_flag = 1;
-        deallocate_all_queues(pmetrics_device, ST_DISABLE_COMPLETELY);
-        deallocate_mb(pmetrics_device);
+        device_cleanup(pmetrics_device, ST_DISABLE_COMPLETELY);
     } else {
-        LOG_ERR("Attempt to open device multiple times not allowed!!");
-        err =  -EPERM; /* Operation not permitted */
+        LOG_ERR("Attempt to open device multiple times not allowed!");
+        err = -EPERM;
     }
 
 op_exit:
@@ -394,21 +393,20 @@ int dnvme_release(struct inode *inode, struct file *filp)
     struct  metrics_device_list *pmetrics_device;
     int err = SUCCESS;
 
-    LOG_DBG("Call to Release the device...");
+    LOG_DBG("Call to Release the device");
     pmetrics_device = lock_device(inode);
     if (pmetrics_device == NULL) {
-        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        LOG_ERR("Cannot lock on this device with minor # %d", iminor(inode));
         err = -ENODEV;
         goto rel_exit;
     }
 
     /* Set the device open flag to false */
     pmetrics_device->metrics_device->private_dev.open_flag = 0;
-    /* Disable the NVME controller */
-    nvme_disable(pmetrics_device, ST_DISABLE_COMPLETELY);
+    device_cleanup(pmetrics_device, ST_DISABLE_COMPLETELY);
 
 rel_exit:
-    LOG_DBG("Device Closed. Releasing Mutex...");
+    LOG_DBG("NVMe device closed");
     unlock_device(pmetrics_device);
     return err;
 }
@@ -635,7 +633,7 @@ long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
         case ST_DISABLE_COMPLETELY:
             LOG_DBG("Disabling the DUT");
             if ((err = nvme_ctrl_disable(pmetrics_device)) == SUCCESS) {
-                nvme_disable(pmetrics_device, (enum nvme_state)ioctl_param);
+                device_cleanup(pmetrics_device, (enum nvme_state)ioctl_param);
             }
             break;
          default:

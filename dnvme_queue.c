@@ -157,9 +157,9 @@ int nvme_ctrl_disable(struct metrics_device_list *pmetrics_device)
 
 
 /*
- * Called for Controller Disable to clean up the driver data structures
+ * Called to clean up the driver data structures
  */
-void nvme_disable(struct metrics_device_list *pmetrics_device,
+void device_cleanup(struct metrics_device_list *pmetrics_device,
     enum nvme_state new_state)
 {
     /* Clean the IRQ data structures */
@@ -651,7 +651,7 @@ static void reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
 void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
     enum nvme_state new_state)
 {
-    u8 exclude_admin = (new_state == ST_DISABLE) ? ~0 : 0;
+    char preserve_admin_qs = (new_state == ST_DISABLE_COMPLETELY) ? 0 : -1;
     struct  metrics_sq  *pmetrics_sq_list;
     struct  metrics_sq  *pmetrics_sq_next;
     struct  metrics_cq  *pmetrics_cq_list;
@@ -666,7 +666,7 @@ void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
         &pmetrics_device->metrics_sq_list, sq_list_hd) {
 
         /* Check if Admin Q is excluded or not */
-        if (exclude_admin && (pmetrics_sq_list->public_sq.sq_id == 0)) {
+        if (preserve_admin_qs && (pmetrics_sq_list->public_sq.sq_id == 0)) {
             LOG_DBG("Retaining ASQ from deallocation");
             /* drop sq cmds and set to zero the public metrics of asq */
             reinit_admn_sq(pmetrics_sq_list, pmetrics_device);
@@ -681,7 +681,7 @@ void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
         &pmetrics_device->metrics_cq_list, cq_list_hd) {
 
         /* Check if Admin Q is excluded or not */
-        if (exclude_admin && pmetrics_cq_list->public_cq.q_id == 0) {
+        if (preserve_admin_qs && pmetrics_cq_list->public_cq.q_id == 0) {
             LOG_DBG("Retaining ACQ from deallocation");
             /* set to zero the public metrics of acq */
             reinit_admn_cq(pmetrics_cq_list);
@@ -692,7 +692,7 @@ void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
     }
 
     /* if complete disable then reset the controller admin registers. */
-    if (new_state == ST_DISABLE_COMPLETELY) {
+    if (! preserve_admin_qs) {
         /* Set the Registers to default values. */
         /* Write 0 to AQA */
         writel(0x0, &pmetrics_device->metrics_device->private_dev.

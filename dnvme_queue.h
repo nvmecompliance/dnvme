@@ -120,12 +120,11 @@ int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device);
 int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device);
 
 /**
- * nvme_disable - NVME controller disable function. This will clean up all the
- * existing datastructures used by the driver
+ * device_cleanup - Will clean up all the existing data structs used by driver
  * @param pmetrics_device
  * @param new_state
  */
-void nvme_disable(struct  metrics_device_list *pmetrics_device,
+void device_cleanup(struct  metrics_device_list *pmetrics_device,
     enum nvme_state new_state);
 /**
  * identify_unique - verify if the q_id specified is unique. If not unique then
