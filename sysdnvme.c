@@ -672,7 +672,7 @@ long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
             (struct nvme_64b_send *)ioctl_param);
         break;
 
-    case NVME_TOXIC_64B_DWORD:
+    case NVME_IOCTL_TOXIC_64B_DWORD:
         LOG_DBG("NVME_TOXIC_64B_DWORD");
         err = driver_toxic_dword(pmetrics_device,
             (struct backdoor_inject *)ioctl_param);
