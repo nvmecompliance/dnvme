@@ -465,7 +465,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
 
 #ifdef DEBUG
     {
-        u16 cap_mqes = 0;
+        u32 cap_mqes = 0;
 
         /* Check to see if the entries exceed the Max Q entries supported */
         cap_mqes = ((readl(&pnvme_dev->private_dev.ctrlr_regs->cap) & 0xFFFF) + 1);

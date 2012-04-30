@@ -735,7 +735,9 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
     u32 entry_size = 64;                /* Assumption is for ASQ */
     struct metrics_sq *pmetrics_sq;     /* Ptr to specific SQ of interest */
     struct backdoor_inject *user_data = NULL;
-
+#ifdef DEBUG
+    int i;
+#endif
 
     /* Allocating memory for user struct in kernel space */
     user_data = kmalloc(sizeof(struct backdoor_inject), GFP_KERNEL);
@@ -805,20 +807,55 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
 
     /* Inject the requested bit values into the appropriate place */
     if (pmetrics_sq->private_sq.contig) {
+#ifdef DEBUG
+        for (i = 0; i < entry_size; i += sizeof(u32)) {
+            LOG_DBG("B4 cmd DW%d = 0x%08X", (int)(i / sizeof(u32)),
+                *((u32 *)(pmetrics_sq->private_sq.vir_kern_addr +
+                (user_data->cmd_ptr * entry_size) + i)));
+        }
+#endif
         tgt_dword = (u32 *)(pmetrics_sq->private_sq.vir_kern_addr +
-            (user_data->cmd_ptr * entry_size) + user_data->dword);
+            (user_data->cmd_ptr * entry_size) +
+            (user_data->dword * sizeof(u32)));
+        LOG_DBG("B4 tgt_DW%d = 0x%08X", user_data->dword, *tgt_dword);
         *tgt_dword &= ~user_data->value_mask;
         *tgt_dword |= (user_data->value & user_data->value_mask);
+        LOG_DBG("After tgt_DW%d = 0x%08X", user_data->dword, *tgt_dword);
+#ifdef DEBUG
+        for (i = 0; i < entry_size; i += sizeof(u32)) {
+            LOG_DBG("After cmd DW%d = 0x%08X", (int)(i / sizeof(u32)),
+                *((u32 *)(pmetrics_sq->private_sq.vir_kern_addr +
+                (user_data->cmd_ptr * entry_size) + i)));
+        }
+#endif
     } else {
+#ifdef DEBUG
+        for (i = 0; i < entry_size; i += sizeof(u32)) {
+            LOG_DBG("B4 cmd DW%d = 0x%08X", (int)(i / sizeof(u32)),
+                *((u32 *)(pmetrics_sq->private_sq.prp_persist.vir_kern_addr +
+                (user_data->cmd_ptr * entry_size) + i)));
+        }
+#endif
         tgt_dword = (u32 *)(pmetrics_sq->private_sq.prp_persist.vir_kern_addr +
-            (user_data->cmd_ptr * entry_size) + user_data->dword);
+            (user_data->cmd_ptr * entry_size) +
+            (user_data->dword * sizeof(u32)));
+        LOG_DBG("B4 tgt_DW%d = 0x%08X", user_data->dword, *tgt_dword);
         *tgt_dword &= ~user_data->value_mask;
         *tgt_dword |= (user_data->value & user_data->value_mask);
+        LOG_DBG("After tgt_DW%d = 0x%08X", user_data->dword, *tgt_dword);
 
         dma_sync_sg_for_device(pmetrics_device->metrics_device->
             private_dev.dmadev, pmetrics_sq->private_sq.prp_persist.sg,
             pmetrics_sq->private_sq.prp_persist.num_map_pgs,
             pmetrics_sq->private_sq.prp_persist.data_dir);
+
+#ifdef DEBUG
+        for (i = 0; i < entry_size; i += sizeof(u32)) {
+            LOG_DBG("After cmd DW%d = 0x%08X", (int)(i / sizeof(u32)),
+                *((u32 *)(pmetrics_sq->private_sq.prp_persist.vir_kern_addr +
+                (user_data->cmd_ptr * entry_size) + i)));
+        }
+#endif
     }
     return SUCCESS;
 
