@@ -49,8 +49,16 @@ struct msix_info {
 /* Bit mask for pin# interrupts */
 #define     PIN_INT_BIT_MASK        (1 << 10)
 
+/* Entry size in bytes for each entry in MSIX table */
+#define     MSIX_ENTRY_SIZE         16
+
+/* MSIX Table vector control offset in bytes */
+#define     MSIX_VEC_CTRL           12
+
 /* Table size mask bits for MSIX */
 #define     MSIX_TS                 0x7FF
+#define     MSIX_TBIR               0x07
+#define     MSIX_PBIR               0x07
 
 /* Mask for MSIX enable */
 #define     MSIX_ENABLE             0x8000
@@ -60,15 +68,6 @@ struct msix_info {
 
 /* Mask for MSI Multi message enable bits */
 #define     MSI_MME                 0x70
-
-/* Mask for MSIX table BIR identification */
-#define     MSIX_TBIR_MASK           0x7
-
-/* Entry size in bytes for each entry in MSIX table */
-#define     MSIX_ENTRY_SIZE         16
-
-/* MSIX Table vector control offset in bytes */
-#define     MSIX_VEC_CTRL           12
 
 /* Interrupt vector mask set(IVMS) register offset */
 #define     INTMS_OFFSET            0x0C

@@ -76,7 +76,7 @@ int device_status_chk(struct  metrics_device_list *pmetrics_device, int *status)
     }
 
     ker_status = (ker_status == SUCCESS) ? nvme_controller_status
-        (pmetrics_device->metrics_device->private_dev.bar0) : FAIL;
+        (pmetrics_device->metrics_device->private_dev.ctrlr_regs) : FAIL;
     if (ker_status == SUCCESS) {
         LOG_DBG("NVME Controller Status SUCCESS (CSTS)");
     } else {
@@ -500,7 +500,8 @@ fail_out:
 }
 
 
-int driver_ioctl_init(struct pci_dev *pdev, void __iomem *ctrlrRegs,
+int driver_ioctl_init(struct pci_dev *pdev, void __iomem *bar0,
+    void __iomem *bar1, void __iomem *bar2,
     struct metrics_device_list *pmetrics_device_list)
 {
     int err;
@@ -522,8 +523,10 @@ int driver_ioctl_init(struct pci_dev *pdev, void __iomem *ctrlrRegs,
 
     mutex_init(&pmetrics_device_list->irq_process.irq_track_mtx);
     pmetrics_device_list->metrics_device->private_dev.pdev = pdev;
-    pmetrics_device_list->metrics_device->private_dev.bar0 = ctrlrRegs;
-    pmetrics_device_list->metrics_device->private_dev.ctrlr_regs = ctrlrRegs;
+    pmetrics_device_list->metrics_device->private_dev.bar0 = bar0;
+    pmetrics_device_list->metrics_device->private_dev.bar1 = bar1;
+    pmetrics_device_list->metrics_device->private_dev.bar2 = bar2;
+    pmetrics_device_list->metrics_device->private_dev.ctrlr_regs = bar0;
     pmetrics_device_list->metrics_device->private_dev.dmadev =
         &pmetrics_device_list->metrics_device->private_dev.pdev->dev;
 

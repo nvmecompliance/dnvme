@@ -26,6 +26,8 @@
 #include "definitions.h"
 #include "sysdnvme.h"
 #include "dnvme_reg.h"
+
+
 /*
  *  device_status_pci  - PCI device status check function
  *  which checks error registers and set kernel
@@ -33,17 +35,12 @@
  */
 int device_status_pci(u16 device_data)
 {
-    int status;
+    int status = SUCCESS;
+
 
     LOG_DBG("PCI Device Status (STS) Data = 0x%X", device_data);
     LOG_DBG("Checking all the PCI register error bits");
-    /*
-    * Set the status to SUCCESS and eventually verify any error
-    * really got set.
-    */
-    status = SUCCESS;
-
-   if (device_data & DEV_ERR_MASK) {
+    if (device_data & DEV_ERR_MASK) {
         status = FAIL;
 
         if (device_data & DPE) {
@@ -73,27 +70,25 @@ int device_status_pci(u16 device_data)
     return status;
 }
 
+
 /*
  * nvme_controller_status - This function checks the controller status
  */
-int nvme_controller_status(u8 __iomem *bar0)
+int nvme_controller_status(struct nvme_ctrl_reg __iomem *ctrlr_regs)
 {
     int status;
     u32 u32data;
     u32 tmp;
-    struct nvme_ctrl_reg __iomem *ctrlrRegs;
-
-    ctrlrRegs = (struct nvme_ctrl_reg __iomem *)bar0;
 
     LOG_DBG("Checking the NVME Controller Status (CSTS)...");
-    u32data = readl(&ctrlrRegs->csts);
+    u32data = readl(&ctrlr_regs->csts);
     tmp = u32data;
 
     LOG_DBG("NVME Controller Status CSTS = 0x%X", u32data);
     u32data &= NVME_CSTS_RSVD;
 
     status = SUCCESS;
-    if (u32data != NVME_CSTS_RDY || u32data == NVME_CSTS_CFS) {
+    if ((u32data != NVME_CSTS_RDY) || (u32data == NVME_CSTS_CFS)) {
         if ((u32data & NVME_CSTS_RDY) == 0x0) {
             LOG_DBG("NVME Controller is not ready (RDY)...");
         }
@@ -130,6 +125,7 @@ int nvme_controller_status(u8 __iomem *bar0)
     return status;
 }
 
+
 /*
  * device_status_next  - This function will check if the NVME device supports
  * NEXT capability item in the linked list. If the device supports the NEXT
@@ -139,47 +135,36 @@ int nvme_controller_status(u8 __iomem *bar0)
  */
 int device_status_next(struct pci_dev *pdev)
 {
-    int status     = 0;
+    int status     = SUCCESS;
     int ret_code   = 0;
     u16 pci_offset = 0;
     u32 cap_aer    = 0;
     u16 next_item  = 1;
     u16 capability = 0;
-    u16 data       = 0; /* Unsigned 16 bit data. */
+    u16 data       = 0;
     u8 power_management_feature = 0;
+
 
     LOG_DBG("Checking NEXT Capabilities of the NVME Controller");
     LOG_DBG("Checks if PMCS is supported as a minimum");
-
-    /*
-    * Set status success when you enter this function and
-    * determine if it ever fails subsequently when it checking the
-    * status bits.
-    */
-    status = SUCCESS;
 
     /*
     * Check if CAP pointer points to next available
     * linked list registers in the PCI Header.
     */
     ret_code = pci_read_config_byte(pdev, CAP_REG, (u8 *)&pci_offset);
-
     if (ret_code < 0) {
         LOG_ERR("pci_read_config failed in driver error check");
     }
-
     LOG_DBG("CAP_REG Contents = 0x%X", pci_offset);
-
 
     /*
      * Read 16 bits of data from the Next pointer as PMS bit
-     * which is must
-     */
+     * which is must */
     ret_code = pci_read_config_word(pdev, pci_offset, (u16 *)&cap_aer);
     if (ret_code < 0) {
         LOG_ERR("pci_read_config failed in driver error check");
     }
-
     cap_aer = (u16)(cap_aer & LOWER_16BITS);
 
     /*
@@ -300,6 +285,7 @@ int device_status_next(struct pci_dev *pdev)
     return status;
 }
 
+
 /*
  * device_status_pmcs: This function checks the pci power management
  * control and status.
@@ -307,17 +293,10 @@ int device_status_next(struct pci_dev *pdev)
  */
 int device_status_pmcs(u16 device_data)
 {
-    int status;
-    /*
-    * Set the status to SUCCESS and eventually verify any error
-    * really got set.
-    */
-    status = SUCCESS;
-
     LOG_DBG("PCI Power Management Control and Status = %x", device_data);
-
-    return status;
+    return SUCCESS;
 }
+
 
 /*
  * device_status_msicap: This function checks the Message Signaled Interrupt
@@ -325,63 +304,40 @@ int device_status_pmcs(u16 device_data)
  */
 int device_status_msicap(struct pci_dev *pdev, u16 device_data)
 {
-    int status;
-    /*
-    * Set the status to SUCCESS and eventually verify any error
-    * really got set.
-    */
-    status = SUCCESS;
-
     LOG_DBG("PCI MSI Cap= %x", device_data);
-
-    return status;
+    return SUCCESS;
 }
+
+
 /*
  * device_status_msixcap: This func checks the Message Signaled Interrupt - X
  * control and status bits.
  */
 int device_status_msixcap(struct pci_dev *pdev, u16 device_data)
 {
-    int status;
-    /*
-    * Set the status to SUCCESS and eventually verify any error
-    * really got set.
-    */
-    status = SUCCESS;
-
     LOG_DBG("PCI MSI-X Cap= %x", device_data);
-
-    return status;
+    return SUCCESS;
 }
+
+
 /*
  * device_status_pxcap: This func checks the PCI Express
  * Capability status register
  */
 int device_status_pxcap(struct pci_dev *pdev, u16 base_offset)
 {
-    int status;
+    int status = SUCCESS;
     u16 pxcap_sts_reg;
     int ret_code;
     u16 offset;
 
-    /*
-     * Set the status to SUCCESS and eventually verify any error
-     * really got set.
-     */
-    status = SUCCESS;
 
     LOG_DBG("Offset Value of PXCAP= %x", base_offset);
-
-    /*
-     * Print out on kern.log that driver is checking the PCI
-     * express device status register.
-     */
     LOG_DBG("Checking the PCI Express Device Status (PXDS)...");
     LOG_DBG("Offset PXCAP + Ah: PXDS");
 
     /* Compute the PXDS offset from the PXCAP */
     offset = base_offset + NVME_PXCAP_PXDS;
-
     LOG_DBG("PXDS Offset = 0x%X", offset);
 
     /* Read the device status register value into pxcap_sts_reg */
@@ -389,7 +345,6 @@ int device_status_pxcap(struct pci_dev *pdev, u16 base_offset)
     if (ret_code < 0) {
         LOG_ERR("pci_read_config failed in driver error check");
     }
-
     LOG_DBG("PXDS Device status register data = 0x%X\n", pxcap_sts_reg);
 
     /* Mask off the reserved bits. */
@@ -439,16 +394,11 @@ int device_status_pxcap(struct pci_dev *pdev, u16 base_offset)
  */
 int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
 {
-    int status; /* Status indicating SUCCESS or FAIL */
+    int status = SUCCESS;
     u16 offset; /* Offset 16 bit for PCIE space */
     u32 u32aer_sts = 0; /* AER Cap Status data */
     u32 u32aer_msk = 0; /* AER Mask bits data */
     int ret_code = 0; /* Return code for pci reads */
-    /*
-     * Set the status to SUCCESS and eventually verify any error
-     * really got set.
-     */
-    status = SUCCESS;
 
     LOG_DBG("Offset in AER CAP= 0x%X", base_offset);
     LOG_DBG("Checking Advanced Err Capability Status Regs (AERUCES and AERCS)");

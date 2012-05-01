@@ -44,8 +44,6 @@ static void bh_callback(struct work_struct *work);
 static void dealloc_all_icqs(struct  irq_track *pirq_trk_list);
 static int disable_active_irq(struct metrics_device_list
     *pmetrics_device_elem, enum nvme_irq_type  irq_active);
-static int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
-    u16 *offset);
 static void inc_isr_count(struct irq_processing *pirq_process,
     u16 irq_no);
 static struct irq_track *find_irq_node(
@@ -240,7 +238,7 @@ static int disable_active_irq(struct metrics_device_list
     /* clean up and free all IRQ linked list nodes */
     deallocate_irq_trk(pmetrics_device_elem);
 
-    /*Dealloc the work list if it exists */
+    /* Dealloc the work list if it exists */
     dealloc_wk_list(&pmetrics_device_elem->irq_process);
 
     /* Now we can Set IRQ type to INT_NONE */
@@ -261,26 +259,14 @@ static int disable_active_irq(struct metrics_device_list
  */
 static void nvme_disable_pin(struct pci_dev *dev)
 {
-    u16 val;    /* temp variable to read cmd value */
-    /* disable pin based INT by writing 0 in bit position 10 of CMD_OFFSET  */
-    pci_read_config_word(dev, CMD_OFFSET, &val);    /* Read value           */
-    val |= PIN_INT_BIT_MASK;                        /* Modify in place      */
-    pci_write_config_word(dev, CMD_OFFSET, val);    /* write value          */
+    u16 val;
+
+    /* disable pin based INT by writing 0 in bit position 10 of CMD_OFFSET */
+    pci_read_config_word(dev, CMD_OFFSET, &val);
+    val |= PIN_INT_BIT_MASK;
+    pci_write_config_word(dev, CMD_OFFSET, val);
 }
 
-/*
- * We need to enable the HW pin based interrupts when the driver unloads.
- * This will allow the card to generate PIN# IRQ.
- */
-/* static void nvme_enable_pin(struct pci_dev *dev)
-{
-    u16 val;    // temp variable to read cmd value
-    // Enable pin based INT by writing 1 in bit position 10 of CMD_OFFSET
-    pci_read_config_word(dev, CMD_OFFSET, &val);    // Read value
-    val &= ~PIN_INT_BIT_MASK;                       // Modify in place
-    pci_write_config_word(dev, CMD_OFFSET, val);    // write value
-}
-*/
 
 /*
  * Check if the controller supports the interrupt type requested. If it
@@ -288,8 +274,8 @@ static void nvme_disable_pin(struct pci_dev *dev)
  * caller to indicate that the controller does not support the capability
  * type.
  */
-static int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
-        u16 *offset)
+int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
+    u16 *offset)
 {
     u16 val = 0;
     u16 pci_offset = 0;
@@ -328,6 +314,7 @@ static int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
             /* Next Capability offset. */
             pci_offset = (val & NEXT_MASK) >> 8;
         } /* end of while loop */
+
     } else if (cap_type == INT_MSI_SINGLE || cap_type == INT_MSI_MULTI) {
         /* Loop through Capability list */
         while (pci_offset) {
@@ -346,6 +333,7 @@ static int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
             /* Next Capability offset. */
             pci_offset = (val & NEXT_MASK) >> 8;
         } /* end of while loop */
+
     } else {
         LOG_ERR("Invalid capability type specified...");
         ret_val = -EINVAL;
@@ -380,6 +368,7 @@ static int validate_irq_inputs(struct metrics_device_list
 
     /* Switch based on new irq type desired */
     switch (irq_new->irq_type) {
+
     case INT_MSI_SINGLE: /* MSI Single interrupt settings */
         if (irq_new->num_irqs != MAX_IRQ_VEC_MSI_SIN) {
             LOG_ERR("IRQ vectors cannot be greater/equal %d in MSI Single IRQ",
@@ -395,6 +384,7 @@ static int validate_irq_inputs(struct metrics_device_list
         pmetrics_device_elem->irq_process.mask_ptr = pmetrics_device_elem->
             metrics_device->private_dev.bar0 + INTMS_OFFSET;
         break;
+
     case INT_MSI_MULTI: /* MSI Multi interrupt settings */
         if (irq_new->num_irqs > MAX_IRQ_VEC_MSI_MUL ||
             irq_new->num_irqs == 0) {
@@ -421,6 +411,7 @@ static int validate_irq_inputs(struct metrics_device_list
         pmetrics_device_elem->irq_process.mask_ptr = pmetrics_device_elem->
             metrics_device->private_dev.bar0 + INTMS_OFFSET;
         break;
+
     case INT_MSIX: /* MSI-X interrupt settings */
         /* First check if num irqs req are greater than MAX MSIX SUPPORTED */
         if (irq_new->num_irqs > MAX_IRQ_VEC_MSI_X ||
@@ -710,68 +701,79 @@ free_msim:
     return ret_val;
 }
 
+
 /*
  * Update MSIX pointer in the irq process structure.
  */
 static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
     u16 offset, struct msix_info *pmsix_tbl_info)
 {
-    u8 __iomem *msixptr;    /* msix pointer for this device   */
-    u32 msi_x_to;           /* msix table offset in pci space */
-    u32 msix_tbir;          /* msix table BIR BAR indicator   */
-    u32 msix_mpba;          /* msix pba offset and pba BIR */
-    u32 msix_pbir;          /* msix table PBIR BAR indicator   */
+    u8 __iomem *msix_ptr = NULL;
+    u8 __iomem *pba_ptr = NULL;
+    u32 msix_mtab;          /* MSIXCAP.MTAB register */
+    u32 msix_to;            /* MSIXCAP.MTAB.TO field */
+    u32 msix_tbir;          /* MSIXCAP.MTAB.TBIR field */
+    u32 msix_mpba;          /* MSIXCAP.MPBA register */
+    u32 msix_pbir;          /* MSIXCAP.MPBA.PBIR field */
+    u32 msix_pbao;          /* MSIXCAP.MPBA.PBAO field */
     struct nvme_device *metrics_device = pmetrics_device_elem->metrics_device;
     struct pci_dev *pdev = metrics_device->private_dev.pdev;
 
-    /* compute MSI-X Table offset using given MSI-X offset */
+
+    /* Compute & read offset for MSIXCAP.MTAB register */
     offset += 0x4;
-    /* Read the MTAB Table offset and TBIR from pci space */
-    pci_read_config_dword(pdev, offset, &msi_x_to);
-    /* Compute TBIR using data located in NMVE space at the offset */
-    msix_tbir = msi_x_to & MSIX_TBIR_MASK;
-    /* compute MSI-X PBA offset using given MSI-X offset */
+    pci_read_config_dword(pdev, offset, &msix_mtab);
+    msix_tbir = (msix_mtab & MSIX_TBIR);
+    msix_to =   (msix_mtab & ~MSIX_TBIR);
+
+    /* Compute & read offset for MSIXCAP.MPBA register */
     offset += 0x4;
-    /* Read the MPBA Table offset and PBIR from pci space */
     pci_read_config_dword(pdev, offset, &msix_mpba);
-    /* Compute PBIR using data located in NMVE space at the offset */
-    msix_pbir = msix_mpba & MSIX_TBIR_MASK;
+    msix_pbir = (msix_mpba & MSIX_PBIR);
+    msix_pbao = (msix_mpba & ~MSIX_PBIR);
 
-    /* Check which BAR locations are used for MSI-X Table offset */
-    /* TODO: Support for all BAR's */
-    if (msix_tbir == 0x0) {
-        /* if BIR is 0 it indicates BAR 0 offset is used. */
-        msixptr = metrics_device->private_dev.bar0 +
-            (msi_x_to & ~MSIX_TBIR_MASK);
-    } else if (msix_tbir == 0x4) {
-        LOG_DBG("BAR 4 Location not supported yet...");
+    switch (msix_tbir) {
+    case 0x00:  /* BAR0 (64-bit) */
+        msix_ptr = (metrics_device->private_dev.bar0 + msix_to);
+        break;
+    case 0x04:  /* BAR2 (64-bit) */
+        if (metrics_device->private_dev.bar2 == NULL) {
+            LOG_DBG("BAR2 not implemented by DUT");
+            return -EINVAL;
+        }
+        msix_ptr = (metrics_device->private_dev.bar2 + msix_to);
+        break;
+    case 0x05:
+        LOG_DBG("BAR5 not supported, implies 32-bit, TBIR requiring 64-bit");
         return -EINVAL;
-    } else if (msix_tbir == 0x5) {
-        LOG_DBG("BAR 5 locations not supported yet...");
-        return -EINVAL;
-    } else {
-        LOG_ERR("Trying to access TBIR reserved bits");
+    default:
+        LOG_DBG("BAR? not supported, check value in MSIXCAP.MTAB.TBIR");
         return -EINVAL;
     }
 
-    /* Check which BAR locations are used for PBA Table offset */
-    /* TODO: Support for all BAR's */
-    if (msix_pbir == 0x0) {
-        pmsix_tbl_info->pba_tbl = metrics_device->private_dev.bar0 +
-            (msix_mpba & ~MSIX_TBIR_MASK);
-    } else if (msix_pbir == 0x4) {
-        LOG_DBG("BAR 4 Location not supported yet...");
+    switch (msix_pbir) {
+    case 0x00:  /* BAR0 (64-bit) */
+        pba_ptr = (metrics_device->private_dev.bar0 + msix_pbao);
+        break;
+    case 0x04:  /* BAR2 (64-bit) */
+        if (metrics_device->private_dev.bar2 == NULL) {
+            LOG_DBG("BAR2 not implemented by DUT");
+            return -EINVAL;
+        }
+        pba_ptr = (metrics_device->private_dev.bar2 + msix_pbao);
+        break;
+    case 0x05:
+        LOG_DBG("BAR5 not supported, implies 32-bit, MPBA requiring 64-bit");
         return -EINVAL;
-    } else if (msix_pbir == 0x5) {
-        LOG_DBG("BAR 5 locations not supported yet...");
-        return -EINVAL;
-    } else {
-        LOG_ERR("Trying to access PBIR reserved bits");
+    default:
+        LOG_DBG("BAR? not supported, check value in MSIXCAP.MPBA.PBIR");
         return -EINVAL;
     }
+
     /* Update the msix pointer in the device metrics */
-    pmetrics_device_elem->irq_process.mask_ptr = msixptr;
-    pmsix_tbl_info->msix_tbl = msixptr;
+    pmetrics_device_elem->irq_process.mask_ptr = msix_ptr;
+    pmsix_tbl_info->msix_tbl = msix_ptr;
+    pmsix_tbl_info->pba_tbl = pba_ptr;
     return SUCCESS;
 }
 

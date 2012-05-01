@@ -19,6 +19,9 @@
 #ifndef _DNVME_STS_CHK_H_
 #define _DNVME_STS_CHK_H_
 
+#include "dnvme_reg.h"
+
+
 /**
  * @def PCI_DEVICE_STATUS
  * define the offset for STS register
@@ -244,17 +247,17 @@ int device_status_next(struct pci_dev *pdev);
 
 /**
  * nvme_controller_status - This function checks the controller status
- * @param bar0
+ * @param ctrlr_regs
  * @return SUCCESS or FAIL
  */
-int nvme_controller_status(u8 __iomem *bar0);
+int nvme_controller_status(struct nvme_ctrl_reg __iomem *ctrlr_regs);
 
 /**
  * device_status_pci function returns the device status of
  * the PCI Power Management status register set in PMCS register.
  * @param device_data
- * @return SUCCESS or FAIL
- */
+  * @return SUCCESS or FAIL
+  */
 int device_status_pmcs(u16 device_data);
 
 /**

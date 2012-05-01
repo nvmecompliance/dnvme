@@ -120,6 +120,28 @@ int driver_log(struct nvme_file *n_file)
             snprintf(work, SIZE_OF_WORK, "pdev = 0X%llX\n",
                 (u64)pmetrics_device->metrics_device->private_dev.pdev);
             vfs_write(file, work, strlen(work), &pos);
+
+            snprintf(work, SIZE_OF_WORK, "bar0 = 0X%llX\n",
+                (u64)pmetrics_device->metrics_device->private_dev.bar0);
+            vfs_write(file, work, strlen(work), &pos);
+            snprintf(work, SIZE_OF_WORK, "bar1 = 0X%llX\n",
+                (u64)pmetrics_device->metrics_device->private_dev.bar1);
+            vfs_write(file, work, strlen(work), &pos);
+            snprintf(work, SIZE_OF_WORK, "bar2 = 0X%llX\n",
+                (u64)pmetrics_device->metrics_device->private_dev.bar2);
+            vfs_write(file, work, strlen(work), &pos);
+            snprintf(work, SIZE_OF_WORK, "ctrlr_regs = 0X%llX\n",
+                (u64)pmetrics_device->metrics_device->private_dev.ctrlr_regs);
+            vfs_write(file, work, strlen(work), &pos);
+            snprintf(work, SIZE_OF_WORK, "dmadev = 0X%llX\n",
+                (u64)pmetrics_device->metrics_device->private_dev.dmadev);
+            vfs_write(file, work, strlen(work), &pos);
+            snprintf(work, SIZE_OF_WORK, "prp_page_pool = 0X%llX\n", (u64)
+                pmetrics_device->metrics_device->private_dev.prp_page_pool);
+            vfs_write(file, work, strlen(work), &pos);
+            snprintf(work, SIZE_OF_WORK, "spcl_dev = 0X%llX\n",
+                (u64)pmetrics_device->metrics_device->private_dev.spcl_dev);
+            vfs_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK,
                 "Interrupts:Active Scheme (S=0/M=1/X=2/N=3) = %d\n",
                 pmetrics_device->metrics_device->public_dev.irq_active.

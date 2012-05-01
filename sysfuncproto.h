@@ -82,7 +82,8 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
  * @param pmetrics_device_list
  * @return init SUCCESS or FAIL
  */
-int driver_ioctl_init(struct pci_dev *pdev, void __iomem *ctrlrRegs,
+int driver_ioctl_init(struct pci_dev *pdev, void __iomem *bar0,
+    void __iomem *bar1, void __iomem *bar2,
     struct metrics_device_list *pmetrics_device_list);
 
 /**
@@ -243,5 +244,8 @@ int metabuff_del(struct metrics_device_list *pmetrics_device,
  * @param pmetrics_device
  */
 void deallocate_mb(struct metrics_device_list *pmetrics_device);
+
+int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
+    u16 *offset);
 
 #endif

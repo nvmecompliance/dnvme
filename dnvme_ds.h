@@ -166,7 +166,9 @@ struct private_metrics_dev {
     struct pci_dev *pdev;           /* Pointer to the PCIe device */
     struct device *spcl_dev;        /* Special device file */
     struct nvme_ctrl_reg __iomem *ctrlr_regs;  /* Pointer to reg space */
-    u8 __iomem *bar0;               /* Bar 0 IO re-mapped value */
+    u8 __iomem *bar0;               /* 64 bit BAR0 memory mapped ctrlr regs */
+    u8 __iomem *bar1;               /* 64 bit BAR1 I/O mapped registers */
+    u8 __iomem *bar2;               /* 64 bit BAR2 memory mapped MSIX table */
     struct dma_pool *prp_page_pool; /* Mem for PRP List */
     struct device *dmadev;          /* Pointer to the dma device from pdev */
     int minor_no;                   /* Minor no. of the device being used */
