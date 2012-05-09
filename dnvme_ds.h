@@ -144,7 +144,7 @@ struct irq_track {
 struct metrics_meta_data {
     struct list_head meta_trk_list;
     struct dma_pool *meta_dmapool_ptr;
-    u16              meta_buf_size;
+    u32              meta_buf_size;
 };
 
 /*

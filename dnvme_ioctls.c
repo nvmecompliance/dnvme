@@ -574,7 +574,7 @@ fail_out:
  * with DWORD alignment and associate it with the active device.
  */
 int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
-    u16 alloc_size)
+    u32 alloc_size)
 {
     /* First Check if the meta pool already exists */
     if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr != NULL) {
@@ -588,9 +588,9 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
     /* Create coherent DMA mapping for meta data buffer creation */
     pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = dma_pool_create
         ("meta_buff", &pmetrics_device_elem->metrics_device->
-        private_dev.pdev->dev, sizeof(u32), alloc_size, 0);
+        private_dev.pdev->dev, alloc_size, sizeof(u32), 0);
     if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr == NULL) {
-        LOG_ERR("Creation of DMA Pool failed");
+        LOG_ERR("Creation of DMA Pool failed size = 0x%08X", alloc_size);
         return -ENOMEM;
     }
 

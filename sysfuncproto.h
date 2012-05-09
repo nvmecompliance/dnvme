@@ -214,7 +214,7 @@ int driver_reap_cq(struct metrics_device_list *pmetrics_device,
  * @return SUCCESS or FAIL based on dma pool creation.
  */
 int metabuff_create(struct metrics_device_list *pmetrics_device,
-    u16 alloc_size);
+    u32 alloc_size);
 
 /**
  * Create a meta buffer node when user request and allocate a consistent

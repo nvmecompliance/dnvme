@@ -85,8 +85,8 @@
 
 /**
  * @def MAX_METABUFF_SIZE
- * Indicates the Max Meta buff size allowed is 16KB
+ * Indicates the max meta buff size allowed per cmd is 2GB
  */
-#define MAX_METABUFF_SIZE       0x4000
+#define MAX_METABUFF_SIZE       (1 << 31)
 
 #endif

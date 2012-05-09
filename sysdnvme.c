@@ -770,11 +770,11 @@ long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
     case NVME_IOCTL_METABUF_CREATE:
         LOG_DBG("NVME_IOCTL_METABUF_CREATE");
         if (ioctl_param > MAX_METABUFF_SIZE) {
-            LOG_ERR("Meta buffer size exceeds max(0x%x) > 0x%x",
-                MAX_METABUFF_SIZE, (u16)ioctl_param);
+            LOG_ERR("Meta buffer size exceeds max(0x%08X) > 0x%08X",
+                MAX_METABUFF_SIZE, (u32)ioctl_param);
             err = -EINVAL;
         } else {
-            err = metabuff_create(pmetrics_device, (u16)ioctl_param);
+            err = metabuff_create(pmetrics_device, (u32)ioctl_param);
         }
         break;
 
