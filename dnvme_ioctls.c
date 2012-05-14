@@ -986,7 +986,7 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
     }
 
     /* Special handling for opcodes 0x00,0x01,0x04 and 0x05 of Admin cmd set */
-    if (user_data->cmd_set == CMD_ADMIN && nvme_gen_cmd->opcode == 0x01) {
+    if ((user_data->q_id == 0) && (nvme_gen_cmd->opcode == 0x01)) {
         /* Create IOSQ command */
         nvme_create_sq = (struct nvme_create_sq *) nvme_cmd_ker;
 
@@ -1056,9 +1056,8 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
         /* Resetting the unique QID bitmask flag */
         p_cmd_sq->private_sq.bit_mask =
             (p_cmd_sq->private_sq.bit_mask & ~UNIQUE_QID_FLAG);
-    } else if (user_data->cmd_set == CMD_ADMIN &&
-        nvme_gen_cmd->opcode == 0x05) {
 
+    } else if ((user_data->q_id == 0) && (nvme_gen_cmd->opcode == 0x05)) {
         /* Create IOCQ command */
         nvme_create_cq = (struct nvme_create_cq *) nvme_cmd_ker;
 
@@ -1154,9 +1153,8 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
         /* Resetting the unique QID bitmask flag */
         p_cmd_cq->private_cq.bit_mask =
             (p_cmd_cq->private_cq.bit_mask & ~UNIQUE_QID_FLAG);
-    } else if (user_data->cmd_set == CMD_ADMIN &&
-        nvme_gen_cmd->opcode == 0x00) {
 
+    } else if ((user_data->q_id == 0) && (nvme_gen_cmd->opcode == 0x00)) {
         /* Delete IOSQ case */
         nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
 
@@ -1174,9 +1172,7 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
             goto fail_out;
         }
 
-    } else if (user_data->cmd_set == CMD_ADMIN &&
-        nvme_gen_cmd->opcode == 0x04) {
-
+    } else if ((user_data->q_id == 0) && (nvme_gen_cmd->opcode == 0x04)) {
         /* Delete IOCQ case */
         nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
 

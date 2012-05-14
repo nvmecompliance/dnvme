@@ -349,9 +349,6 @@ int driver_log(struct nvme_file *n_file)
                     snprintf(work, SIZE_OF_WORK, IDNT_L4"opcode = %d",
                         pcmd_track_list->opcode);
                     vfs_write(file, work, strlen(work), &pos);
-                    snprintf(work, SIZE_OF_WORK, IDNT_L4"cmd_set = %d",
-                        pcmd_track_list->cmd_set);
-                    vfs_write(file, work, strlen(work), &pos);
                     snprintf(work, SIZE_OF_WORK, IDNT_L5"prp_nonpersist:");
                     vfs_write(file, work, strlen(work), &pos);
                     /* Printing prp_nonpersist memeber variables */

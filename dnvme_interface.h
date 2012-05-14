@@ -101,16 +101,6 @@ enum nvme_state {
     ST_DISABLE_COMPLETELY   /* Completely destroy even Admin Q's */
 };
 
-/**
- * enum providing the definitions of the NVME commands.
- */
-enum nvme_cmds {
-    CMD_ADMIN,   /* Admin Command Set */
-    CMD_NVM,     /* NVM Command Set */
-
-    CMD_FENCE    /* last element for loop over-run */
-};
-
 /* Enum specifying bitmask passed on to IOCTL_SEND_64B */
 enum send_64b_bitmask {
     MASK_PRP1_PAGE = 1, /* PRP1 can point to a physical page */
@@ -132,12 +122,11 @@ struct nvme_64b_send {
     /* 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
     uint8_t data_dir;
 
-    uint8_t       *cmd_buf_ptr;   /* Virtual Address pointer to 64B command */
-    enum nvme_cmds cmd_set;       /* Command set for the cmd_buf command */
-    uint32_t       meta_buf_id;   /* Meta buffer ID when MASK_MPTR is set */
-    uint32_t       data_buf_size; /* Size of Data Buffer */
-    uint16_t       unique_id;     /* Value returned back to user space */
-    uint16_t q_id;      /* Queue ID where the cmd_buf command should go */
+    uint8_t *cmd_buf_ptr;   /* Virtual Address pointer to 64B command */
+    uint32_t meta_buf_id;   /* Meta buffer ID when MASK_MPTR is set */
+    uint32_t data_buf_size; /* Size of Data Buffer */
+    uint16_t unique_id;     /* Value returned back to user space */
+    uint16_t q_id;          /* Queue ID where the cmd_buf command should go */
 };
 
 /**

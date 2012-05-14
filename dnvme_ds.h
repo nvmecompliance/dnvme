@@ -75,9 +75,8 @@ struct nvme_trk_cq {
  */
 struct cmd_track {
     u16 unique_id;      /* driver assigned unique id for a particular cmd */
-    u16 persist_q_id;   /* Q ID used for Create/Delete Queues */
+    u16 persist_q_id;   /* target Q ID used for Create/Delete Q's, never == 0 */
     u8  opcode;         /* command opcode as per spec */
-    enum nvme_cmds   cmd_set;     /* what cmd set does this opcode belong to */
     struct list_head cmd_list_hd; /* link-list using the kernel list */
     struct nvme_prps prp_nonpersist; /* Non persistent PRP entries */
 };

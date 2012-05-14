@@ -29,7 +29,6 @@ void ioctl_create_prp_more_than_two_page(int file_desc)
         return;
     }
     user_cmd.q_id = 0;
-    user_cmd.cmd_set = 0;
     user_cmd.bit_mask = 0;
     user_cmd.cmd_buf_ptr = NULL;
     user_cmd.data_buf_size = 8200; /* more than 2 page */
@@ -57,7 +56,6 @@ void ioctl_create_prp_less_than_one_page(int file_desc)
         return;
     }
     user_cmd.q_id = 0;
-    user_cmd.cmd_set = 0;
     user_cmd.bit_mask = 0;
     user_cmd.cmd_buf_ptr = NULL;
     user_cmd.data_buf_size = 95;
@@ -85,7 +83,6 @@ void ioctl_create_prp_one_page(int file_desc)
         return;
     }
     user_cmd.q_id = 0;
-    user_cmd.cmd_set = 0;
     user_cmd.bit_mask = 0;
     user_cmd.cmd_buf_ptr = NULL;
     user_cmd.data_buf_size = 4096;
@@ -114,7 +111,6 @@ void ioctl_create_list_of_prp(int file_desc)
         return;
     }
     user_cmd.q_id = 0;
-    user_cmd.cmd_set = 0;
     user_cmd.bit_mask = 0;
     user_cmd.cmd_buf_ptr = NULL;
     user_cmd.data_buf_size = (512 * 4096) + 4096;
@@ -141,7 +137,6 @@ void ioctl_create_fill_list_of_prp(int file_desc)
         return;
     }
     user_cmd.q_id = 0;
-    user_cmd.cmd_set = 0;
     user_cmd.bit_mask = 0;
     user_cmd.cmd_buf_ptr = NULL;
     user_cmd.data_buf_size = 1023 * 4096;
@@ -179,8 +174,6 @@ void ioctl_create_discontig_iosq(int file_desc, void *addr)
     user_cmd.cmd_buf_ptr = (u_int8_t *) &create_sq_cmd;
     user_cmd.data_buf_size = DISCONTIG_IO_SQ_SIZE;
     user_cmd.data_buf_ptr = addr;
-
-    user_cmd.cmd_set = CMD_ADMIN;
     user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
@@ -210,8 +203,6 @@ void ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid)
     user_cmd.cmd_buf_ptr = (u_int8_t *) &del_q_cmd;
     user_cmd.data_buf_size = 0;
     user_cmd.data_buf_ptr = NULL;
-
-    user_cmd.cmd_set = CMD_ADMIN;
     user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
@@ -245,8 +236,6 @@ void ioctl_create_contig_iosq(int file_desc)
     user_cmd.cmd_buf_ptr = (u_int8_t *) &create_sq_cmd;
     user_cmd.data_buf_size = 0;
     user_cmd.data_buf_ptr = NULL;
-
-    user_cmd.cmd_set = CMD_ADMIN;
     user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
@@ -278,8 +267,6 @@ void ioctl_create_contig_iocq(int file_desc)
     user_cmd.cmd_buf_ptr = (u_int8_t *) &create_cq_cmd;
     user_cmd.data_buf_size = 0;
     user_cmd.data_buf_ptr = NULL;
-
-    user_cmd.cmd_set = CMD_ADMIN;
     user_cmd.data_dir = 0;
 
     printf("User Call to send command\n");
@@ -312,8 +299,6 @@ void ioctl_create_discontig_iocq(int file_desc, void *addr)
     user_cmd.cmd_buf_ptr = (u_int8_t *) &create_cq_cmd;
     user_cmd.data_buf_size = DISCONTIG_IO_CQ_SIZE;
     user_cmd.data_buf_ptr = addr;
-
-    user_cmd.cmd_set = CMD_ADMIN;
     user_cmd.data_dir = 0;
 
     printf("User Call to send command\n");
@@ -356,8 +341,6 @@ void ioctl_send_identify_cmd(int file_desc, void* addr)
     user_cmd.cmd_buf_ptr = (u_int8_t *) &nvme_identify;
     user_cmd.data_buf_size = 4096;
     user_cmd.data_buf_ptr = addr;
-
-    user_cmd.cmd_set = CMD_ADMIN;
     user_cmd.data_dir = 0;
 
     printf("User Call to send command\n");
@@ -410,8 +393,6 @@ void ioctl_send_nvme_write(int file_desc, void *addr)
     user_cmd.cmd_buf_ptr = (u_int8_t *) &nvme_write;
     user_cmd.data_buf_size = READ_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
-
-    user_cmd.cmd_set = CMD_NVM;
     user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
@@ -462,8 +443,6 @@ void ioctl_send_nvme_read(int file_desc, void* addr)
     user_cmd.cmd_buf_ptr = (u_int8_t *) &nvme_read;
     user_cmd.data_buf_size = READ_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
-
-    user_cmd.cmd_set = CMD_NVM;
     user_cmd.data_dir = 0;
 
     printf("User Call to send command\n");
@@ -517,7 +496,6 @@ void ioctl_send_nvme_write_using_metabuff(int file_desc, uint32_t meta_id, void*
     user_cmd.data_buf_size = READ_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
     user_cmd.meta_buf_id = meta_id;
-    user_cmd.cmd_set = CMD_NVM;
     user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
@@ -568,7 +546,6 @@ void ioctl_send_nvme_read_using_metabuff(int file_desc, void* addr, uint32_t met
     user_cmd.data_buf_size = READ_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
     user_cmd.meta_buf_id = meta_id;
-    user_cmd.cmd_set = CMD_NVM;
     user_cmd.data_dir = 0;
 
     printf("User Call to send command\n");

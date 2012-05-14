@@ -83,8 +83,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
     } else {
         /* Adding node inside cmd_track list for pmetrics_sq */
         ret_code = add_cmd_track_node(pmetrics_sq, persist_q_id, prps,
-            nvme_64b_send->cmd_set, nvme_gen_cmd->opcode,
-            nvme_gen_cmd->command_id);
+            nvme_gen_cmd->opcode, nvme_gen_cmd->command_id);
         if (ret_code < 0) {
             LOG_ERR("Failure to add command track node for\
                 Create Contig Queue Command");
@@ -99,8 +98,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
  * Create and add the node inside command track list
  */
 int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
-    u16 persist_q_id, struct nvme_prps *prps, enum nvme_cmds cmd_type,
-    u8 opcode, u16 cmd_id)
+    u16 persist_q_id, struct nvme_prps *prps, u8 opcode, u16 cmd_id)
 {
     /* pointer to cmd track linked list node */
     struct cmd_track  *pcmd_track_list;
@@ -117,7 +115,6 @@ int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
     pcmd_track_list->unique_id = cmd_id;
     pcmd_track_list->persist_q_id = persist_q_id;
     pcmd_track_list->opcode = opcode;
-    pcmd_track_list->cmd_set = cmd_type;
     /* non_persist PRP's not filled for create/delete contig/discontig IOQ */
     if (!persist_q_id) {
         memcpy(&pcmd_track_list->prp_nonpersist, prps,
@@ -264,8 +261,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
 #endif
 
     /* Adding node inside cmd_track list for pmetrics_sq */
-    err = add_cmd_track_node(pmetrics_sq, persist_q_id, prps,
-        nvme_64b_send->cmd_set, opcode, cmd_id);
+    err = add_cmd_track_node(pmetrics_sq, persist_q_id, prps, opcode, cmd_id);
     if (err < 0) {
         LOG_ERR("Failure to add command track node");
         goto err_unmap_prp_pool;

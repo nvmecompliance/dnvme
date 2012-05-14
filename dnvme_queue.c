@@ -1163,13 +1163,13 @@ static int process_reap_algos(struct cq_completion *cq_entry,
     /* Find command in sq node */
     pcmd_node = find_cmd(pmetrics_sq_node, cq_entry->cmd_identifier);
     if (pcmd_node != NULL) {
-        /* Command Node exists */
-        if (pcmd_node->cmd_set == CMD_ADMIN) {
-            LOG_DBG("Admin Command Set...");
+        /* A command node exists, now is it an admin cmd or not? */
+        if (cq_entry->sq_identifier == 0) {
+            LOG_DBG("Admin cmd set processing");
             err = process_admin_cmd(pmetrics_sq_node, pcmd_node, cq_entry->
                 status_field, pmetrics_device);
         } else {
-            LOG_DBG("NVM or AON Cmd processing...");
+            LOG_DBG("NVM or other cmd set processing");
             err = process_algo_gen(pmetrics_sq_node, pcmd_node->unique_id,
                 pmetrics_device);
         }

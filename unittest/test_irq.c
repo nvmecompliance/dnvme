@@ -151,8 +151,6 @@ int irq_for_io_discontig(int file_desc, int cq_id, int irq_no, int cq_flags,
     user_cmd.cmd_buf_ptr = (u_int8_t *) &create_cq_cmd;
     user_cmd.data_buf_size = PAGE_SIZE_I * 16;
     user_cmd.data_buf_ptr = addr;
-
-    user_cmd.cmd_set = CMD_ADMIN;
     user_cmd.data_dir = 0;
 
     printf("User Call to send command\n");
@@ -187,8 +185,6 @@ int irq_for_io_contig(int file_desc, int cq_id, int irq_no,
     user_cmd.cmd_buf_ptr = (u_int8_t *) &create_cq_cmd;
     user_cmd.data_buf_size = 0;
     user_cmd.data_buf_ptr = NULL;
-
-    user_cmd.cmd_set = CMD_ADMIN;
     user_cmd.data_dir = 0;
 
     printf("User Call to send command\n");
@@ -229,8 +225,6 @@ void send_nvme_read(int file_desc, int sq_id, void* addr)
     user_cmd.cmd_buf_ptr = (u_int8_t *) &nvme_read;
     user_cmd.data_buf_size = READ_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
-
-    user_cmd.cmd_set = CMD_NVM;
     user_cmd.data_dir = 0;
 
     printf("User Call to send command\n");
@@ -271,7 +265,6 @@ void send_nvme_read_mb(int file_desc, int sq_id, void* addr, uint32_t meta_id)
     user_cmd.data_buf_size = READ_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
     user_cmd.meta_buf_id = meta_id;
-    user_cmd.cmd_set = CMD_NVM;
     user_cmd.data_dir = 0;
 
     printf("User Call to send command\n");
@@ -305,8 +298,6 @@ int admin_create_iocq_irq(int fd, int cq_id, int irq_no, int cq_flags)
      user_cmd.cmd_buf_ptr = (u_int8_t *) &create_cq_cmd;
      user_cmd.data_buf_size = 0;
      user_cmd.data_buf_ptr = NULL;
-
-     user_cmd.cmd_set = CMD_ADMIN;
      user_cmd.data_dir = 0;
 
      ret_val = ioctl(fd, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
@@ -387,7 +378,6 @@ int irq_cr_contig_io_sq(int fd, int sq_id, int assoc_cq_id, uint16_t elems)
     user_cmd.cmd_buf_ptr = (u_int8_t *) &create_sq_cmd;
     user_cmd.data_buf_size = 0;
     user_cmd.data_buf_ptr = NULL;
-    user_cmd.cmd_set = CMD_ADMIN;
     user_cmd.data_dir = 2;
 
     printf("User Call to send command\n");
@@ -421,7 +411,6 @@ int irq_cr_disc_io_sq(int fd, void *addr,int sq_id,
     user_cmd.cmd_buf_ptr = (u_int8_t *) &create_sq_cmd;
     user_cmd.data_buf_size = PAGE_SIZE_I * 64;
     user_cmd.data_buf_ptr = addr;
-    user_cmd.cmd_set = CMD_ADMIN;
     user_cmd.data_dir = 2;
 
     ret_val = ioctl(fd, NVME_IOCTL_SEND_64B_CMD, &user_cmd);
