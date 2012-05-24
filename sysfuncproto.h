@@ -144,6 +144,13 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
 int driver_log(struct nvme_file *n_file);
 
 /**
+ * driver_logstr - Driver routine to log a custom string to the system log
+ * @param logStr
+ * @return SUCCESS or FAIL.
+ */
+int driver_logstr(struct nvme_logstr *logStr);
+
+/**
  * deallocate_all_queues - This function will start freeing up the memory for
  * the queues (SQ and CQ) allocated during the prepare queues. This function
  * takes a parameter, ST_DISABLE or ST_DISABLE_COMPLETELY, which identifies if

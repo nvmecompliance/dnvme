@@ -48,6 +48,57 @@ static loff_t irq_nodes_log(struct file *file, loff_t pos,
     struct  metrics_device_list *pmetrics_device_elem);
 
 
+    int driver_logstr(struct nvme_logstr *logStr)
+{
+    u8 *fmtText = NULL;
+    int err = SUCCESS;
+    struct nvme_logstr *user_data = NULL;
+
+
+    /* Allocating memory for user struct in kernel space */
+    user_data = kmalloc(sizeof(struct nvme_logstr), GFP_KERNEL);
+    if (user_data == NULL) {
+        LOG_ERR("Unable to alloc kernel memory to copy user data");
+        err = -ENOMEM;
+        goto fail_out;
+    }
+    if (copy_from_user(user_data, logStr, sizeof(struct nvme_logstr))) {
+        LOG_ERR("Unable to copy from user space");
+        err = -EFAULT;
+        goto fail_out;
+    }
+
+    /* Allocating memory for the data in kernel space, add 1 for a NULL term */
+    fmtText = kmalloc(user_data->slen+1, (GFP_KERNEL | __GFP_ZERO));
+    if (NULL == fmtText) {
+        LOG_ERR("Unable to allocate kernel memory");
+        err = -ENOMEM;
+        goto fail_out;
+    }
+
+    /* Copy userspace buffer to kernel memory */
+    if (copy_from_user(fmtText, user_data->log_str, user_data->slen)) {
+        LOG_ERR("Unable to copy from user space");
+        err = -EFAULT;
+        goto fail_out;
+    }
+
+    /* If the user didn't provide a NULL term, we will to avoid problems */
+    fmtText[user_data->slen] = '\0';
+    LOG_NRM("%s", fmtText);
+    /* Fall through to label in intended */
+
+fail_out:
+    if (fmtText == NULL) {
+        kfree(fmtText);
+    }
+    if (user_data != NULL) {
+        kfree(user_data);
+    }
+    return err;
+}
+
+
 int driver_log(struct nvme_file *n_file)
 {
     struct file *file;  /* File pointer where the data is written */

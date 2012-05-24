@@ -806,6 +806,11 @@ long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
         }
         break;
 
+    case NVME_IOCTL_MARK_SYSLOG:
+        LOG_DBG("NVME_IOCTL_MARK_SYSLOG");
+        err = driver_logstr((struct nvme_logstr *)ioctl_param);
+        break;
+
     default:
         LOG_DBG("Unknown IOCTL");
         break;

@@ -50,7 +50,8 @@ enum {
     NVME_METABUF_CREAT,         /** <enum meta buffer create */
     NVME_METABUF_DEL,           /** <enum meta buffer delete */
     NVME_SET_IRQ,               /** <enum Set desired IRQ scheme */
-    NVME_GET_DEVICE_METRICS     /** <enum Return device metrics to user */
+    NVME_GET_DEVICE_METRICS,    /** <enum Return device metrics to user */
+    NVME_MARK_SYSLOG            /** <enum Inject a marker in the system log */
 };
 
 /**
@@ -215,6 +216,12 @@ enum {
  */
 #define NVME_IOCTL_GET_DEVICE_METRICS _IOWR('N', NVME_GET_DEVICE_METRICS, \
     struct public_metrics_dev)
+
+/**
+ * @def NVME_IOCTL_MARK_SYSLOG
+ * Write a unique string, i.e. mark, into the system log to mark a point in time
+ */
+#define NVME_IOCTL_MARK_SYSLOG _IOW('N', NVME_MARK_SYSLOG, struct nvme_logstr)
 
 
 #endif

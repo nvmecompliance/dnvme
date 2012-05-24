@@ -32,7 +32,7 @@
  * this file to adhere to the new modification and requirements of the API.
  * tnvme refuses to execute when it detects a API version mismatch to dnvme.
  */
-#define    API_VERSION          0x00010401          /* 1.4.1 */
+#define    API_VERSION          0x00010402          /* 1.4.2 */
 
 
 /**
@@ -344,5 +344,14 @@ struct backdoor_inject {
     uint32_t value_mask;  /* Bitmask indicates which 'value' bits to use */
     uint32_t value;       /* Extract spec'd bits; overwrite those exact bits */
 };
+
+/**
+ * Interface structure for marking a unique string to the system log.
+ */
+struct nvme_logstr {
+    uint16_t    slen;       /* sizeof(log_str) */
+    const char *log_str;    /* NULl terminated ASCII logging statement */
+};
+
 
 #endif
