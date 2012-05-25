@@ -25,7 +25,7 @@ DRV_NAME:=dnvme
 # QEMU_ON should be used when running the driver within QEMU, which forces
 # dnvme to convert 8B writes to 2 4B writes patchin a QEMU deficiency
 QEMU_ON:=-DQEMU
-DBG_ON:=-g -DDEBUG
+#DBG_ON:=-g -DDEBUG
 
 EXTRA_CFLAGS+=-Wall $(QEMU_ON) $(DBG_ON) -I$(PWD)/
 
