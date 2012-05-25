@@ -49,13 +49,16 @@ static void pos_cq_head_ptr(struct metrics_cq  *pmetrics_cq_node,
 static int process_reap_algos(struct cq_completion *cq_entry,
     struct  metrics_device_list *pmetrics_device);
 static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
-    struct cmd_track *pcmd_node, u8 status,
+    struct cmd_track *pcmd_node, u8 free_q_entry,
     struct  metrics_device_list *pmetrics_device,
     enum metrics_type type);
 static int process_algo_gen(struct metrics_sq *pmetrics_sq_node,
     u16 cmd_id, struct  metrics_device_list *pmetrics_device);
 static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
     u32 comp_entry_size, u32 *num_reaped, u8 *buffer,
+    struct  metrics_device_list *pmetrics_device);
+static int process_admin_cmd(struct metrics_sq *pmetrics_sq_node,
+    struct cmd_track *pcmd_node, u16 status,
     struct  metrics_device_list *pmetrics_device);
 
 
@@ -1040,7 +1043,7 @@ static int remove_cq_node(struct  metrics_device_list *pmetrics_device,
 
 
 static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
-    struct cmd_track *pcmd_node, u8 status,
+    struct cmd_track *pcmd_node, u8 free_q_entry,
     struct  metrics_device_list *pmetrics_device,
     enum metrics_type type)
 {
@@ -1048,9 +1051,9 @@ static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
 
     LOG_DBG("Persist Q Id = %d", pcmd_node->persist_q_id);
     LOG_DBG("Unique Cmd Id = %d", pcmd_node->unique_id);
-    LOG_DBG("Status = %d", status);
+    LOG_DBG("free_q_entry = %d", free_q_entry);
 
-    if (status != SUCCESS) {
+    if (free_q_entry) {
         if (pcmd_node->persist_q_id == 0) {
             LOG_ERR("Trying to delete ACQ is blunder");
             err = -EINVAL;
@@ -1101,30 +1104,30 @@ static int process_algo_gen(struct metrics_sq *pmetrics_sq_node,
 
 
 static int process_admin_cmd(struct metrics_sq *pmetrics_sq_node,
-    struct cmd_track *pcmd_node, u8 status,
+    struct cmd_track *pcmd_node, u16 status,
     struct  metrics_device_list *pmetrics_device)
 {
     int err = SUCCESS;
 
     switch (pcmd_node->opcode) {
     case 0x00:
-        /* Delete IO SQ */
-        err = process_algo_q(pmetrics_sq_node, pcmd_node, !status,
+        /* Delete IOSQ */
+        err = process_algo_q(pmetrics_sq_node, pcmd_node, (status == 0),
             pmetrics_device, METRICS_SQ);
         break;
     case 0x01:
-        /* Create IO SQ */
-        err = process_algo_q(pmetrics_sq_node, pcmd_node, status,
+        /* Create IOSQ */
+        err = process_algo_q(pmetrics_sq_node, pcmd_node, (status != 0),
             pmetrics_device, METRICS_SQ);
         break;
     case 0x04:
-        /* Delete IO CQ */
-        err = process_algo_q(pmetrics_sq_node, pcmd_node, !status,
+        /* Delete IOCQ */
+        err = process_algo_q(pmetrics_sq_node, pcmd_node, (status == 0),
             pmetrics_device, METRICS_CQ);
         break;
     case 0x05:
-        /* Create IO CQ */
-        err = process_algo_q(pmetrics_sq_node, pcmd_node, status,
+        /* Create IOCQ */
+        err = process_algo_q(pmetrics_sq_node, pcmd_node, (status != 0),
             pmetrics_device, METRICS_CQ);
         break;
     default:
@@ -1145,6 +1148,7 @@ static int process_reap_algos(struct cq_completion *cq_entry,
     struct  metrics_device_list *pmetrics_device)
 {
     int err = SUCCESS;
+    u16 ceStatus;
     struct metrics_sq *pmetrics_sq_node = NULL;
     struct cmd_track *pcmd_node = NULL;
 
@@ -1159,6 +1163,8 @@ static int process_reap_algos(struct cq_completion *cq_entry,
 
     /* Update our understanding of the corresponding hdw SQ head ptr */
     pmetrics_sq_node->public_sq.head_ptr = cq_entry->sq_head_ptr;
+    ceStatus = (cq_entry->status_field & 0x7ff);
+    LOG_DBG("(SCT, SC) = 0x%04X", ceStatus);
 
     /* Find command in sq node */
     pcmd_node = find_cmd(pmetrics_sq_node, cq_entry->cmd_identifier);
@@ -1166,8 +1172,8 @@ static int process_reap_algos(struct cq_completion *cq_entry,
         /* A command node exists, now is it an admin cmd or not? */
         if (cq_entry->sq_identifier == 0) {
             LOG_DBG("Admin cmd set processing");
-            err = process_admin_cmd(pmetrics_sq_node, pcmd_node, cq_entry->
-                status_field, pmetrics_device);
+            err = process_admin_cmd(pmetrics_sq_node, pcmd_node, ceStatus,
+                pmetrics_device);
         } else {
             LOG_DBG("NVM or other cmd set processing");
             err = process_algo_gen(pmetrics_sq_node, pcmd_node->unique_id,
