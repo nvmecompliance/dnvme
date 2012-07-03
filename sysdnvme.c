@@ -182,7 +182,7 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
     /* Map BAR2 & BAR3 (BAR1 for 64-bit); I/O mapped registers  */
     if (check_mem_region(pci_resource_start(pdev, 1),
-        pci_resource_len(pdev, 1))) {
+        pci_resource_len(pdev, 1)) == 0) {
 
         request_mem_region(pci_resource_start(pdev, 1),
             pci_resource_len(pdev, 1), DRV_NAME);
@@ -199,7 +199,7 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
     /* Map BAR4 & BAR5 (BAR2 for 64-bit); MSIX table memory mapped */
     if (check_mem_region(pci_resource_start(pdev, 2),
-        pci_resource_len(pdev, 2))) {
+        pci_resource_len(pdev, 2)) == 0) {
 
         request_mem_region(pci_resource_start(pdev, 2),
             pci_resource_len(pdev, 2), DRV_NAME);
