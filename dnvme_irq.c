@@ -469,26 +469,17 @@ static int validate_irq_inputs(struct metrics_device_list
 static int set_msix(struct metrics_device_list *pmetrics_device_elem,
     u16 num_irqs, struct msix_info *pmsix_tbl_info)
 {
-    int ret_val, i;
+    int ret_val, i, j, tmp_irq;
+    u32 regVal;
     struct msix_entry msix_entries[num_irqs];
     struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
         private_dev.pdev;
     struct irq_track *pirq_node;
 
-    /* Unmask MSI-x and initialize PBA table */
-
-    for (i = 0; i <= pmsix_tbl_info->ts; i++) {
-        if (!(i % 32)) {
-            writel(0, (pmsix_tbl_info->pba_tbl + (i / 32)));
-        }
-        set_msix_mask_bit(pmsix_tbl_info->msix_tbl, i, 0x0);
-    }
     /* Assign irq entries from 0 to n-1 */
     for (i = 0; i < num_irqs; i++) {
         msix_entries[i].entry = i;
     }
-
-
 
     /* Allocate msix interrupts to this device */
     ret_val = pci_enable_msix(pdev, msix_entries, num_irqs);
@@ -509,6 +500,7 @@ static int set_msix(struct metrics_device_list *pmetrics_device_elem,
              * failing here needs freeing up memory previously allocated */
             goto free_msix;
         }
+
         /* Add node after determining interrupt vector req is successful */
         LOG_DBG("Add Node for Vector = %d", msix_entries[i].vector);
         ret_val = add_irq_node(pmetrics_device_elem, msix_entries[i].vector,
@@ -541,6 +533,24 @@ static int set_msix(struct metrics_device_list *pmetrics_device_elem,
         LOG_ERR("Can't add CQ 0 node inside irq_track list");
         goto free_msix;
     }
+
+    /* Check for consistency of IRQ setup */
+    tmp_irq = num_irqs;
+    for (i = 0; i < (((num_irqs - 1) / 32) + 1); i++) {
+        regVal = readl(pmsix_tbl_info->pba_tbl + i);
+        for (j = 0; (j < 32) && (j < tmp_irq); j++) {
+            if (regVal & (1 << j)) {
+                LOG_ERR("PBA bit is set at IRQ init, nothing should be set");
+                ret_val = -EINVAL;
+                goto free_msix;
+            }
+        }
+        tmp_irq -= 32;
+    }
+
+    /* Unmask each irq vector's mask bit in msix table */
+    for (i = 0; i < num_irqs; i++)
+        set_msix_mask_bit(pmsix_tbl_info->msix_tbl, i, 0);
 
     return ret_val;
 
@@ -797,6 +807,7 @@ static void set_msix_mask_bit(u8 __iomem *irq_msixptr, u16 irq_no, u32 flag)
     /* Flush the write */
     readl(msixptr);
 }
+
 
 /*
  * mask_interrupts - Determine the type of masking required based
