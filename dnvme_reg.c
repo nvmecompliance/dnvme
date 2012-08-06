@@ -55,9 +55,9 @@ inline u64 READQ(const volatile void __iomem *addr)
  * supports in-order access.
  */
 int read_nvme_reg_generic(u8 __iomem *bar0,
-    u8 *udata, int nbytes, int offset, enum nvme_acc_type acc_type)
+    u8 *udata, u32 nbytes, u32 offset, enum nvme_acc_type acc_type)
 {
-    int index = 0;
+    u32 index = 0;
     u32 u32data;
     u64 u64data;
     u16 u16data;
@@ -125,9 +125,9 @@ int read_nvme_reg_generic(u8 __iomem *bar0,
  * memory area which supports in-order access.
  */
 int write_nvme_reg_generic(u8 __iomem *bar0,
-    u8 *udata, int nbytes, int offset, enum nvme_acc_type acc_type)
+    u8 *udata, u32 nbytes, u32 offset, enum nvme_acc_type acc_type)
 {
-    int index = 0;
+    u32 index = 0;
     u32 u32data;
     u64 u64data;
     u16 u16data;

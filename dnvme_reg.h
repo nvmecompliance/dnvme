@@ -52,7 +52,7 @@ struct nvme_ctrl_reg {
  *
  */
 int read_nvme_reg_generic(u8 __iomem *bar0,
-        u8 *udata, int nbytes, int offset, enum nvme_acc_type acc_type);
+        u8 *udata, u32 nbytes, u32 offset, enum nvme_acc_type acc_type);
 
 /**
  * write_nvme_reg_generic function is a generic function which
@@ -60,6 +60,6 @@ int read_nvme_reg_generic(u8 __iomem *bar0,
  * user specified offset and bytes.
  */
 int write_nvme_reg_generic(u8 __iomem *bar0,
-        u8 *udata, int nbytes, int offset, enum nvme_acc_type acc_type);
+        u8 *udata, u32 nbytes, u32 offset, enum nvme_acc_type acc_type);
 
 #endif

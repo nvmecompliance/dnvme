@@ -181,13 +181,13 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 
     /* Map BAR2 & BAR3 (BAR1 for 64-bit); I/O mapped registers  */
-    if (check_mem_region(pci_resource_start(pdev, 1),
-        pci_resource_len(pdev, 1)) == 0) {
+    if (check_mem_region(pci_resource_start(pdev, 2),
+        pci_resource_len(pdev, 2)) == 0) {
 
-        request_mem_region(pci_resource_start(pdev, 1),
-            pci_resource_len(pdev, 1), DRV_NAME);
-        bar1 = pci_iomap(pdev, pci_resource_start(pdev, 1),
-            pci_resource_len(pdev, 1));
+        request_mem_region(pci_resource_start(pdev, 2),
+            pci_resource_len(pdev, 2), DRV_NAME);
+        bar1 = pci_iomap(pdev, pci_resource_start(pdev, 2),
+            pci_resource_len(pdev, 2));
         if (bar1 == NULL) {
             LOG_ERR("Mapping BAR1 mem map'd registers failed");
             goto remap_fail_out;
@@ -198,13 +198,13 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 
     /* Map BAR4 & BAR5 (BAR2 for 64-bit); MSIX table memory mapped */
-    if (check_mem_region(pci_resource_start(pdev, 2),
-        pci_resource_len(pdev, 2)) == 0) {
+    if (check_mem_region(pci_resource_start(pdev, 4),
+        pci_resource_len(pdev, 4)) == 0) {
 
-        request_mem_region(pci_resource_start(pdev, 2),
-            pci_resource_len(pdev, 2), DRV_NAME);
-        bar2 = ioremap_nocache(pci_resource_start(pdev, 2),
-            pci_resource_len(pdev, 2));
+        request_mem_region(pci_resource_start(pdev, 4),
+            pci_resource_len(pdev, 4), DRV_NAME);
+        bar2 = ioremap_nocache(pci_resource_start(pdev, 4),
+            pci_resource_len(pdev, 4));
         if (bar2 == NULL) {
             LOG_ERR("Mapping BAR2 mem map'd registers failed");
             goto remap_fail_out;
