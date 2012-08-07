@@ -186,8 +186,7 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
         request_mem_region(pci_resource_start(pdev, 2),
             pci_resource_len(pdev, 2), DRV_NAME);
-        bar1 = pci_iomap(pdev, pci_resource_start(pdev, 2),
-            pci_resource_len(pdev, 2));
+        bar1 = pci_iomap(pdev, 2, pci_resource_len(pdev, 2));
         if (bar1 == NULL) {
             LOG_ERR("Mapping BAR1 mem map'd registers failed");
             goto remap_fail_out;
