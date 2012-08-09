@@ -42,6 +42,10 @@
 
 #define DRV_NAME                "dnvme"
 #define NVME_DEVICE_NAME        "nvme"
+#define BAR0_BAR1               0x0
+#define BAR2_BAR3               0x2
+#define BAR4_BAR5               0x4
+
 
 /* local functions static declarations */
 static int __init dnvme_init(void);
@@ -151,7 +155,7 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
     static int nvme_minor = 0;
     dev_t devno = MKDEV(nvme_major, nvme_minor);
     struct metrics_device_list *pmetrics_device = NULL;
-
+    int bars = 0;
 
     /* Allocate kernel memory for our own internal tracking of this device */
     pmetrics_device = kmalloc(
@@ -162,33 +166,34 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
         goto fail_out;
     }
 
+    /* Get the bitmask value of the BAR's supported by device */
+    bars = pci_select_bars(pdev, IORESOURCE_MEM);
 
     /* Map BAR0 & BAR1 (BAR0 for 64-bit); ctrlr register memory mapped  */
-    if (check_mem_region(pci_resource_start(pdev, 0),
-        pci_resource_len(pdev, 0))) {
-
+    if (request_mem_region(pci_resource_start(pdev, BAR0_BAR1),
+        pci_resource_len(pdev, BAR0_BAR1), DRV_NAME) == NULL) {
         LOG_ERR("BAR0 memory already in use");
         goto fail_out;
     }
-    request_mem_region(pci_resource_start(pdev, 0),
-        pci_resource_len(pdev, 0), DRV_NAME);
-    bar0 = ioremap_nocache(pci_resource_start(pdev, 0),
-        pci_resource_len(pdev, 0));
+
+    bar0 = ioremap_nocache(pci_resource_start(pdev, BAR0_BAR1),
+        pci_resource_len(pdev, BAR0_BAR1));
     if (bar0 == NULL) {
         LOG_ERR("Mapping BAR0 mem map'd registers failed");
         goto remap_fail_out;
     }
 
-
     /* Map BAR2 & BAR3 (BAR1 for 64-bit); I/O mapped registers  */
-    if (check_mem_region(pci_resource_start(pdev, 2),
-        pci_resource_len(pdev, 2)) == 0) {
+    if (bars & BAR2_BAR3) {
+        if (request_mem_region(pci_resource_start(pdev, BAR2_BAR3),
+            pci_resource_len(pdev, BAR2_BAR3), DRV_NAME) == NULL) {
+            LOG_ERR("BAR1 (64 bit) memory already in use");
+            goto remap_fail_out;
+        }
 
-        request_mem_region(pci_resource_start(pdev, 2),
-            pci_resource_len(pdev, 2), DRV_NAME);
-        bar1 = pci_iomap(pdev, 2, pci_resource_len(pdev, 2));
+        bar1 = pci_iomap(pdev, BAR2_BAR3, pci_resource_len(pdev, BAR2_BAR3));
         if (bar1 == NULL) {
-            LOG_ERR("Mapping BAR1 mem map'd registers failed");
+            LOG_ERR("Mapping BAR1 (64 bit) mem map'd registers failed");
             goto remap_fail_out;
         }
     } else {
@@ -197,15 +202,16 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 
     /* Map BAR4 & BAR5 (BAR2 for 64-bit); MSIX table memory mapped */
-    if (check_mem_region(pci_resource_start(pdev, 4),
-        pci_resource_len(pdev, 4)) == 0) {
-
-        request_mem_region(pci_resource_start(pdev, 4),
-            pci_resource_len(pdev, 4), DRV_NAME);
-        bar2 = ioremap_nocache(pci_resource_start(pdev, 4),
-            pci_resource_len(pdev, 4));
+    if (bars & BAR4_BAR5) {
+        if (request_mem_region(pci_resource_start(pdev, BAR4_BAR5),
+            pci_resource_len(pdev, BAR4_BAR5), DRV_NAME) == NULL) {
+            LOG_ERR("BAR2 (64 bit) memory already in use");
+            goto remap_fail_out;
+        }
+        bar2 = ioremap_nocache(pci_resource_start(pdev, BAR4_BAR5),
+            pci_resource_len(pdev, BAR4_BAR5));
         if (bar2 == NULL) {
-            LOG_ERR("Mapping BAR2 mem map'd registers failed");
+            LOG_ERR("Mapping BAR2 (64 bit) mem map'd registers failed");
             goto remap_fail_out;
         }
     } else {
@@ -268,18 +274,18 @@ spcp_fail_out:
 remap_fail_out:
     if (bar0 != NULL) {
         iounmap(bar0);
-        release_mem_region(pci_resource_start(pdev, 0),
-            pci_resource_len(pdev, 0));
+        release_mem_region(pci_resource_start(pdev, BAR0_BAR1),
+            pci_resource_len(pdev, BAR0_BAR1));
     }
     if (bar1 != NULL) {
         iounmap(bar1);
-        release_mem_region(pci_resource_start(pdev, 1),
-            pci_resource_len(pdev, 1));
+        release_mem_region(pci_resource_start(pdev, BAR2_BAR3),
+            pci_resource_len(pdev, BAR2_BAR3));
     }
     if (bar2 != NULL) {
         iounmap(bar2);
-        release_mem_region(pci_resource_start(pdev, 2),
-            pci_resource_len(pdev, 2));
+        release_mem_region(pci_resource_start(pdev, BAR4_BAR5),
+            pci_resource_len(pdev, BAR4_BAR5));
     }
 fail_out:
     if (pmetrics_device != NULL) {
@@ -318,18 +324,18 @@ static void dnvme_remove(struct pci_dev *dev)
             if (pmetrics_device->metrics_device->private_dev.bar0 != NULL) {
                 destroy_dma_pool(pmetrics_device->metrics_device);
                 iounmap(pmetrics_device->metrics_device->private_dev.bar0);
-                release_mem_region(pci_resource_start(pdev, 0),
-                    pci_resource_len(pdev, 0));
+                release_mem_region(pci_resource_start(pdev, BAR0_BAR1),
+                    pci_resource_len(pdev, BAR0_BAR1));
             }
             if (pmetrics_device->metrics_device->private_dev.bar1 != NULL) {
                 iounmap(pmetrics_device->metrics_device->private_dev.bar1);
-                release_mem_region(pci_resource_start(pdev, 1),
-                    pci_resource_len(pdev, 1));
+                release_mem_region(pci_resource_start(pdev, BAR2_BAR3),
+                    pci_resource_len(pdev, BAR2_BAR3));
             }
             if (pmetrics_device->metrics_device->private_dev.bar2 != NULL) {
                 iounmap(pmetrics_device->metrics_device->private_dev.bar2);
-                release_mem_region(pci_resource_start(pdev, 2),
-                    pci_resource_len(pdev, 2));
+                release_mem_region(pci_resource_start(pdev, BAR4_BAR5),
+                    pci_resource_len(pdev, BAR4_BAR5));
             }
 
             /* Free up the linked list */
