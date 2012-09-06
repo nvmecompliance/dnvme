@@ -38,6 +38,7 @@
 #include "dnvme_ds.h"
 #include "dnvme_irq.h"
 
+//#define SQ_HD_FIX_VIRIDENT
 
 int device_status_chk(struct  metrics_device_list *pmetrics_device, int *status)
 {
@@ -943,8 +944,11 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
         (u32)pmetrics_sq->public_sq.head_ptr) {
 
         LOG_ERR("SQ is full");
+        /* SQ head ptr incrementing irregular in virdient H/W */
+#ifdef SQ_HD_FIX_VIRIDENT
         err = -EPERM;
         goto free_out;
+#endif
     }
 
     /* Allocating memory for the command in kernel space */
