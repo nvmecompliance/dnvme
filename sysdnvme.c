@@ -184,7 +184,7 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
     }
 
     /* Map BAR2 & BAR3 (BAR1 for 64-bit); I/O mapped registers  */
-    if (bars & BAR2_BAR3) {
+    if (bars & (1 << BAR2_BAR3)) {
         if (request_mem_region(pci_resource_start(pdev, BAR2_BAR3),
             pci_resource_len(pdev, BAR2_BAR3), DRV_NAME) == NULL) {
             LOG_ERR("BAR1 (64 bit) memory already in use");
@@ -202,7 +202,7 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 
     /* Map BAR4 & BAR5 (BAR2 for 64-bit); MSIX table memory mapped */
-    if (bars & BAR4_BAR5) {
+    if (bars & (1 << BAR4_BAR5)) {
         if (request_mem_region(pci_resource_start(pdev, BAR4_BAR5),
             pci_resource_len(pdev, BAR4_BAR5), DRV_NAME) == NULL) {
             LOG_ERR("BAR2 (64 bit) memory already in use");
