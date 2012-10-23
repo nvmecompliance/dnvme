@@ -29,4 +29,4 @@
 2
 
 #define VER_MINOR    \
-7
+8

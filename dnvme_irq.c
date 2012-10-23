@@ -748,16 +748,16 @@ static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
         break;
     case 0x04:  /* BAR2 (64-bit) */
         if (metrics_device->private_dev.bar2 == NULL) {
-            LOG_DBG("BAR2 not implemented by DUT");
+            LOG_ERR("BAR2 not implemented by DUT");
             return -EINVAL;
         }
         msix_ptr = (metrics_device->private_dev.bar2 + msix_to);
         break;
     case 0x05:
-        LOG_DBG("BAR5 not supported, implies 32-bit, TBIR requiring 64-bit");
+        LOG_ERR("BAR5 not supported, implies 32-bit, TBIR requiring 64-bit");
         return -EINVAL;
     default:
-        LOG_DBG("BAR? not supported, check value in MSIXCAP.MTAB.TBIR");
+        LOG_ERR("BAR? not supported, check value in MSIXCAP.MTAB.TBIR");
         return -EINVAL;
     }
 
@@ -767,16 +767,16 @@ static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
         break;
     case 0x04:  /* BAR2 (64-bit) */
         if (metrics_device->private_dev.bar2 == NULL) {
-            LOG_DBG("BAR2 not implemented by DUT");
+            LOG_ERR("BAR2 not implemented by DUT");
             return -EINVAL;
         }
         pba_ptr = (metrics_device->private_dev.bar2 + msix_pbao);
         break;
     case 0x05:
-        LOG_DBG("BAR5 not supported, implies 32-bit, MPBA requiring 64-bit");
+        LOG_ERR("BAR5 not supported, implies 32-bit, MPBA requiring 64-bit");
         return -EINVAL;
     default:
-        LOG_DBG("BAR? not supported, check value in MSIXCAP.MPBA.PBIR");
+        LOG_ERR("BAR? not supported, check value in MSIXCAP.MPBA.PBIR");
         return -EINVAL;
     }
 
