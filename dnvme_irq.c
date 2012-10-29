@@ -75,6 +75,7 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
     struct nvme_device *pnvme_dev = pmetrics_device_elem->metrics_device;
     struct interrupts *user_data = NULL;
 
+    memset(&msix_tbl_info, 0, sizeof(struct msix_info));
 
     /* Allocating memory for user struct in kernel space */
     user_data = kmalloc(sizeof(struct interrupts), GFP_KERNEL);
@@ -471,10 +472,12 @@ static int set_msix(struct metrics_device_list *pmetrics_device_elem,
 {
     int ret_val, i, j, tmp_irq;
     u32 regVal;
-    struct msix_entry msix_entries[num_irqs];
+    static struct msix_entry msix_entries[MAX_IRQ_VEC_MSI_X];
     struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
         private_dev.pdev;
     struct irq_track *pirq_node;
+
+    memset(msix_entries, 0, sizeof(struct msix_entry) * MAX_IRQ_VEC_MSI_X);
 
     /* Assign irq entries from 0 to n-1 */
     for (i = 0; i < num_irqs; i++) {
