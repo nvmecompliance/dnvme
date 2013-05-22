@@ -220,15 +220,15 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 
     pci_set_master(pdev);
-    if (dma_supported(&pdev->dev, DMA_64BIT_MASK) == 0) {
+    if (dma_supported(&pdev->dev, DMA_BIT_MASK(64)) == 0) {
         LOG_ERR("The device unable to address 64 bits of DMA");
         goto remap_fail_out;
     }
-    else if ((err = dma_set_mask(&pdev->dev, DMA_64BIT_MASK))) {
+    else if ((err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)))) {
         LOG_ERR("Requesting 64 bit DMA has been rejected");
         goto remap_fail_out;
     }
-    else if ((err = dma_set_coherent_mask(&pdev->dev, DMA_64BIT_MASK))) {
+    else if ((err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64)))) {
         LOG_ERR("Requesting 64 bit coherent memory has been rejected");
         goto remap_fail_out;
     }
@@ -344,8 +344,8 @@ static void dnvme_remove(struct pci_dev *dev)
 
             /* Unlock, then destroy all mutexes */
             mutex_unlock(&pmetrics_device->metrics_mtx);
-            mutex_destroy(pmetrics_device->metrics_mtx);
-            mutex_destroy(pmetrics_device->irq_process->irq_track_mtx);
+            mutex_destroy(&pmetrics_device->metrics_mtx);
+            mutex_destroy(&pmetrics_device->irq_process.irq_track_mtx);
 
             device_del(pmetrics_device->metrics_device->private_dev.spcl_dev);
         }

@@ -40,7 +40,7 @@ enum {
     NVME_GET_Q_METRICS,         /** <enum to get the q metrics */
     NVME_CREATE_ADMN_Q,         /** <enum to invoke creation of admin q's */
     NVME_PREPARE_SQ_CREATION,   /** <enum Allocate SQ contig memory */
-    NVME_PREPARE_CQ_CREATION,   /** <enum Allocate SQ contig memory */
+    NVME_PREPARE_CQ_CREATION,   /** <enum Allocate CQ contig memory */
     NVME_RING_SQ_DOORBELL,      /** <enum Ring SQ Tail doorbell */
     NVME_DUMP_METRICS,          /** <enum Log data from Metrics structure */
     NVME_REAP_INQUIRY,          /** <enum Invoke Reap inquiry */
