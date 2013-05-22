@@ -22,9 +22,12 @@ KDIR:=/lib/modules/$(DIST)/build/
 CDIR:=/usr/src/linux-source-3.5.0-generic/debian/scripts/
 SOURCE:=$(shell pwd)
 DRV_NAME:=dnvme
+
 # QEMU_ON should be used when running the driver within QEMU, which forces
 # dnvme to convert 8B writes to 2 4B writes patchin a QEMU deficiency
 #QEMU_ON:=-DQEMU
+
+# Introduces more logging in /var/log/messages; enhances debug but slows down
 #DBG_ON:=-g -DDEBUG
 
 EXTRA_CFLAGS+=-Wall $(QEMU_ON) $(DBG_ON) -I$(PWD)/
