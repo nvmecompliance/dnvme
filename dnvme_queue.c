@@ -74,7 +74,7 @@ int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
 
     /* Read in the value of CAP.TO */
     timer_delay = ((readl(&pnvme_dev->private_dev.ctrlr_regs->cap)
-        >> NVME_TO_SHIFT_MASK) & 0x0f);
+        >> NVME_TO_SHIFT_MASK) & 0xff);
     timer_delay = (timer_delay * CAP_TO_UNIT);
 
     LOG_DBG("Checking NVME Device Status (CSTS.RDY = 1)...");
