@@ -170,4 +170,13 @@ int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
 int reset_isr_flag(struct metrics_device_list *pmetrics_device,
     u16 irq_no);
 
+/* update incr outstanding cmd count
+ */
+int incr_outstanding_cmd_count(struct metrics_device_list *pmetrics_device,
+    u16 irq_no);
+
+int sub_outstanding_cmd_count(struct metrics_device_list *pmetrics_device,
+    u16 irq_no, u32 reaped_count);
+
+
 #endif

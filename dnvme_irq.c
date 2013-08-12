@@ -913,10 +913,15 @@ static void inc_isr_count(struct irq_processing *pirq_process,
     list_for_each_entry(pirq_node, &pirq_process->irq_track_list,
         irq_list_hd) {
         if (irq_no == pirq_node->irq_no) {
-            pirq_node->isr_fired = 1;
-            pirq_node->isr_count++;
-            LOG_DBG("BH:isr count = %d for irq no = %d",
-                pirq_node->isr_count, pirq_node->irq_no);
+            if (pirq_node->outstanding_cmd_count > 0) {
+                pirq_node->isr_fired = 1;
+                pirq_node->isr_count++;
+                LOG_DBG("BH:isr count = %d for irq no = %d",
+                   pirq_node->isr_count, pirq_node->irq_no);
+            } else { 
+                /*unmask ints */
+                unmask_interrupts(irq_no, pirq_process);
+            }
         } /* end of if ivec */
     } /* end of list for irq */
 }
@@ -996,6 +1001,7 @@ static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
     irq_trk_node->irq_no = irq_no;   /* irq number assigned */
     irq_trk_node->isr_fired = 0;
     irq_trk_node->isr_count = 0;
+    irq_trk_node->outstanding_cmd_count = 0;
 
     /* Init irq cq linked list */
     INIT_LIST_HEAD(&irq_trk_node->irq_cq_track);
@@ -1371,6 +1377,38 @@ int reset_isr_flag(struct metrics_device_list *pmetrics_device,
     if (num_rem == 0) {
         pirq_node->isr_fired = 0;
     }
+    return 0;
+}
+
+int incr_outstanding_cmd_count(struct metrics_device_list *pmetrics_device,
+    u16 irq_no) {
+    struct irq_track *pirq_node;
+    pirq_node = find_irq_node(pmetrics_device, irq_no);
+    if (pirq_node == NULL) { 
+        LOG_ERR("Irq node not found for irq_no: %d", irq_no);
+        return -EINVAL;
+    }
+    LOG_DBG("incr outstanding, before: %d irq_no=%d", pirq_node->outstanding_cmd_count, irq_no);
+    pirq_node->outstanding_cmd_count++;
+    return 0;
+}
+
+int sub_outstanding_cmd_count(struct metrics_device_list *pmetrics_device,
+    u16 irq_no, u32 reaped_count) {
+    struct irq_track *pirq_node;
+    pirq_node = find_irq_node(pmetrics_device, irq_no);
+    if (pirq_node == NULL) {
+        LOG_ERR("Irq node not found for irq_no: %d", irq_no);
+        return -EINVAL;
+    }
+    if (pirq_node->outstanding_cmd_count < reaped_count) {
+    	LOG_ERR("outstanding_cmd_count: %d < reaped_count: %d",pirq_node->outstanding_cmd_count, reaped_count);
+        pirq_node->outstanding_cmd_count = 0;
+    } else {
+        pirq_node->outstanding_cmd_count -= reaped_count;
+    }
+    
+    LOG_DBG("sub outstanding, after: %d irq_no=%d reaped= %d", pirq_node->outstanding_cmd_count, irq_no, reaped_count);
     return 0;
 }
 

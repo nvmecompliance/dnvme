@@ -285,7 +285,7 @@ int driver_log(struct nvme_file *n_file)
                     pmetrics_cq_list->private_cq.prp_persist.data_buf_size);
                 vfs_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"sq = 0X%llX",
-                    (u64)pmetrics_cq_list->private_cq.prp_persist.sg);
+                    (u64)pmetrics_cq_list->private_cq.prp_persist.st.sgl);
                 vfs_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"num_map_pgs = 0X%llX",
                     (u64)pmetrics_cq_list->private_cq.prp_persist.num_map_pgs);
@@ -375,7 +375,7 @@ int driver_log(struct nvme_file *n_file)
                     pmetrics_sq_list->private_sq.prp_persist.data_buf_size);
                 vfs_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"sg = 0X%llX",
-                    (u64)pmetrics_sq_list->private_sq.prp_persist.sg);
+                    (u64)pmetrics_sq_list->private_sq.prp_persist.st.sgl);
                 vfs_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"num_map_pgs = 0X%llX",
                     (u64)pmetrics_sq_list->private_sq.prp_persist.num_map_pgs);
@@ -436,7 +436,7 @@ int driver_log(struct nvme_file *n_file)
                          pcmd_track_list->prp_nonpersist.data_buf_size);
                     vfs_write(file, work, strlen(work), &pos);
                     snprintf(work, SIZE_OF_WORK, IDNT_L6"sg = 0X%llX",
-                         (u64)pcmd_track_list->prp_nonpersist.sg);
+                         (u64)pcmd_track_list->prp_nonpersist.st.sgl);
                     vfs_write(file, work, strlen(work), &pos);
                     snprintf(work, SIZE_OF_WORK, IDNT_L6"num_map_pgs = 0X%llX",
                          (u64)pcmd_track_list->prp_nonpersist.num_map_pgs);

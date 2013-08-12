@@ -36,11 +36,11 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
     enum data_buf_type data_buf_type, u16 cmd_id);
 static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
     enum dma_data_direction kernel_dir, unsigned long buf_addr,
-    unsigned total_buf_len, struct scatterlist **sg_list,
-    struct nvme_prps *prps, enum data_buf_type data_buf_type);
+    unsigned total_buf_len, struct nvme_prps *prps,
+    enum data_buf_type data_buf_type);
 static int pages_to_sg(struct page **pages, int num_pages, int buf_offset,
-    unsigned len, struct scatterlist **sg_list);
-static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
+    unsigned len, struct sg_table *sg_tbl);
+static int setup_prps(struct nvme_device *nvme_dev,
     s32 buf_len, struct nvme_prps *prps, u8 cr_io_q,
     enum send_64b_bitmask prp_mask);
 static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
@@ -182,7 +182,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
 {
     int err;
     unsigned long addr;
-    struct scatterlist *sg_list = NULL;
+
     enum dma_data_direction kernel_dir;
 #ifdef TEST_PRP_DEBUG
     int last_prp, i, j;
@@ -207,12 +207,12 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
 
     /* Mapping user pages to dma memory */
     err = map_user_pg_to_dma(nvme_dev, kernel_dir, addr,
-        nvme_64b_send->data_buf_size, &sg_list, prps, data_buf_type);
+        nvme_64b_send->data_buf_size, prps, data_buf_type);
     if (err < 0) {
         return err;
     }
 
-    err = setup_prps(nvme_dev, sg_list, nvme_64b_send->data_buf_size, prps,
+    err = setup_prps(nvme_dev, nvme_64b_send->data_buf_size, prps,
         data_buf_type, nvme_64b_send->bit_mask);
     if (err < 0) {
         unmap_user_pg_to_dma(nvme_dev, prps);
@@ -278,8 +278,8 @@ err_unmap_prp_pool:
 
 static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
     enum dma_data_direction kernel_dir, unsigned long buf_addr,
-    unsigned total_buf_len, struct scatterlist **sg_list,
-    struct nvme_prps *prps, enum data_buf_type data_buf_type)
+    unsigned total_buf_len, struct nvme_prps *prps, 
+    enum data_buf_type data_buf_type)
 {
     int i, err, buf_pg_offset, buf_pg_count, num_sg_entries;
     struct page **pages;
@@ -323,9 +323,9 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
         }
     }
 
-    /* Generate SG List from pinned down pages */
+    /* Generate SG Table from pinned down pages */
     err = pages_to_sg(pages, buf_pg_count, buf_pg_offset,
-        total_buf_len, sg_list);
+        total_buf_len, &prps->st);
     if (err < 0) {
         LOG_ERR("Generation of sg lists failed");
         goto error_unmap;
@@ -334,7 +334,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
     /* Mapping SG List to DMA; NOTE: The sg list could be coalesced by either
      * an IOMMU or the kernel, so checking whether or not the number of
      * mapped entries equate to the number given to the func is not warranted */
-    num_sg_entries = dma_map_sg(&nvme_dev->private_dev.pdev->dev, *sg_list,
+    num_sg_entries = dma_map_sg(&nvme_dev->private_dev.pdev->dev, prps->st.sgl,
         buf_pg_count, kernel_dir);
     LOG_DBG("%d elements mapped out of %d sglist elements",
         num_sg_entries, num_sg_entries);
@@ -349,7 +349,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
     {
         struct scatterlist *work;
         LOG_DBG("Dump sg list after DMA mapping");
-        for (i = 0, work = *sg_list; i < num_sg_entries; i++,
+        for (i = 0, work = prps->st.sgl; i < num_sg_entries; i++,
             work = sg_next(work)) {
 
             LOG_DBG("  sg list: page_link=0x%016lx", work->page_link);
@@ -362,7 +362,6 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
 #endif
 
     /* Fill in nvme_prps */
-    prps->sg = *sg_list;
     prps->num_map_pgs = num_sg_entries;
     prps->vir_kern_addr = vir_kern_addr;
     prps->data_dir = kernel_dir;
@@ -381,32 +380,32 @@ error:
 }
 
 static int pages_to_sg(struct page **pages, int num_pages, int buf_offset,
-    unsigned len, struct scatterlist **sg_list)
-{
+    unsigned len, struct sg_table *sg_tbl)
+{   
     int i;
-    struct scatterlist *sg;
-
-    *sg_list = NULL;
-    sg = kmalloc((num_pages * sizeof(struct scatterlist)), GFP_KERNEL);
-    if (sg == NULL) {
-        LOG_ERR("Memory alloc for sg list failed");
-        return -ENOMEM;
+    int rc;
+    struct scatterlist *sg_cur = NULL, *sg_prv = NULL;
+    
+    rc = sg_alloc_table(sg_tbl, num_pages, GFP_KERNEL);
+    if (rc) {
+        LOG_ERR("Memory alloc for sg table failed rc=0x%X", rc);
+        return rc;
     }
-
+    
     /* Building the SG List */
-    sg_init_table(sg, num_pages);
-    for (i = 0; i < num_pages; i++) {
+    for (i = 0, sg_cur=sg_tbl->sgl; i < num_pages; i++, sg_cur=sg_next(sg_cur)) {
         if (pages[i] == NULL) {
-            kfree(sg);
+            sg_free_table(sg_tbl);
             return -EFAULT;
         }
-        sg_set_page(&sg[i], pages[i],
+        sg_set_page(sg_cur, pages[i],
             min_t(int, len, (PAGE_SIZE - buf_offset)), buf_offset);
         len -= (PAGE_SIZE - buf_offset);
         buf_offset = 0;
+        sg_prv = sg_cur;
     }
-    sg_mark_end(&sg[i - 1]);
-    *sg_list = sg;
+    sg_mark_end(sg_prv);
+    
     return 0;
 }
 
@@ -415,7 +414,7 @@ static int pages_to_sg(struct page **pages, int num_pages, int buf_offset,
  * Sets up PRP'sfrom DMA'ed memory
  * Returns Error codes
  */
-static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
+static int setup_prps(struct nvme_device *nvme_dev,
     s32 buf_len, struct nvme_prps *prps, u8 cr_io_q,
     enum send_64b_bitmask prp_mask)
 {
@@ -426,7 +425,10 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     u32 num_prps, num_pg, prp_page = 0;
     int index, err;
     struct dma_pool *prp_page_pool;
-
+    struct scatterlist *sg;
+    
+    sg = prps->st.sgl;
+    
     dma_addr = sg_dma_address(sg);
     dma_len = sg_dma_len(sg);
     offset = offset_in_page(dma_addr);
@@ -593,7 +595,8 @@ static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
 {
     int i;
     struct page *pg;
-
+    struct scatterlist *sg_cur;
+    
     if (!prps) {
         return;
     }
@@ -604,11 +607,11 @@ static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
     }
 
     if (prps->type != NO_PRP) {
-        dma_unmap_sg(&nvme_dev->private_dev.pdev->dev, prps->sg,
+        dma_unmap_sg(&nvme_dev->private_dev.pdev->dev, prps->st.sgl,
             prps->num_map_pgs, prps->data_dir);
 
-        for (i = 0; i < prps->num_map_pgs; i++) {
-            pg = sg_page(&prps->sg[i]);
+        for (i = 0, sg_cur = prps->st.sgl; i < prps->num_map_pgs; i++, sg_cur = sg_next(sg_cur)) {
+            pg = sg_page(sg_cur);
             if ((prps->data_dir == DMA_FROM_DEVICE) ||
                 (prps->data_dir == DMA_BIDIRECTIONAL)) {
 
@@ -616,7 +619,7 @@ static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
             }
             put_page(pg);
         }
-        kfree(prps->sg);
+        sg_free_table(&prps->st);
     }
 }
 
