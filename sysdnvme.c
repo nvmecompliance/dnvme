@@ -46,6 +46,9 @@
 #define BAR2_BAR3               0x2
 #define BAR4_BAR5               0x4
 
+#ifndef VM_RESERVED
+#define VM_RESERVED (VM_DONTEXPAND | VM_DONTDUMP)
+#endif
 
 /* local functions static declarations */
 static int __init dnvme_init(void);
