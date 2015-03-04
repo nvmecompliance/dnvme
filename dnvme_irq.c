@@ -540,7 +540,7 @@ static int set_msix(struct metrics_device_list *pmetrics_device_elem,
     /* Check for consistency of IRQ setup */
     tmp_irq = num_irqs;
     for (i = 0; i < (((num_irqs - 1) / 32) + 1); i++) {
-        regVal = readl(pmsix_tbl_info->pba_tbl + i);
+        regVal = readl((u32*)pmsix_tbl_info->pba_tbl + i);
         for (j = 0; (j < 32) && (j < tmp_irq); j++) {
             if (regVal & (1 << j)) {
                 LOG_ERR("PBA bit is set at IRQ init, nothing should be set");
