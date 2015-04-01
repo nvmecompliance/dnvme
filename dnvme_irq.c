@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
+#include <linux/version.h>
 
 #include "dnvme_irq.h"
 
@@ -59,6 +60,17 @@ static void set_msix_mask_bit(u8 __iomem *irq_msixptr, u16 irq_no, u32 flag);
 static int work_queue_init(struct irq_processing *pirq_process);
 static int add_wk_item(struct irq_processing *pirq_process,
     u32 int_vec, u16 irq_no);
+/**
+ * Calls a pci_enable_msi function.  Support for pci_enable_msi_block was
+ * dropped in 3.16 in favor of pci_enable_msi_range which was implemented in
+ * 3.13.x kernels (but not 3.13.0).  Calls pci_enable_msi_block for 3.13.x
+ * kernels and earlier or otherwise calls pci_enable_msi_range.
+ * @param dev the pci device structure
+ * @param nvec the number of interrupt vectors to allocate
+ * @return 0 on success, <0 on error, >0 if fewer than nvec interrupts could
+ * be allocated.
+ */
+static int dnvme_pci_enable_msi(struct pci_dev * dev, unsigned int nvec);
 
 
 /*
@@ -635,6 +647,20 @@ free_msis:
     return ret_val;
 }
 
+static int dnvme_pci_enable_msi(struct pci_dev * dev, unsigned int nvec)
+{
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,13,0)
+    return pci_enable_msi_block(dev, nvec);
+#else
+    int ret;
+    ret = pci_enable_msi_range(dev, nvec, nvec);
+    if (ret < nvec)
+        return ret;
+    else
+        return 0;
+#endif
+}
+
 /*
  * Sets up the active IRQ scheme to MSI-Multi. Number of irqs to be allocated
  * is passed as a parameter and After successfully enabling the msi block, this
@@ -658,9 +684,9 @@ static int set_msi_multi(struct metrics_device_list *pmetrics_device_elem,
 
     /* Enable msi-block interrupts for this device. The pdev->irq will
      * be the lowest of the new interrupts assigned to this device. */
-    ret_val = pci_enable_msi_block(pdev, num_irqs);
+    ret_val = dnvme_pci_enable_msi(pdev, num_irqs);
     if (ret_val) {
-        LOG_ERR("Can't enable MSI-Multi");
+        LOG_ERR("Can't enable MSI-Multi with num_irq=%d", num_irqs);
         return ret_val;
     }
     /* Request irq on each interrupt vector */
