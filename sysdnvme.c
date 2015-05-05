@@ -79,11 +79,11 @@ MODULE_VERSION(DRIVER_VERSION_STR(DRIVER_VERSION));
 module_init(dnvme_init);
 module_exit(dnvme_exit);
 
-MODULE_DEVICE_TABLE(pci, dnvme_ids);
 static struct pci_device_id dnvme_ids[] = {
     { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
     { 0, }
 };
+MODULE_DEVICE_TABLE(pci, dnvme_ids);
 
 static struct pci_driver dnvme_driver = {
     .name     = DRV_NAME,
@@ -493,7 +493,7 @@ int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
     struct  metrics_meta *pmeta_data;       /* pointer to meta node         */
     u8 *vir_kern_addr;
     unsigned long pfn = 0;
-    struct inode *inode = filp->f_dentry->d_inode;
+    struct inode *inode = filp->f_path.dentry->d_inode;
     u32 type;
     u32 id;
     u32 mmap_range;
@@ -630,7 +630,7 @@ long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
     int err = -EINVAL;
     struct metrics_device_list *pmetrics_device;
     struct nvme_create_admn_q *create_admn_q;
-    struct inode *inode = inode = filp->f_dentry->d_inode;
+    struct inode *inode = inode = filp->f_path.dentry->d_inode;
 
 
     LOG_DBG("Processing IOCTL 0x%08x", ioctl_num);
