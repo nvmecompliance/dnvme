@@ -649,7 +649,7 @@ free_msis:
 
 static int dnvme_pci_enable_msi(struct pci_dev * dev, unsigned int nvec)
 {
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,13,0)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,14,0)
     return pci_enable_msi_block(dev, nvec);
 #else
     int ret;
