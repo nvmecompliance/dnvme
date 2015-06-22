@@ -136,8 +136,8 @@ int nvme_ctrl_disable(struct metrics_device_list *pmetrics_device)
 {
     struct nvme_device *pnvme_dev;
     u32 regCC;
-    u8 rdy_sts = 0xFF;
-    u8 i;
+    u64 timer_delay;    /* Timer delay read from CAP.TO register */
+    u64 ini, end;
 
     /* get the device from the list */
     pnvme_dev = pmetrics_device->metrics_device;
@@ -146,18 +146,34 @@ int nvme_ctrl_disable(struct metrics_device_list *pmetrics_device)
     regCC &= ~0x1;  /* BIT 0 is set to 0 i.e., CC.EN = 0 */
     writel(regCC, &pnvme_dev->private_dev.ctrlr_regs->cc);
 
-    /* poll until a constant T/O to see when device really becomes disabled */
-    for (i = 0; i < 20; i++) {
-        msleep(100);
-        rdy_sts = readl(&pnvme_dev->private_dev.ctrlr_regs->csts);
-        if (! (rdy_sts & NVME_CSTS_RDY)) {
-            return SUCCESS;
+   /* Check the Timeout flag */
+   /* Read in the value of CAP.TO */
+    timer_delay = ((readl(&pnvme_dev->private_dev.ctrlr_regs->cap)
+        >> NVME_TO_SHIFT_MASK) & 0xff);
+    timer_delay = (timer_delay * CAP_TO_UNIT);
+
+    LOG_DBG("Checking NVME Device Status (CSTS.RDY = 0)...");
+    LOG_DBG("Timer Expires in %lld ms", timer_delay);
+    ini = get_jiffies_64();
+
+    /* Check if the device status set to ready */
+    while ((readl(&pnvme_dev->private_dev.ctrlr_regs->csts) & NVME_CSTS_RDY)) {
+        LOG_DBG("Waiting...");
+        msleep(250);
+        end = get_jiffies_64();
+        if (end < ini) {
+            /* Roll over */
+            ini = ULLONG_MAX - ini;
+            end = ini + end;
+        }
+        /* Check if the time out occured */
+        if (jiffies_to_msecs(end - ini) > timer_delay) {
+	    LOG_ERR("Disabling ctrlr failed. CSTS.RDY=1 after T/O");
+            return -EINVAL;
         }
     }
-    LOG_ERR("Disabling ctrlr failed. CSTS.RDY=1 after T/O");
-    return -EINVAL;
+    return SUCCESS;
 }
-
 
 /*
  * Called to clean up the driver data structures
