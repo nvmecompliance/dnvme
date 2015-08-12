@@ -64,10 +64,10 @@ static int process_admin_cmd(struct metrics_sq *pmetrics_sq_node,
 
 /*
  * nvme_ctrlrdy_capto - This function is used for checking if the controller
- * is ready to process commands after CC.EN is set to 1. This will wait a
+ * has transitioned its state after CC.EN has been toggled.  This will wait a
  * min of CAP.TO seconds before failing.
  */
-int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
+int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev, u8 rdy_val)
 {
     u64 timer_delay;    /* Timer delay read from CAP.TO register */
     u64 ini, end;
@@ -77,12 +77,13 @@ int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
         >> NVME_TO_SHIFT_MASK) & 0xff);
     timer_delay = (timer_delay * CAP_TO_UNIT);
 
-    LOG_DBG("Checking NVME Device Status (CSTS.RDY = 1)...");
+    LOG_DBG("Checking NVME Device Status (CSTS.RDY = %hhu)...", rdy_val);
     LOG_DBG("Timer Expires in %lld ms", timer_delay);
     ini = get_jiffies_64();
 
     /* Check if the device status set to ready */
-    while (!(readl(&pnvme_dev->private_dev.ctrlr_regs->csts) & NVME_CSTS_RDY)) {
+    while ((readl(&pnvme_dev->private_dev.ctrlr_regs->csts) & NVME_CSTS_RDY)
+            != rdy_val) {
         LOG_DBG("Waiting...");
         msleep(250);
         end = get_jiffies_64();
@@ -97,65 +98,36 @@ int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev)
             return -EINVAL;
         }
     }
-    LOG_DBG("NVME Controller is Ready to process commands");
+    LOG_DBG("NVME Controller CSTS.RDY set to %hhu within CAP.TO", rdy_val);
     return SUCCESS;
 }
 
 
 /*
- * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
- * flag and this function which call the timer handler and check for the timer
- * expiration. It returns success if the ctrl in rdy before timeout.
+ * nvme_ctrl_set_state - NVME controller enable/disable function. This will
+ * set the CAP.EN flag to the given state value and this function which call
+ * the timer handler and check for the timer expiration. It returns success if
+ * the ctrl transitions rdy before timeout.
  */
-int nvme_ctrl_enable(struct metrics_device_list *pmetrics_device)
+int nvme_ctrl_set_state(struct metrics_device_list *pmetrics_device, u8 state)
 {
     struct nvme_device *pnvme_dev;
     u32 regCC;
 
+    LOG_ERR("Setting state");
     /* get the device from the list */
     pnvme_dev = pmetrics_device->metrics_device;
 
     regCC = readl(&pnvme_dev->private_dev.ctrlr_regs->cc);
-    regCC |= 0x1;   /* BIT 0 is set to 1 i.e., CC.EN = 1 */
+    regCC = (regCC & ~0x1) | (state & 0x1);  /* Set bit 0 (CC.EN) to state */
     writel(regCC, &pnvme_dev->private_dev.ctrlr_regs->cc);
 
-   /* Check the Timeout flag */
-    if (nvme_ctrlrdy_capto(pnvme_dev) != SUCCESS) {
+    /* Check the Timeout flag */
+    if (nvme_ctrlrdy_capto(pnvme_dev, state) != SUCCESS) {
+        LOG_ERR("CAP_TO returned fail!!!");
         return -EINVAL;
     }
     return SUCCESS;
-}
-
-
-/*
- * nvme_ctrl_disable - NVME controller disable function.This will reset the
- * CAP.EN flag and this function which call the timer handler and check for
- * the timer expiration. It returns success if the ctrl is rdy before timeout.
- */
-int nvme_ctrl_disable(struct metrics_device_list *pmetrics_device)
-{
-    struct nvme_device *pnvme_dev;
-    u32 regCC;
-    u8 rdy_sts = 0xFF;
-    u8 i;
-
-    /* get the device from the list */
-    pnvme_dev = pmetrics_device->metrics_device;
-
-    regCC = readl(&pnvme_dev->private_dev.ctrlr_regs->cc);
-    regCC &= ~0x1;  /* BIT 0 is set to 0 i.e., CC.EN = 0 */
-    writel(regCC, &pnvme_dev->private_dev.ctrlr_regs->cc);
-
-    /* poll until a constant T/O to see when device really becomes disabled */
-    for (i = 0; i < 20; i++) {
-        msleep(100);
-        rdy_sts = readl(&pnvme_dev->private_dev.ctrlr_regs->csts);
-        if (! (rdy_sts & NVME_CSTS_RDY)) {
-            return SUCCESS;
-        }
-    }
-    LOG_ERR("Disabling ctrlr failed. CSTS.RDY=1 after T/O");
-    return -EINVAL;
 }
 
 

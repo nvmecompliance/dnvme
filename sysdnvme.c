@@ -696,12 +696,12 @@ long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
         switch ((enum nvme_state)ioctl_param) {
         case ST_ENABLE:
             LOG_DBG("Enabling the DUT");
-            err = nvme_ctrl_enable(pmetrics_device);
+            err = nvme_ctrl_set_state(pmetrics_device, 1);
             break;
         case ST_DISABLE:
         case ST_DISABLE_COMPLETELY:
             LOG_DBG("Disabling the DUT");
-            if ((err = nvme_ctrl_disable(pmetrics_device)) == SUCCESS) {
+            if ((err = nvme_ctrl_set_state(pmetrics_device, 0)) == SUCCESS) {
                 device_cleanup(pmetrics_device, (enum nvme_state)ioctl_param);
             }
             break;

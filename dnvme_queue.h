@@ -101,23 +101,16 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u32 qsize,
 int create_admn_sq(struct nvme_device *pnvme_dev, u32 qsize,
     struct  metrics_sq  *pmetrics_sq_list);
 
-/**
- * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
- * flag and this function which call the timer handler and check for the timer
- * expiration. It returns success if the ctrl in rdy before timeout.
- * @param  pmetrics_device
- * @return SUCCESS or FAIL
- */
-int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device);
-
-/**
- * nvme_ctrl_disable - NVME controller disable function.This will reset the
- * CAP.EN flag and this function which call the timer handler and check for
- * the timer expiration. It returns success if the ctrl in rdy before timeout.
+/*
+ * nvme_ctrl_set_state - NVME controller enable/disable function. This will
+ * set the CAP.EN flag to the given state value and this function which call
+ * the timer handler and check for the timer expiration. It returns success if
+ * the ctrl transitions rdy before timeout.
  * @param pmetrics_device
+ * @param state the state to set to
  * @return SUCCESS or FAIL
  */
-int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device);
+int nvme_ctrl_set_state(struct metrics_device_list *pmetrics_device, u8 state);
 
 /**
  * device_cleanup - Will clean up all the existing data structs used by driver
