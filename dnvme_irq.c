@@ -414,9 +414,9 @@ static int validate_irq_inputs(struct metrics_device_list
         msi_offset += 2;
         /* Read MSI-MC value */
         pci_read_config_word(pdev, msi_offset, &mc_val);
-        if (irq_new->num_irqs > ((mc_val & MSI_MME) >> 4)) {
+        if (irq_new->num_irqs > (1 << ((mc_val & MSI_MME) >> 4))) { // power 2
             LOG_ERR("IRQs = %d exceed MSI MME = %d", irq_new->num_irqs,
-                ((mc_val & MSI_MME) >> 4));
+                (1 << ((mc_val & MSI_MME) >> 4)));
             /* does not support the requested irq's*/
             return -EINVAL;
         }
