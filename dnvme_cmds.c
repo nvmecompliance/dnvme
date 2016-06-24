@@ -26,6 +26,7 @@
 #include "dnvme_reg.h"
 #include "dnvme_ds.h"
 #include "dnvme_cmds.h"
+#include <linux/vmalloc.h>
 
 
 

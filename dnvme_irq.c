@@ -28,7 +28,9 @@
 #include <linux/version.h>
 
 #include "dnvme_irq.h"
-
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 1, 0)
+    #define IRQF_DISABLED  0
+#endif
 
 /* Static function declarations used for setting interrupt schemes. */
 static int validate_irq_inputs(struct metrics_device_list
