@@ -713,7 +713,7 @@ u32 reap_inquiry(struct metrics_cq  *pmetrics_cq_node, struct device *dev)
             (comp_entry_size * (u32)pmetrics_cq_node->public_cq.head_ptr);
     } else {
         /* do sync and update when pointer to discontig Q is reaped inq */
-        dma_sync_sg_for_cpu(dev, pmetrics_cq_node->private_cq.prp_persist.sg,
+        dma_sync_sg_for_cpu(dev, pmetrics_cq_node->private_cq.prp_persist.st.sgl,
             pmetrics_cq_node->private_cq.prp_persist.num_map_pgs,
             pmetrics_cq_node->private_cq.prp_persist.data_dir);
         queue_base_addr =
@@ -1402,6 +1402,13 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     pos_cq_head_ptr(pmetrics_cq_node, user_data->num_reaped);
     writel(pmetrics_cq_node->public_cq.head_ptr, pmetrics_cq_node->
         private_cq.dbs);
+
+    if ((pmetrics_cq_node->public_cq.irq_enabled == 1) && 
+        (pmetrics_device->metrics_device->public_dev.irq_active.irq_type != INT_NONE)) {
+        sub_outstanding_cmd_count(pmetrics_device, 
+            pmetrics_cq_node->public_cq.irq_no, user_data->num_reaped);
+    }
+
 
     /* if 0 CE in a given cq, then reset the isr flag. */
     if ((pmetrics_cq_node->public_cq.irq_enabled == 1) &&

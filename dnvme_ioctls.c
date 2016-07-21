@@ -848,7 +848,7 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
         LOG_DBG("After tgt_DW%d = 0x%08X", user_data->dword, *tgt_dword);
 
         dma_sync_sg_for_device(pmetrics_device->metrics_device->
-            private_dev.dmadev, pmetrics_sq->private_sq.prp_persist.sg,
+            private_dev.dmadev, pmetrics_sq->private_sq.prp_persist.st.sgl,
             pmetrics_sq->private_sq.prp_persist.num_map_pgs,
             pmetrics_sq->private_sq.prp_persist.data_dir);
 
@@ -883,6 +883,8 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
     struct metrics_sq *p_cmd_sq;
     /* Particular CQ (within CMD) from linked list of Q's for device */
     struct metrics_cq *p_cmd_cq;
+    /* Particular CQ from linked list of SQ's for device */
+    struct metrics_cq *pmetrics_cq;
     /* struct describing the meta buf */
     struct metrics_meta *meta_buf;
     /* Kernel space memory for passed in command */
@@ -1214,10 +1216,18 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
             nvme_cmd_ker, cmd_buf_size);
 
         dma_sync_sg_for_device(pmetrics_device->metrics_device->
-            private_dev.dmadev, pmetrics_sq->private_sq.prp_persist.sg,
+            private_dev.dmadev, pmetrics_sq->private_sq.prp_persist.st.sgl,
             pmetrics_sq->private_sq.prp_persist.num_map_pgs,
             pmetrics_sq->private_sq.prp_persist.data_dir);
     }
+
+
+    pmetrics_cq = find_cq(pmetrics_device, pmetrics_sq->public_sq.cq_id);
+    if ((pmetrics_cq->public_cq.irq_enabled) && (pmetrics_device->
+        metrics_device->public_dev.irq_active.irq_type != INT_NONE)) {
+        incr_outstanding_cmd_count(pmetrics_device, pmetrics_cq->public_cq.irq_no);
+    }
+
 
     /* Increment the Tail pointer and handle roll over conditions */
     pmetrics_sq->public_sq.tail_ptr_virt =

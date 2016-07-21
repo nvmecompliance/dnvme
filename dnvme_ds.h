@@ -48,8 +48,8 @@ struct nvme_prps {
     dma_addr_t first_dma; /* First entry in PRP List */
     /* Size of data buffer for the specific command */
     u32 data_buf_size;
-    /* Pointer to SG list generated */
-    struct scatterlist *sg;
+    /* SG table use sg_next(nvme_prps.st.sgl) */
+    struct sg_table st;
     /* Number of pages mapped to DMA area */
     u32 num_map_pgs;
     /* Address of data buffer for the specific command */
@@ -135,6 +135,7 @@ struct irq_track {
     u32               int_vec;        /* vec number; assigned by OS */
     u8                isr_fired;      /* flag to indicate if irq has fired */
     u32               isr_count;      /* total no. of times irq fired */
+    u32               outstanding_cmd_count; /* count of outstanding cmds */
 };
 
 /*
