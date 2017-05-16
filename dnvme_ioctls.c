@@ -153,7 +153,7 @@ int driver_generic_read(struct rw_generic *nvme_data,
 
                 err = pci_read_config_dword(pdev,
                     (user_data->offset + index), (datap + index));
-                LOG_DBG("Reading PCI offset, data = 0x%x, 0x%x",
+                LOG_DBG("Reading dword PCI offset, data = 0x%x, 0x%x",
                     (user_data->offset + index), *(u32 *)(datap + index));
                 index += 4;
 
@@ -162,14 +162,14 @@ int driver_generic_read(struct rw_generic *nvme_data,
 
                 err = pci_read_config_word(pdev,
                     (user_data->offset + index), (datap + index));
-                LOG_DBG("Reading PCI offset, data = 0x%x, 0x%x",
+                LOG_DBG("Reading word PCI offset, data = 0x%x, 0x%x",
                     (user_data->offset + index), *(u16 *)(datap + index));
                 index += 2;
 
             } else if (user_data->acc_type == BYTE_LEN) {
                 err = pci_read_config_byte(pdev,
                     (user_data->offset + index), (datap + index));
-                LOG_DBG("Reading PCI offset, data = 0x%x, 0x%x",
+                LOG_DBG("Reading PCI byte offset, data = 0x%x, 0x%x",
                     (user_data->offset + index), *(u8 *)(datap + index));
                 index++;
 
@@ -286,7 +286,8 @@ int driver_generic_write(struct rw_generic *nvme_data,
     switch (user_data->type) {
 
     case NVMEIO_PCI_HDR:
-        for (index = 0; index < user_data->nBytes; index++) {
+        // incrementing index specific to acc_type
+        for (index = 0; index < user_data->nBytes;) {
 
             /*
             * write user data to pci config space at location
@@ -297,7 +298,7 @@ int driver_generic_write(struct rw_generic *nvme_data,
 
                 err = pci_write_config_dword(pdev,
                     (user_data->offset + index), *(u32 *)(datap + index));
-                LOG_DBG("Writing to PCI offset, data = 0x%x, 0x%x",
+                LOG_DBG("Writing dword to PCI offset, data = 0x%x, 0x%x",
                     (user_data->offset + index), *(u32 *)(datap + index));
                 index += 4;
 
@@ -306,14 +307,14 @@ int driver_generic_write(struct rw_generic *nvme_data,
 
                 err = pci_write_config_word(pdev,
                     (user_data->offset + index), *(u16 *)(datap + index));
-                LOG_DBG("Writing to PCI offset, data = 0x%x, 0x%x",
+                LOG_DBG("Writing word to PCI offset, data = 0x%x, 0x%x",
                     (user_data->offset + index), *(u16 *)(datap + index));
                 index += 2;
 
             } else if (user_data->acc_type == BYTE_LEN) {
                 err = pci_write_config_byte(pdev,
                     (user_data->offset + index), *(u8 *)(datap + index));
-                LOG_DBG("Writing to PCI offset, data = 0x%x, 0x%x",
+                LOG_DBG("Writing byte to PCI offset, data = 0x%x, 0x%x",
                     (user_data->offset + index), *(u8 *)(datap + index));
                 index++;
 
