@@ -59,12 +59,12 @@ obj-m := dnvme.o
 dnvme-objs += sysdnvme.o dnvme_ioctls.o dnvme_reg.o dnvme_sts_chk.o dnvme_queue.o dnvme_cmds.o dnvme_ds.o dnvme_irq.o
 
 all:
-	make -C $(KDIR) M=$(PWD) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 rpm: rpmzipsrc rpmbuild
 
 clean:
-	make -C $(KDIR) M=$(PWD) clean
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	rm -f doxygen.log
 	rm -rf $(SRCDIR)
 	rm -rf $(RPMFILE)

@@ -472,6 +472,28 @@ static int validate_irq_inputs(struct metrics_device_list
 }
 
 /*
+ * Re-add function to work with newer kernels
+ * pci_enable_msix was removed in 4.12
+*/
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0)
+/*
+ * Returns 0 if the correct number of vectors were allocated
+ * Returns negative on failure
+ * Returns positive if the number requested exceeds available
+*/
+int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec)
+{
+    int ret = pci_enable_msix_range(dev, entries, nvec, nvec);
+    if (ret == nvec) {
+        return 0;
+    }
+
+    return ret;
+}
+#endif
+
+/*
  * Sets up the active IRQ scheme to MSI-X. It gets the number of irqs
  * requested and loops from 0 to n -1 irqs, enables the active irq
  * scheme to MSI-X. Calls request_irq for each irq no and gets the OS
@@ -655,7 +677,11 @@ static int dnvme_pci_enable_msi(struct pci_dev * dev, unsigned int nvec)
     return pci_enable_msi_block(dev, nvec);
 #else
     int ret;
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4,11,0)
     ret = pci_enable_msi_range(dev, nvec, nvec);
+#else
+    ret = pci_alloc_irq_vectors(dev, nvec, nvec, PCI_IRQ_MSI);
+#endif
     if (ret < nvec)
         return ret;
     else
