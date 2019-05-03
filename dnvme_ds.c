@@ -23,6 +23,7 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/fcntl.h>
+#include <linux/version.h>
 #include <asm/uaccess.h>
 #include <asm/segment.h>
 
@@ -98,6 +99,9 @@ fail_out:
     return err;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+    #define vfs_write kernel_write
+#endif
 
 int driver_log(struct nvme_file *n_file)
 {
