@@ -151,7 +151,7 @@ enum {
  * define a unique value for allocating contiguous memory for CQ.
  */
 #define NVME_IOCTL_PREPARE_CQ_CREATION _IOWR('N', NVME_PREPARE_CQ_CREATION, \
-    struct nvme_prep_sq)
+    struct nvme_prep_cq)
 
 /**
  * @def NVME_IOCTL_RING_SQ_DOORBELL
